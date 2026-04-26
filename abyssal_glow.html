@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abyssal Glow - Cropped NFT Edition</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; background: #000; color: #fff; }
+canvas#main { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#startScreen {
+  position: fixed; inset: 0; background: #000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 10; text-align: center;
+  transition: opacity 3s ease-in-out;
+}
+#startScreen h1 { font-size: clamp(2rem,6vw,4rem); font-weight: 200; letter-spacing: .3em; margin-bottom: .6rem; }
+#startScreen p  { font-size: .85rem; color: rgba(255,255,255,.4); letter-spacing: .12em; margin-bottom: 3rem; font-weight: 300; }
+#startBtn {
+  background: transparent; border: 1px solid rgba(255,255,255,.25);
+  color: rgba(255,255,255,.8); padding: .75rem 2.5rem;
+  font-size: .8rem; letter-spacing: .2em; cursor: pointer; transition: all .4s; font-family: inherit;
+}
+#startBtn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.5); color: #fff; }
+#sessionUI {
+  position: fixed; top: 1.5rem; left: 0; right: 0;
+  text-align: center; z-index: 10; display: none; pointer-events: none;
+}
+#pauseBtn {
+  background: transparent; border: 1px solid rgba(255,255,255,.22);
+  color: rgba(255,255,255,.45); padding: .2rem .9rem;
+  font-size: .65rem; letter-spacing: .18em;
+  cursor: pointer; font-family: inherit; transition: all .3s;
+  vertical-align: middle; margin-left: .8rem; pointer-events: all;
+}
+#timer  { font-size: .7rem; letter-spacing: .25em; color: rgba(255,255,255,.3); margin-bottom: .4rem; }
+#status { font-size: .8rem; letter-spacing: .08em; color: rgba(255,255,255,.45); font-weight: 300; }
+
+#souvenirUI {
+  position: fixed; inset: 0; display: none; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 5; pointer-events: none;
+  font-size: 1.5rem; letter-spacing: 0.2em; color: #fff; text-transform: uppercase;
+}
+#captureFrame {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  border: 2px solid rgba(255,255,255,0.8); display: none; z-index: 4;
+  box-shadow: 0 0 0 5000px rgba(0,0,0,0.4);
+}
+
+#qrScreen {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+  display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20;
+  transition: opacity 10s linear;
+}
+#qrBox { background: #fff; padding: 1rem; margin-bottom: 1rem; }
+#qrText { font-size: 0.85rem; color: #fff; letter-spacing: 0.1em; text-align: center; max-width: 80%; }
+#uploadMsg { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-bottom: 1.5rem; letter-spacing: 0.1em; }
+
+input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+<canvas id="main"></canvas>
+<input type="file" id="audioInput" accept="audio/*">
+
+<div id="startScreen">
+  <h1>abyssal<span style="opacity:.28">.</span>glow</h1>
+  <p>wähle musik &middot; gestalte deine tiefe &middot; minte dein nft</p>
+  <button id="startBtn">START</button>
+</div>
+
+<div id="sessionUI">
+  <div id="timer"><span id="timerText">00:00</span> <button id="pauseBtn">PAUSE</button></div>
+  <div id="status">initialisierung...</div>
+</div>
+
+<div id="souvenirUI">Erstelle dein Souvenir in <span id="countdown">5</span></div>
+<div id="captureFrame"></div>
+
+<div id="qrScreen">
+  <div id="uploadMsg">verbinde zur blockchain...</div>
+  <div id="qrBox"></div>
+  <div id="qrText">Scanne den Code um dein Souvenir einzusammeln.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const mainCanvas = document.getElementById('main');
+const ctx = mainCanvas.getContext('2d');
+
+// Offscreen Canvas für das Cropping (3:4 Aufnahme)
+const offscreenCanvas = document.createElement('canvas');
+const offscreenCtx = offscreenCanvas.getContext('2d');
+
+let W, H;
+function resize() { 
+    W = mainCanvas.width = innerWidth; 
+    H = mainCanvas.height = innerHeight; 
+    const frameH = Math.floor(H * 0.7);
+    const frameW = Math.floor(frameH * 0.75);
+    const frame = document.getElementById('captureFrame');
+    frame.style.width = frameW + 'px';
+    frame.style.height = frameH + 'px';
+    
+    // Offscreen Canvas pünktlich anpassen
+    offscreenCanvas.width = frameW;
+    offscreenCanvas.height = frameH;
+}
+resize(); addEventListener('resize', resize);
+
+let running = false, paused = false, canInteract = true;
+let elapsed = 0, lastFrameTime = 0;
+let mouseX = -1000, mouseY = -1000, isMouseDown = false;
+let gesturePath = [];
+let swipeCount = 0, lastSwipeX = 0, lastSwipeDir = 0;
+let recorder = null, chunks = [];
+
+const CLOUD_NAME = 'dvsypjad8';
+const UPLOAD_PRESET = 'artbox';
+const MINT_BASE_URL = 'https://art-box-beta.vercel.app/mint?nft=';
+let sessionId = 'abyssal_' + Math.random().toString(36).substring(2, 10);
+
+// ── FISCHE ──
+const FISH = [];
+const FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00'];
+function createFish(x, y, vx, vy) {
+  if(!canInteract) return;
+  FISH.push({ x: x, y: y, vx: vx, vy: vy, size: 4+Math.random()*5, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)], born: elapsed, flash: 0 });
+}
+function drawFish(t) {
+  const bass = AudioEngine.intensity;
+  for (let i = FISH.length - 1; i >= 0; i--) {
+    const f = FISH[i];
+    f.x += f.vx * (1 + bass * 1.5); f.y += f.vy * (1 + bass * 1.5);
+    if (f.flash > 0) f.flash *= 0.90;
+    const osc = Math.sin(t * 8 + f.born) * 2;
+    const angle = f.vx > 0 ? 0 : Math.PI;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(angle); if (f.vx < 0) ctx.scale(1, -1);
+    ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.5, f.size, 0, 0, Math.PI * 2);
+    ctx.fillStyle = f.color; ctx.shadowBlur = 15 + (f.flash * 40); ctx.shadowColor = f.color;
+    if (f.flash > 0.1) ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-f.size * 1.2, 0); ctx.lineTo(-f.size * 2, osc); ctx.lineTo(-f.size * 2, -osc); ctx.closePath();
+    ctx.fillStyle = f.color; ctx.fill();
+    ctx.restore();
+    if (f.x < -200 || f.x > W + 200 || t - f.born > 25) FISH.splice(i, 1);
+  }
+}
+
+// ── ALGEN & KORALLEN ──
+const ALGAE = [], CORALS = [];
+function initPlants() {
+    for(let i=0; i<12; i++) ALGAE.push({ x: Math.random() * W, segments: 10 + Math.random() * 10, segLen: 5 + Math.random() * 5, w: 10 + Math.random() * 10, phase: Math.random() * Math.PI * 2, color: `hsl(${130 + Math.random() * 40}, 40%, 15%)`, alpha: 0 });
+    for(let i=0; i<8; i++) CORALS.push({ x: Math.random() * W, size: 20 + Math.random() * 30, color: `hsl(${Math.random() * 360}, 60%, 40%)`, alpha: 0, rot: Math.random() * 0.4 - 0.2 });
+}
+function drawPlants(t) {
+    ALGAE.forEach(a => {
+        if (elapsed > 12) a.alpha = Math.min(0.8, a.alpha + 0.005);
+        if (a.alpha <= 0) return;
+        let px = a.x, py = H;
+        ctx.globalAlpha = a.alpha; ctx.shadowBlur = 10; ctx.shadowColor = a.color;
+        for(let i = 1; i <= a.segments; i++) {
+            ctx.beginPath(); ctx.moveTo(px, py);
+            const y = H - (i * a.segLen);
+            const x = a.x + Math.sin(t * 0.3 + a.phase + i * 0.1) * (i * 1.5);
+            ctx.lineWidth = a.w * (1 - i / a.segments) + 0.5;
+            ctx.lineTo(x, y); ctx.strokeStyle = a.color; ctx.lineCap = 'round'; ctx.stroke();
+            px = x; py = y;
+        }
+    });
+    CORALS.forEach(c => {
+        if (elapsed > 40) c.alpha = Math.min(1, c.alpha + 0.005);
+        if (c.alpha <= 0) return;
+        ctx.save(); ctx.translate(c.x, H); ctx.rotate(c.rot); ctx.globalAlpha = c.alpha;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-c.size, -c.size*0.5, 0, -c.size); ctx.quadraticCurveTo(c.size, -c.size*0.5, 0, 0);
+        ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill();
+        ctx.restore();
+    });
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+}
+
+// ── WALE ──
+const WHALES = [];
+function createWhale() {
+  if(!canInteract) return;
+  WHALES.push({ x: -800, y: 100 + Math.random() * (H - 400), w: 500 + Math.random() * 200, h: 60 + Math.random() * 30, speed: (0.5 + Math.random() * 0.3) * 1.5 });
+}
+function drawWhales(t) {
+  WHALES.forEach((w, i) => {
+    w.x += w.speed;
+    const bodySway = Math.sin(t * 0.4) * 15;
+    const flukeSway = Math.sin(t * 0.8) * 35;
+    const finSway = Math.sin(t * 0.8 + 0.3) * 12;
+    ctx.save(); ctx.translate(w.x, w.y + bodySway);
+    const grad = ctx.createLinearGradient(w.w*0.2, -w.h, w.w*0.2, w.h);
+    grad.addColorStop(0, 'rgba(0, 200, 255, 0.5)'); grad.addColorStop(0.4, 'rgba(30, 80, 140, 0.7)'); grad.addColorStop(1, 'rgba(5, 15, 40, 0.6)');
+    ctx.shadowBlur = 30; ctx.shadowColor = 'rgba(0, 150, 255, 0.4)';
+    ctx.beginPath(); ctx.moveTo(w.w, 0); ctx.bezierCurveTo(w.w*0.8, -w.h*1.2, w.w*0.3, -w.h*0.5, 0, flukeSway*0.3);
+    ctx.lineTo(-w.w*0.1, flukeSway - 30); ctx.lineTo(-w.w*0.1, flukeSway + 30); ctx.lineTo(0, flukeSway*0.3);
+    ctx.bezierCurveTo(w.w*0.3, w.h*0.8, w.w*0.8, w.h*1.2, w.w, 0);
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.beginPath(); ctx.arc(w.w * 0.88, -w.h * 0.15, 3, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill();
+    ctx.restore();
+    if (w.x > W + 800) WHALES.splice(i, 1);
+  });
+}
+
+// ── JELLYFISH ──
+const JELLYFISH = [];
+function createJellyfish(x, y) {
+  if(!canInteract) return;
+  JELLYFISH.push({ x: x, y: y, size: 20+Math.random()*20, vx: (Math.random()-0.5)*0.3, vy: -0.2-Math.random()*0.3, alpha: 0, born: elapsed, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)] });
+}
+function drawJellyfish(t) {
+  const bass = AudioEngine.intensity;
+  JELLYFISH.forEach((j, i) => {
+    j.x += j.vx; j.y += j.vy; j.alpha = Math.min(0.6, j.alpha + 0.01);
+    const s = j.size * (Math.sin(t * 1.5 + j.born) * 0.1 + 1);
+    ctx.save(); ctx.globalAlpha = j.alpha; ctx.shadowBlur = 15 + 20 * bass; ctx.shadowColor = j.color; ctx.fillStyle = j.color; ctx.strokeStyle = j.color;
+    ctx.beginPath(); ctx.moveTo(j.x - s, j.y); ctx.bezierCurveTo(j.x - s, j.y - s * 1.2, j.x + s, j.y - s * 1.2, j.x + s, j.y); ctx.lineTo(j.x - s, j.y); ctx.fill();
+    const ts = s * 0.5, bw = s * 0.25;
+    for (let k = 0; k < 4; k++) {
+        let tx = j.x - s * 0.75 + k * ts; let px = tx, py = j.y;
+        for (let seg = 1; seg <= 8; seg++) {
+            const vy = j.y + seg * (s * 0.45); const vx = tx + Math.sin(t * 2.5 + seg * 0.8 + j.born) * (s * 0.35);
+            ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(vx, vy); ctx.lineWidth = bw * (1 - seg / 8) + 1; ctx.stroke();
+            px = vx; py = vy;
+        }
+    }
+    ctx.restore();
+    if (j.y < -300) JELLYFISH.splice(i, 1);
+  });
+}
+
+// ── AUDIO ENGINE ──
+const AudioEngine = {
+  ctx: null, analyser: null, data: null, source: null, gain: null, intensity: 0, active: false,
+  async init(file) {
+    this.ctx = new AudioContext();
+    const audBuf = await this.ctx.decodeAudioData(await file.arrayBuffer());
+    this.source = this.ctx.createBufferSource(); this.source.buffer = audBuf; this.source.loop = true;
+    this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 256;
+    this.data = new Uint8Array(this.analyser.frequencyBinCount);
+    this.gain = this.ctx.createGain(); this.gain.gain.value = 0.75;
+    this.source.connect(this.gain); this.gain.connect(this.analyser); this.analyser.connect(this.ctx.destination);
+    this.source.start(0); this.active = true;
+  },
+  update() {
+    if (!this.active || paused) { this.intensity = 0; return; }
+    this.analyser.getByteFrequencyData(this.data);
+    let sum = 0; for (let i=0; i<12; i++) sum += this.data[i];
+    this.intensity = (sum/12)/255;
+  },
+  fadeOut(duration) {
+    if(this.gain) {
+        const now = this.ctx.currentTime;
+        this.gain.gain.linearRampToValueAtTime(this.gain.gain.value, now);
+        this.gain.gain.linearRampToValueAtTime(0, now + duration);
+    }
+  }
+};
+
+// ── BACKGROUND ──
+function drawSceneBG(t) {
+  const bass = AudioEngine.intensity;
+  let lightMix = Math.min(1, Math.max(0, (elapsed - 23) / 15));
+  let darkMix = (elapsed > 90) ? Math.min(1, (elapsed - 90) / 10) : 0;
+  let finalMix = lightMix * (1 - darkMix);
+  const r = 1*(1-finalMix)+2*finalMix, g = 2*(1-finalMix)+15*finalMix, b = 8*(1-finalMix)+60*finalMix;
+  ctx.fillStyle = `rgb(${r+bass*5}, ${g+bass*5}, ${b+bass*10})`; ctx.fillRect(0, 0, W, H);
+  if (finalMix > 0.1) {
+    ctx.save(); ctx.globalCompositeOperation = 'screen';
+    for (let i=0; i<3; i++) {
+        const grad = ctx.createLinearGradient(0,0,0,H/3);
+        grad.addColorStop(0, `rgba(100,200,255,${0.1*finalMix})`); grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(0,0);
+        for(let x=0; x<=W; x+=50) ctx.lineTo(x, Math.sin(x*0.01+t+i)*30+50+Math.sin(t*0.5+i)*50);
+        ctx.lineTo(W, 0); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+const SNOW_PARTICLES = Array.from({ length: 800 }, () => ({ x: Math.random(), y: Math.random(), size: 0.5+Math.random()*1.5, speedY: 0.0001+Math.random()*0.0004, driftX: (Math.random()-0.5)*0.0001, alpha: 0.1+Math.random()*0.4, isReactive: Math.random()>0.8, glow: 0 }));
+function drawSnow(t) {
+  const bass = AudioEngine.intensity, bloom = (elapsed > 40 && elapsed < 90) ? Math.min(1.5, (elapsed-40)*0.05) : 0;
+  SNOW_PARTICLES.forEach(p => {
+    p.y += p.speedY * (1 + bass*2); p.x += p.driftX;
+    if (p.y > 1.05) { p.y = -0.05; p.x = Math.random(); }
+    if (p.isReactive && bass > 0.45) p.glow = Math.max(p.glow, bass*2);
+    p.glow *= 0.92;
+    const px = p.x*W, py = p.y*H;
+    if (p.glow > 0.05) {
+      ctx.fillStyle = `rgba(180, 255, 255, ${p.alpha+p.glow})`; ctx.shadowBlur = p.glow*(20+bloom*50); ctx.shadowColor = '#00ffff';
+      const s = p.size*(1+p.glow*2); ctx.fillRect(px-s/2, py-s/2, s, s);
+    } else {
+      ctx.shadowBlur = 0; ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`; ctx.fillRect(px, py, p.size, p.size);
+    }
+  });
+}
+
+// ── RECORDING & UPLOAD ──
+async function uploadVideo() {
+  const mintURL = MINT_BASE_URL + sessionId;
+  const msg = document.getElementById('uploadMsg');
+  await new Promise(r => setTimeout(r, 500));
+  if (chunks.length === 0) { msg.textContent = 'Fehler: Keine Daten'; return; }
+  try {
+    msg.textContent = 'lade hoch...';
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const fd = new FormData();
+    fd.append('file', blob, `${sessionId}.webm`);
+    fd.append('upload_preset', UPLOAD_PRESET);
+    fd.append('public_id', sessionId);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.secure_url) msg.textContent = 'upload erfolgreich';
+    else throw new Error("Cloudinary Error");
+  } catch (err) { msg.textContent = 'upload fehlgeschlagen - prüfe verbindung'; }
+  const qrBox = document.getElementById('qrBox');
+  qrBox.innerHTML = "";
+  new QRCode(qrBox, { text: mintURL, width: 160, height: 160 });
+}
+
+// ── MAIN LOOP ──
+let beatActive = false, state = 0;
+function loop(ts) {
+  if (!running) { lastFrameTime = ts; return; }
+  const dt = (ts - lastFrameTime) / 1000;
+  lastFrameTime = ts;
+  if (paused) { requestAnimationFrame(loop); return; }
+  elapsed += dt; AudioEngine.update();
+
+  if (AudioEngine.intensity > 0.55 && !beatActive) {
+      const ftf = [...FISH].sort(() => 0.5-Math.random()).slice(0, 3);
+      ftf.forEach(f => f.flash = 2.0); beatActive = true;
+  } else if (AudioEngine.intensity < 0.45) beatActive = false;
+
+  // Global Fade-out Mix (90s - 100s)
+  let globalAlpha = 1.0;
+  if (elapsed > 90) {
+      globalAlpha = Math.max(0, 1 - (elapsed - 90) / 10);
+      document.getElementById('qrScreen').style.opacity = globalAlpha;
+  }
+  ctx.globalAlpha = globalAlpha;
+
+  drawSceneBG(elapsed);
+  drawSnow(elapsed);
+  drawPlants(elapsed);
+  drawFish(elapsed);
+  drawJellyfish(elapsed);
+  drawWhales(elapsed);
+
+  // Frame an Offscreen Canvas übergeben (Cropping) während der Aufnahme
+  if (recorder && recorder.state === 'recording') {
+      const fH = Math.floor(H * 0.7);
+      const fW = Math.floor(fH * 0.75);
+      const sx = (W - fW) / 2;
+      const sy = (H - fH) / 2;
+      offscreenCtx.drawImage(mainCanvas, sx, sy, fW, fH, 0, 0, fW, fH);
+  }
+
+  // Status & Phases
+  const status = document.getElementById('status');
+  if (elapsed < 12) status.textContent = "der abstieg... (doppelklick: fische)";
+  else if (elapsed < 23) status.textContent = "die tiefe erwacht... (fischschwärme)";
+  else if (elapsed < 30) status.textContent = "wirble für biolumineszenz...";
+  else if (elapsed < 60) status.textContent = "besuch der riesen (wische für wale)";
+  else if (elapsed < 65) status.textContent = "bereite dich vor...";
+  else if (elapsed < 75) status.textContent = "aufnahme läuft...";
+  else status.textContent = "dein souvenir ist bereit";
+
+  if (elapsed >= 60 && elapsed < 65) {
+      document.getElementById('souvenirUI').style.display = 'flex';
+      document.getElementById('countdown').textContent = Math.ceil(65 - elapsed);
+  } else if (elapsed >= 65 && elapsed < 75) {
+      document.getElementById('souvenirUI').style.display = 'none';
+      document.getElementById('captureFrame').style.display = 'block';
+      if (recorder && recorder.state === 'inactive') { chunks = []; recorder.start(); }
+  } else if (elapsed >= 75 && state === 0) {
+      state = 1; canInteract = false;
+      document.getElementById('captureFrame').style.display = 'none';
+      if (recorder && recorder.state === 'recording') {
+          recorder.onstop = () => uploadVideo();
+          recorder.stop();
+      } else uploadVideo();
+      document.getElementById('qrScreen').style.display = 'flex';
+  } else if (elapsed >= 90) {
+      if (state === 1) { state = 2; AudioEngine.fadeOut(10); }
+      if (elapsed >= 100) location.reload();
+  }
+
+  ctx.globalAlpha = 1.0;
+  updateHUD();
+  requestAnimationFrame(loop);
+}
+
+function updateHUD() {
+  const secs = Math.floor(elapsed);
+  document.getElementById('timerText').textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
+}
+
+const startBtn = document.getElementById('startBtn'), audioInput = document.getElementById('audioInput');
+startBtn.addEventListener('click', () => audioInput.click());
+audioInput.addEventListener('change', async (e) => {
+  if (e.target.files.length === 0) return;
+  document.getElementById('startScreen').style.opacity = '0';
+  setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 3000);
+  document.getElementById('sessionUI').style.display = 'block';
+  initPlants();
+  await AudioEngine.init(e.target.files[0]);
+  
+  // Recorder Setup (jetzt vom Offscreen Canvas für das Cropping)
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+  recorder = new MediaRecorder(offscreenCanvas.captureStream(30), { mimeType });
+  recorder.ondataavailable = ev => { if(ev.data.size > 0) chunks.push(ev.data); };
+
+  running = true; lastFrameTime = performance.now(); requestAnimationFrame(loop);
+});
+
+document.getElementById('pauseBtn').addEventListener('click', () => {
+  paused = !paused; document.getElementById('pauseBtn').textContent = paused ? 'WEITER' : 'PAUSE';
+  if (AudioEngine.ctx) { if (paused) AudioEngine.ctx.suspend(); else AudioEngine.ctx.resume(); }
+});
+
+addEventListener('mousemove', e => {
+  if (!isMouseDown || paused || !canInteract) return;
+  const dx = e.clientX - lastSwipeX;
+  gesturePath.push({x: e.clientX, y: e.clientY});
+  if (gesturePath.length > 40) gesturePath.shift();
+  if (elapsed > 23 && checkSwirl()) createJellyfish(e.clientX, e.clientY);
+  const currentDir = dx > 0 ? 1 : -1;
+  if (currentDir !== lastSwipeDir && Math.abs(dx) > 15) {
+      swipeCount++; lastSwipeDir = currentDir;
+      if (swipeCount >= 4 && elapsed > 30) { createWhale(); swipeCount = 0; }
+  }
+  lastSwipeX = e.clientX;
+});
+
+function checkSwirl() {
+  if (gesturePath.length < 20) return false;
+  let rot = 0;
+  for (let i = 2; i < gesturePath.length; i++) {
+    const v1 = {x: gesturePath[i-1].x-gesturePath[i-2].x, y: gesturePath[i-1].y-gesturePath[i-2].y}, v2 = {x: gesturePath[i].x-gesturePath[i-1].x, y: gesturePath[i].y-gesturePath[i-1].y};
+    const angle = Math.atan2(v2.y, v2.x) - Math.atan2(v1.y, v1.x);
+    rot += (angle > Math.PI) ? angle - 2*Math.PI : (angle < -Math.PI) ? angle + 2*Math.PI : angle;
+  }
+  if (Math.abs(rot) > Math.PI * 1.8) { gesturePath = []; return true; }
+  return false;
+}
+
+addEventListener('dblclick', e => {
+  if (!running || paused || !canInteract) return;
+  const dir = Math.random() > 0.5 ? 1 : -1;
+  const count = (elapsed >= 12) ? 3 + Math.floor(Math.random() * 5) : 1;
+  for (let i = 0; i < count; i++) createFish(e.clientX + (Math.random()-0.5)*60, e.clientY + (Math.random()-0.5)*60, dir * (0.15 + Math.random() * 0.15), 0);
+});
+
+addEventListener('mousedown', e => { isMouseDown = true; gesturePath = []; swipeCount = 0; lastSwipeX = e.clientX; });
+addEventListener('mouseup', () => { isMouseDown = false; });
+</script>
+</body>
+</html>

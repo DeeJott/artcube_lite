@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>art.cube lite 2</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; color: #fff; }
+canvas#main { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+video { display: none; }
+#startScreen {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 10; text-align: center;
+}
+#startScreen h1 { font-size: clamp(2rem,6vw,4rem); font-weight: 200; letter-spacing: .25em; margin-bottom: .6rem; }
+#startScreen p  { font-size: .85rem; color: rgba(255,255,255,.4); letter-spacing: .12em; margin-bottom: 3rem; font-weight: 300; }
+#startBtn {
+  background: transparent; border: 1px solid rgba(255,255,255,.25);
+  color: rgba(255,255,255,.8); padding: .75rem 2.5rem;
+  font-size: .8rem; letter-spacing: .2em; cursor: pointer; transition: all .4s; font-family: inherit;
+}
+#startBtn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.5); color: #fff; }
+#sessionUI {
+  position: fixed; top: 1.5rem; left: 0; right: 0;
+  text-align: center; z-index: 10; display: none; pointer-events: none;
+}
+#sessionUI #pauseBtn { pointer-events: all; }
+#pauseBtn {
+  background: transparent; border: 1px solid rgba(255,255,255,.22);
+  color: rgba(255,255,255,.45); padding: .2rem .9rem;
+  font-size: .65rem; letter-spacing: .18em;
+  cursor: pointer; font-family: inherit; transition: all .3s;
+  vertical-align: middle; margin-left: .8rem; display: none;
+}
+#pauseBtn:hover { border-color: rgba(255,255,255,.45); color: rgba(255,255,255,.85); }
+#timer  { font-size: .7rem; letter-spacing: .25em; color: rgba(255,255,255,.3); margin-bottom: .35rem; }
+#status { font-size: .8rem; letter-spacing: .08em; color: rgba(255,255,255,.5); font-weight: 300; }
+#debug  { font-size: .65rem; letter-spacing: .08em; color: rgba(255,255,255,.3); margin-top: .3rem; }
+.rec-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #e84040; margin-right: 7px; vertical-align: middle;
+  animation: blink .9s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+#qrScreen {
+  position: fixed; inset: 0; background: rgba(0,0,0,.88);
+  display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20;
+}
+#qrScreen h2 { font-size: 1rem; font-weight: 300; letter-spacing: .2em; margin-bottom: 2rem; color: rgba(255,255,255,.7); }
+#qrBox { background: #fff; padding: 1.25rem; margin-bottom: 1.5rem; }
+#qrScreen small { font-size: .7rem; color: rgba(255,255,255,.35); letter-spacing: .1em; margin-top: .75rem; display: block; }
+#uploadMsg { font-size: .75rem; color: rgba(255,255,255,.3); letter-spacing: .06em; margin-top: 1rem; }
+#restartBtn {
+  margin-top: 2rem; background: transparent; border: 1px solid rgba(255,255,255,.18);
+  color: rgba(255,255,255,.4); padding: .6rem 2rem; font-size: .75rem;
+  letter-spacing: .15em; cursor: pointer; font-family: inherit; transition: all .3s;
+}
+#restartBtn:hover { border-color: rgba(255,255,255,.38); color: rgba(255,255,255,.72); }
+</style>
+</head>
+<body>
+<canvas id="main"></canvas>
+<video id="webcam" autoplay playsinline muted></video>
+
+<div id="startScreen">
+  <h1>art<span style="opacity:.28">.</span>cube <span style="font-weight:100;opacity:.5">lite</span></h1>
+  <p>wische mit der hand nach rechts &mdash; erzeuge wellen</p>
+  <button id="startBtn">START</button>
+</div>
+
+<div id="sessionUI">
+  <div id="timer"><span id="timerText">00:00</span> <button id="pauseBtn">PAUSE</button></div>
+  <div id="status">wische von links nach rechts</div>
+  <div id="debug">warte...</div>
+</div>
+
+<div id="qrScreen">
+  <h2>dein kunstwerk ist bereit</h2>
+  <div id="qrBox"></div>
+  <small>scanne um dein nft zu minten</small>
+  <div id="uploadMsg">verbinde...</div>
+  <button id="restartBtn">neue session</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const SESSION_DURATION = 40;
+const RECORD_START     = 28;
+const RECORD_DURATION  = 10;
+const CLOUD_NAME       = 'dvsypjad8';
+const UPLOAD_PRESET    = 'artbox';
+const MINT_BASE_URL    = 'https://art-box-beta.vercel.app/mint?nft=';
+
+const mainCanvas = document.getElementById('main');
+const ctx        = mainCanvas.getContext('2d');
+const video      = document.getElementById('webcam');
+let W, H;
+function resize() { W = mainCanvas.width = innerWidth; H = mainCanvas.height = innerHeight; }
+resize(); addEventListener('resize', resize);
+
+let paused = false, running = false, sessionStart = 0, elapsed = 0;
+let recording = false, recorder = null, chunks = [];
+let sessionId = 'artcube_' + crypto.randomUUID().replace(/-/g,'').slice(0,12);
+let qrGenerated = false;
+
+// ── WATER LAYERS ──────────────────────────────────────────────────────
+const WAVE_LAYERS = [
+  { baseY: 0.620, amp: 18, freq: 0.0042, speed: 0.11, r: 120, g: 175, b: 230, a: 0.60 },
+  { baseY: 0.648, amp: 22, freq: 0.0058, speed: 0.17, r:  80, g: 130, b: 200, a: 0.75 },
+  { baseY: 0.672, amp: 26, freq: 0.0051, speed: 0.23, r:  48, g:  95, b: 168, a: 0.83 },
+  { baseY: 0.698, amp: 28, freq: 0.0065, speed: 0.30, r:  28, g:  68, b: 138, a: 0.88 },
+  { baseY: 0.722, amp: 30, freq: 0.0048, speed: 0.37, r:  16, g:  48, b: 108, a: 0.92 },
+  { baseY: 0.750, amp: 28, freq: 0.0070, speed: 0.44, r:   9, g:  30, b:  78, a: 0.95 },
+  { baseY: 0.778, amp: 24, freq: 0.0055, speed: 0.52, r:   5, g:  18, b:  52, a: 0.97 },
+  { baseY: 0.808, amp: 20, freq: 0.0062, speed: 0.60, r:   3, g:  10, b:  32, a: 0.98 },
+  { baseY: 0.840, amp: 16, freq: 0.0045, speed: 0.68, r:   2, g:   6, b:  18, a: 0.99 },
+  { baseY: 0.875, amp: 12, freq: 0.0058, speed: 0.76, r:   1, g:   2, b:   8, a: 1.00 },
+];
+
+const FOAM = Array.from({ length: 180 }, () => ({
+  x: Math.random(), ox: Math.random() * Math.PI * 2,
+  r: 0.8 + Math.random() * 3.5, a: 0.15 + Math.random() * 0.70,
+  speed: 0.6 + Math.random() * 0.8, layer: Math.floor(Math.random() * 4),
+}));
+
+function waveY(x, layer, t) {
+  const p = x * layer.freq - t * layer.speed;
+  return layer.baseY * H
+    + Math.sin(p)            * layer.amp
+    + Math.sin(p * 2 + 0.8) * layer.amp * 0.42
+    + Math.sin(p * 3 + 1.5) * layer.amp * 0.18;
+}
+
+// ── HERO WAVE ─────────────────────────────────────────────────────────
+let heroWave = null;
+
+function triggerHeroWave(originX) {
+  if (heroWave && elapsed - heroWave.born < 1.5) return;
+  heroWave = { originX, born: elapsed };
+}
+
+function drawHeroWave(t) {
+  if (!heroWave) return;
+  const age  = t - heroWave.born;
+  const life = Math.max(0, 1 - age / 4.0);
+  if (life <= 0) return;
+  const step  = 4;
+  const front = age * 0.64;
+  const displace = (x) => {
+    const nx = x / W;
+    const d  = (nx - heroWave.originX) - front;
+    if (d < -0.05 || d > 1.0) return 0;
+    const env = Math.exp(-d * d * 3.5) * life;
+    return -Math.abs(Math.sin(d * 10 - age * 4.5)) * env * 140;
+  };
+  const baseY = 0.66 * H;
+  ctx.beginPath();
+  ctx.moveTo(0, baseY + displace(0));
+  for (let x = step; x <= W; x += step) ctx.lineTo(x, baseY + displace(x));
+  ctx.lineTo(W, H + 2); ctx.lineTo(0, H + 2); ctx.closePath();
+  const topY = baseY - 140 * life;
+  const grad = ctx.createLinearGradient(0, topY, 0, H);
+  grad.addColorStop(0,    `rgba(100,170,240,${(life * 0.75).toFixed(2)})`);
+  grad.addColorStop(0.25, `rgba(40,90,175,${(life * 0.80).toFixed(2)})`);
+  grad.addColorStop(0.6,  `rgba(10,30,80,${(life * 0.85).toFixed(2)})`);
+  grad.addColorStop(1,    `rgba(2,8,20,${(life * 0.90).toFixed(2)})`);
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, baseY + displace(0));
+  for (let x = step; x <= W; x += step) ctx.lineTo(x, baseY + displace(x));
+  ctx.strokeStyle = `rgba(180,225,255,${(life * 0.80).toFixed(2)})`;
+  ctx.lineWidth = 2.0; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, baseY + displace(0) - 3);
+  for (let x = step; x <= W; x += step) ctx.lineTo(x, baseY + displace(x) - 3);
+  ctx.strokeStyle = `rgba(230,248,255,${(life * 0.50).toFixed(2)})`;
+  ctx.lineWidth = 0.8; ctx.stroke();
+}
+
+// ── SWIPE WELLEN ──────────────────────────────────────────────────────
+const swipeWaves = [];
+
+function addSwipeWave(originX, strength) {
+  swipeWaves.push({ originX, strength: Math.max(strength, 0.7), born: elapsed });
+}
+
+function swipeDisplace(x, t) {
+  let total = 0;
+  for (const w of swipeWaves) {
+    const age      = t - w.born;
+    const life     = Math.max(0, 1 - age / 4.0);
+    const normX    = x / W;
+    const front    = age * 0.28;
+    const waveDist = (normX - w.originX) - front;
+    if (waveDist < -0.02 || waveDist > 0.9) continue;
+    const envelope = Math.exp(-waveDist * waveDist * 5) * life;
+    total += Math.sin(waveDist * 14 - age * 5) * envelope * w.strength * 90;
+  }
+  return total;
+}
+
+function pruneWaves(t) {
+  for (let i = swipeWaves.length - 1; i >= 0; i--)
+    if (t - swipeWaves[i].born > 4.5) swipeWaves.splice(i, 1);
+}
+
+// ── WATER DRAW ────────────────────────────────────────────────────────
+function drawWater(t) {
+  const step = 4;
+  pruneWaves(t);
+  for (let li = WAVE_LAYERS.length - 1; li >= 0; li--) {
+    const layer = WAVE_LAYERS[li];
+    const { r, g, b, a } = layer;
+    const swipeFactor = li < 7 ? (1 - li / 8) : 0;
+    const topY = waveY(W / 2, layer, t);
+    const grad = ctx.createLinearGradient(0, topY, 0, H);
+    grad.addColorStop(0,   `rgba(${r},${g},${b},${a})`);
+    grad.addColorStop(0.3, `rgba(${Math.round(r*0.6)},${Math.round(g*0.5)},${Math.round(b*0.7)},${a})`);
+    grad.addColorStop(1,   `rgba(0,0,0,${a})`);
+    ctx.beginPath();
+    ctx.moveTo(0, waveY(0, layer, t) + swipeDisplace(0, t) * swipeFactor);
+    for (let x = step; x <= W; x += step)
+      ctx.lineTo(x, waveY(x, layer, t) + swipeDisplace(x, t) * swipeFactor);
+    ctx.lineTo(W, H + 2); ctx.lineTo(0, H + 2); ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+  }
+  for (let li = 0; li < 5; li++) {
+    const layer = WAVE_LAYERS[li];
+    const brightness  = 1 - li / 5;
+    const swipeFactor = 1 - li / 5;
+    ctx.beginPath();
+    ctx.moveTo(0, waveY(0, layer, t) + swipeDisplace(0, t) * swipeFactor);
+    for (let x = step; x <= W; x += step)
+      ctx.lineTo(x, waveY(x, layer, t) + swipeDisplace(x, t) * swipeFactor);
+    ctx.strokeStyle = `rgba(${Math.round(120+brightness*100)},${Math.round(170+brightness*70)},255,${(0.25+brightness*0.30).toFixed(2)})`;
+    ctx.lineWidth = 0.8 + brightness * 0.6;
+    ctx.lineJoin = 'round'; ctx.stroke();
+  }
+  FOAM.forEach(f => {
+    const wx = f.x * W;
+    const wl = WAVE_LAYERS[Math.min(f.layer, WAVE_LAYERS.length - 1)];
+    const wy = waveY(wx, wl, t) + swipeDisplace(wx, t) * (1 - f.layer / 4)
+             - 1 + Math.sin(t * f.speed + f.ox) * 2;
+    if (wy > H) return;
+    ctx.beginPath();
+    ctx.arc(wx, wy, f.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200,225,255,${f.a.toFixed(2)})`;
+    ctx.fill();
+  });
+}
+
+// ── SWIPE DETECTION ───────────────────────────────────────────────────
+// Ansatz: geglätteter Schwerpunkt der Bewegungsenergie
+// → gibt eine stabile, trackbare X-Position statt springendem Peak
+const motionBuf = document.createElement('canvas');
+const mCtx      = motionBuf.getContext('2d', { willReadFrequently: true });
+let prevData    = null;
+let motionReady = false;
+const GRID_COLS = 24;
+
+let smoothX    = 0.5;   // exponentiell geglättete Position (0=links, 1=rechts)
+let smoothE    = 0;     // geglättete Gesamtenergie
+let posHistory = [];    // [{x, t}]
+let lastSwipeT = -2;
+let dbgBallX   = -1;
+
+function detectSwipe() {
+  if (!video.videoWidth || !video.videoHeight) return;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!motionReady) {
+    motionBuf.width = vw; motionBuf.height = vh;
+    motionReady = true;
+  }
+  mCtx.drawImage(video, 0, 0, vw, vh);
+  const cur = mCtx.getImageData(0, 0, vw, vh);
+  if (!prevData) { prevData = cur; return; }
+
+  // Energie pro Spalte
+  const colE = new Float32Array(GRID_COLS);
+  const cw   = vw / GRID_COLS;
+  for (let col = 0; col < GRID_COLS; col++) {
+    let sum = 0, n = 0;
+    for (let y = 0; y < vh; y += 5) {
+      for (let lx = 0; lx < cw; lx += 5) {
+        const px = Math.min(Math.floor(col * cw + lx), vw - 1);
+        const i  = (y * vw + px) * 4;
+        const dr = cur.data[i]   - prevData.data[i];
+        const dg = cur.data[i+1] - prevData.data[i+1];
+        const db = cur.data[i+2] - prevData.data[i+2];
+        sum += Math.sqrt(dr*dr + dg*dg + db*db) / 441;
+        n++;
+      }
+    }
+    colE[col] = n > 0 ? sum / n : 0;
+  }
+  prevData = cur;
+
+  // Durchschnitt
+  let avgE = 0;
+  for (let c = 0; c < GRID_COLS; c++) avgE += colE[c];
+  avgE /= GRID_COLS;
+
+  // Gesamtenergie glätten
+  const totalE = avgE * GRID_COLS;
+  smoothE = smoothE * 0.75 + totalE * 0.25;
+
+  // Schwerpunkt der Spalten die über dem Durchschnitt liegen
+  let wX = 0, wSum = 0;
+  for (let col = 0; col < GRID_COLS; col++) {
+    const e = colE[col] - avgE;
+    if (e > 0) {
+      const nx = (GRID_COLS - 1 - col) / (GRID_COLS - 1); // gespiegelt
+      wX   += nx * e;
+      wSum += e;
+    }
+  }
+
+  if (wSum < 0.001 || smoothE < 0.03) {
+    document.getElementById('debug').textContent =
+      'keine hand  E:' + smoothE.toFixed(3);
+    dbgBallX = -1;
+    posHistory = [];
+    return;
+  }
+
+  // Rohe Position und Glättung
+  const rawX = wX / wSum;
+  smoothX = smoothX * 0.6 + rawX * 0.4;
+  dbgBallX = smoothX;
+
+  posHistory.push({ x: smoothX, t: elapsed });
+  posHistory = posHistory.filter(p => elapsed - p.t < 0.55);
+
+  let dx = 0, speed = 0;
+  if (posHistory.length >= 4) {
+    const f = posHistory[0];
+    const l = posHistory[posHistory.length - 1];
+    dx    = l.x - f.x;
+    const dt = l.t - f.t;
+    speed = dt > 0 ? dx / dt : 0;
+  }
+
+  document.getElementById('debug').textContent =
+    'x:' + smoothX.toFixed(2) +
+    '  dx:' + dx.toFixed(2) +
+    '  spd:' + speed.toFixed(2) +
+    '  E:' + smoothE.toFixed(3);
+
+  // Swipe ausloesen
+  if (speed > 0.28 && dx > 0.10 && smoothE > 0.04 && elapsed - lastSwipeT > 1.5) {
+    lastSwipeT = elapsed;
+    const originX = posHistory[0].x;
+    addSwipeWave(originX, Math.min(speed, 1.0));
+    triggerHeroWave(originX);
+    smoothX  = 0.5;   // reset damit naechster Swipe sauber startet
+    posHistory = [];
+    document.getElementById('status').textContent = 'welle ausgeloest!';
+    setTimeout(() => {
+      if (elapsed < RECORD_START)
+        document.getElementById('status').textContent = 'wische von links nach rechts';
+    }, 1000);
+  }
+}
+
+// ── BACKGROUND ────────────────────────────────────────────────────────
+function drawBg() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────
+function loop(ts) {
+  if (paused) { requestAnimationFrame(loop); return; }
+  elapsed = (ts - sessionStart) / 1000;
+  drawBg();
+  drawHeroWave(elapsed);
+  drawWater(elapsed);
+  try { detectSwipe(); } catch(e) {}
+
+  // Debug-Kugel (nach detectSwipe damit dbgBallX gesetzt ist)
+  if (dbgBallX >= 0) {
+    ctx.beginPath();
+    ctx.arc(dbgBallX * W, H * 0.35, 16, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fill();
+  }
+
+  updateHUD();
+  const pb = document.getElementById('pauseBtn');
+  pb.style.display = elapsed < RECORD_START ? 'block' : 'none';
+  if (elapsed >= SESSION_DURATION) { endSession(); return; }
+  if (running) requestAnimationFrame(loop);
+}
+window.onerror = () => { if (running) requestAnimationFrame(loop); };
+
+// ── HUD ───────────────────────────────────────────────────────────────
+function updateHUD() {
+  const secs = Math.floor(elapsed);
+  document.getElementById('timerText').textContent =
+    String(Math.floor(secs/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0');
+  const inRec = elapsed >= RECORD_START && elapsed < RECORD_START + RECORD_DURATION;
+  const rem   = Math.ceil(RECORD_START + RECORD_DURATION - elapsed);
+  if (inRec) {
+    document.getElementById('status').innerHTML = `<span class="rec-dot"></span>aufnahme &middot; ${rem}s`;
+    if (!recording) startRecording();
+  } else if (elapsed >= RECORD_START + RECORD_DURATION) {
+    document.getElementById('status').textContent = 'fertig';
+    if (recording) stopRecording();
+  }
+}
+
+// ── RECORDING ─────────────────────────────────────────────────────────
+function startRecording() {
+  if (recording || !recorder) return;
+  recording = true; chunks = []; recorder.start(100);
+}
+function stopRecording() {
+  if (!recording || !recorder) return;
+  recording = false; recorder.stop();
+}
+
+// ── SESSION START ─────────────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', async () => {
+  try {
+    const cam = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+    video.srcObject = cam; await video.play();
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('sessionUI').style.display   = 'block';
+    document.getElementById('status').textContent = 'wische von links nach rechts';
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+    recorder = new MediaRecorder(mainCanvas.captureStream(30), { mimeType });
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    document.getElementById('pauseBtn').style.display = 'block';
+    running = true; sessionStart = performance.now();
+    requestAnimationFrame(loop);
+  } catch {
+    document.querySelector('#startScreen p').textContent = 'kamera-zugriff noetig';
+  }
+});
+
+// ── SESSION END ───────────────────────────────────────────────────────
+function endSession() {
+  running = false; if (recording) stopRecording();
+  setTimeout(() => {
+    document.getElementById('sessionUI').style.display = 'none';
+    document.getElementById('qrScreen').style.display = 'flex';
+    uploadVideo();
+  }, 600);
+}
+
+// ── UPLOAD + QR ───────────────────────────────────────────────────────
+async function uploadVideo() {
+  const msg = document.getElementById('uploadMsg');
+  const mintURL = MINT_BASE_URL + sessionId;
+  try {
+    msg.textContent = 'lade hoch...';
+    const fd = new FormData();
+    fd.append('file', new Blob(chunks, { type: 'video/webm' }), `${sessionId}.webm`);
+    fd.append('upload_preset', UPLOAD_PRESET);
+    fd.append('public_id', sessionId);
+    const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, { method: 'POST', body: fd });
+    const data = await res.json();
+    msg.textContent = data.secure_url ? 'upload erfolgreich' : 'upload fehlgeschlagen';
+  } catch { msg.textContent = 'upload fehlgeschlagen'; }
+  if (!qrGenerated) {
+    qrGenerated = true;
+    new QRCode(document.getElementById('qrBox'), {
+      text: mintURL, width: 200, height: 200,
+      colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+}
+
+// ── PAUSE ─────────────────────────────────────────────────────────────
+document.getElementById('pauseBtn').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? 'WEITER' : 'PAUSE';
+  if (!paused) sessionStart += performance.now() - (sessionStart + elapsed * 1000);
+});
+document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>

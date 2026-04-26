@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>blue depth</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; color: #fff; }
+canvas#main { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+video { display: none; }
+#startScreen {
+  position: fixed; inset: 0; background: #000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 10; text-align: center;
+}
+#startScreen h1 { font-size: clamp(2rem,6vw,4rem); font-weight: 200; letter-spacing: .3em; margin-bottom: .6rem; }
+#startScreen p  { font-size: .85rem; color: rgba(255,255,255,.4); letter-spacing: .12em; margin-bottom: 3rem; font-weight: 300; }
+#startBtn {
+  background: transparent; border: 1px solid rgba(255,255,255,.25);
+  color: rgba(255,255,255,.8); padding: .75rem 2.5rem;
+  font-size: .8rem; letter-spacing: .2em; cursor: pointer; transition: all .4s; font-family: inherit;
+}
+#startBtn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.5); color: #fff; }
+#sessionUI {
+  position: fixed; top: 1.5rem; left: 0; right: 0;
+  text-align: center; z-index: 10; display: none; pointer-events: none;
+}
+#sessionUI #pauseBtn { pointer-events: all; }
+#pauseBtn {
+  background: transparent; border: 1px solid rgba(255,255,255,.22);
+  color: rgba(255,255,255,.45); padding: .2rem .9rem;
+  font-size: .65rem; letter-spacing: .18em;
+  cursor: pointer; font-family: inherit; transition: all .3s;
+  vertical-align: middle; margin-left: .8rem; display: none;
+}
+#pauseBtn:hover { border-color: rgba(255,255,255,.45); color: rgba(255,255,255,.85); }
+#timer  { font-size: .7rem; letter-spacing: .25em; color: rgba(255,255,255,.3); margin-bottom: .4rem; }
+#status { font-size: .8rem; letter-spacing: .08em; color: rgba(255,255,255,.45); font-weight: 300; }
+.rec-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #e84040; margin-right: 7px; vertical-align: middle;
+  animation: blink .9s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+#qrScreen {
+  position: fixed; inset: 0; background: rgba(0,0,0,.90);
+  display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20;
+}
+#qrScreen h2 { font-size: 1rem; font-weight: 300; letter-spacing: .2em; margin-bottom: 2rem; color: rgba(255,255,255,.7); }
+#qrBox { background: #fff; padding: 1.25rem; margin-bottom: 1.5rem; }
+#qrScreen small { font-size: .7rem; color: rgba(255,255,255,.35); letter-spacing: .1em; margin-top: .75rem; display: block; }
+#uploadMsg { font-size: .75rem; color: rgba(255,255,255,.35); letter-spacing: .06em; margin-top: 1rem; }
+#restartBtn {
+  margin-top: 2rem; background: transparent; border: 1px solid rgba(255,255,255,.18);
+  color: rgba(255,255,255,.45); padding: .6rem 2rem; font-size: .75rem;
+  letter-spacing: .15em; cursor: pointer; font-family: inherit; transition: all .3s;
+}
+#restartBtn:hover { border-color: rgba(255,255,255,.4); color: rgba(255,255,255,.8); }
+</style>
+</head>
+<body>
+
+<canvas id="main"></canvas>
+<video id="webcam" autoplay playsinline muted></video>
+
+<div id="startScreen">
+  <h1>art<span style="opacity:.28">.</span>cube <span style="font-weight:100;opacity:.5">lite</span></h1>
+  <p>bewege dich · forme dein kunstwerk · minte es als nft</p>
+  <button id="startBtn">START</button>
+</div>
+
+<div id="sessionUI">
+  <div id="timer"><span id="timerText">00:00</span> <button id="pauseBtn">PAUSE</button></div>
+  <div id="status">bewege dich</div>
+</div>
+
+<div id="qrScreen">
+  <h2>dein kunstwerk ist bereit</h2>
+  <div id="qrBox"></div>
+  <small>scanne um dein nft zu minten</small>
+  <div id="uploadMsg">verbinde...</div>
+  <button id="restartBtn">neue session</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+
+const SESSION_DURATION = 40;
+const RECORD_START     = 28;
+const RECORD_DURATION  = 10;
+const CLOUD_NAME       = 'dvsypjad8';
+const UPLOAD_PRESET    = 'artbox';
+const MINT_BASE_URL    = 'https://art-box-beta.vercel.app/mint?nft=';
+
+const mainCanvas = document.getElementById('main');
+const ctx        = mainCanvas.getContext('2d');
+const video      = document.getElementById('webcam');
+
+let W, H;
+function resize() { W = mainCanvas.width = innerWidth; H = mainCanvas.height = innerHeight; }
+resize(); addEventListener('resize', resize);
+
+let running = false, paused = false;
+let sessionStart = 0, elapsed = 0;
+let recording = false, recorder = null, chunks = [];
+let sessionId = 'artcube_' + crypto.randomUUID().replace(/-/g,'').slice(0,12);
+let qrGenerated = false;
+
+// ── KUGEL ─────────────────────────────────────────────────────────────
+const N = 120;
+const RADIUS = 36;
+const offsets = Array.from({ length: N }, () => {
+  const a = Math.random() * Math.PI * 2;
+  const r = RADIUS * Math.sqrt(Math.random()) * (0.75 + Math.random() * 0.5);
+  return { ox: Math.cos(a) * r, oy: Math.sin(a) * r };
+});
+const trails = Array.from({ length: N }, () => []);
+const TRAIL_MAX = 22;
+
+let ballX = 0, ballY = 0;
+let ballAlpha = 0;
+let lastMoveTime = -999;
+const FADE_DELAY = 2.0;
+const FADE_SPEED = 0.8;
+
+function updateBall(active, tx, ty) {
+  if (active) {
+    ballX = ballAlpha < 0.01 ? tx : ballX * 0.3 + tx * 0.7;
+    ballY = ballAlpha < 0.01 ? ty : ballY * 0.3 + ty * 0.7;
+    lastMoveTime = elapsed;
+    ballAlpha = Math.min(1, ballAlpha + FADE_SPEED / 60);
+    for (let i = 0; i < N; i++) {
+      trails[i].push({ x: ballX + offsets[i].ox, y: ballY + offsets[i].oy });
+      if (trails[i].length > TRAIL_MAX) trails[i].shift();
+    }
+  } else {
+    if (elapsed - lastMoveTime > FADE_DELAY)
+      ballAlpha = Math.max(0, ballAlpha - FADE_SPEED / 60);
+    for (let i = 0; i < N; i++)
+      if (trails[i].length > 0) trails[i].shift();
+  }
+}
+
+function drawBall() {
+  if (ballAlpha <= 0.01) return;
+  const a = ballAlpha;
+  for (let i = 0; i < N; i++) {
+    const t = trails[i];
+    for (let j = 1; j < t.length; j++) {
+      const f = j / t.length;
+      ctx.beginPath();
+      ctx.moveTo(t[j-1].x, t[j-1].y);
+      ctx.lineTo(t[j].x, t[j].y);
+      ctx.strokeStyle = `hsla(184,65%,38%,${f * a * 0.55})`;
+      ctx.lineWidth = f * 1.8;
+      ctx.lineCap = 'round'; ctx.stroke();
+    }
+    const px = ballX + offsets[i].ox;
+    const py = ballY + offsets[i].oy;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.2, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(188,72%,52%,${a * 0.85})`;
+    ctx.fill();
+  }
+}
+
+// ── WASSER-PARTIKEL ────────────────────────────────────────────────────
+// Mehrere Wellenlinien, jede aus kleinen Partikeln
+// 4 Schichten mit unterschiedlichen Frequenzen/Geschwindigkeiten
+const W_LAYERS = [
+  { baseY: 0.665, amp: 14, freq: 0.0040, spd: 0.08, hue: 185, sat: 60, lit: 35, alpha: 0.55 },
+  { baseY: 0.700, amp: 18, freq: 0.0052, spd: 0.12, hue: 188, sat: 65, lit: 40, alpha: 0.65 },
+  { baseY: 0.740, amp: 20, freq: 0.0038, spd: 0.16, hue: 182, sat: 58, lit: 32, alpha: 0.72 },
+  { baseY: 0.785, amp: 16, freq: 0.0058, spd: 0.20, hue: 190, sat: 62, lit: 38, alpha: 0.80 },
+];
+
+// Pro Schicht: dicht gesetzte Partikel entlang der Wellenlinie
+const W_STEP = 6; // horizontaler Abstand zwischen Partikeln
+
+function waveYWater(x, layer, t) {
+  const p = x * layer.freq - t * layer.spd;
+  return layer.baseY * H
+    + Math.sin(p)             * layer.amp
+    + Math.sin(p * 1.7 + 1.1) * layer.amp * 0.45
+    + Math.sin(p * 2.8 + 0.5) * layer.amp * 0.20;
+}
+
+function drawWater(t) {
+  W_LAYERS.forEach(layer => {
+    // Mehrere Partikelreihen pro Schicht (Tiefe simulieren)
+    const rows = [0, 4, 9, 15, 22];
+    rows.forEach((rowOff, ri) => {
+      const depthFade = 1 - ri / rows.length;
+      for (let x = 0; x <= W; x += W_STEP + (Math.random() < 0.3 ? 2 : 0)) {
+        const baseY = waveYWater(x, layer, t) + rowOff;
+        // Leichte vertikale Streuung fuer unrgelmaessigkeit
+        const jitter = (Math.sin(x * 0.4 + t * 0.15 + ri) * 1.2);
+        const py = baseY + jitter;
+        if (py > H) continue;
+        const a = layer.alpha * depthFade;
+        const r = 0.9 + depthFade * 0.8;
+        ctx.beginPath();
+        ctx.arc(x, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${layer.hue},${layer.sat}%,${layer.lit + ri * 4}%,${a})`;
+        ctx.fill();
+      }
+    });
+  });
+}
+
+// ── MAUS ─────────────────────────────────────────────────────────
+let mouseX = -1, mouseY = -1;
+let lastMouseMove = -999;
+
+addEventListener('mousemove', e => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  lastMouseMove = elapsed;
+});
+
+// ── HINTERGRUND ───────────────────────────────────────────────────────
+function drawBg() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0.00, '#0d3d3a');
+  grad.addColorStop(0.20, '#0a2e2c');
+  grad.addColorStop(0.45, '#071f1e');
+  grad.addColorStop(0.70, '#041210');
+  grad.addColorStop(0.88, '#020808');
+  grad.addColorStop(1.00, '#000000');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────
+function loop(ts) {
+  if (paused) { requestAnimationFrame(loop); return; }
+  elapsed = (ts - sessionStart) / 1000;
+  drawBg();
+  drawWater(elapsed);
+
+  const moving = mouseX >= 0 && (elapsed - lastMouseMove) < 0.1;
+  updateBall(moving, mouseX, mouseY);
+  drawBall();
+  updateHUD();
+  if (elapsed >= SESSION_DURATION) { endSession(); return; }
+  if (running) requestAnimationFrame(loop);
+}
+window.onerror = () => { if (running) requestAnimationFrame(loop); };
+
+// ── HUD ───────────────────────────────────────────────────────────────
+function updateHUD() {
+  const secs = Math.floor(elapsed);
+  document.getElementById('timerText').textContent =
+    String(Math.floor(secs/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0');
+  const inRec = elapsed >= RECORD_START && elapsed < RECORD_START + RECORD_DURATION;
+  const rem   = Math.ceil(RECORD_START + RECORD_DURATION - elapsed);
+  if (elapsed < RECORD_START) {
+    document.getElementById('status').textContent = 'bewege dich';
+  } else if (inRec) {
+    document.getElementById('status').innerHTML =
+      `<span class="rec-dot"></span>aufnahme &middot; ${rem}s`;
+    if (!recording) startRecording();
+  } else {
+    document.getElementById('status').textContent = 'fertig — verarbeite...';
+    if (recording) stopRecording();
+  }
+}
+
+// ── RECORDING ─────────────────────────────────────────────────────────
+function startRecording() {
+  if (recording || !recorder) return;
+  recording = true; chunks = []; recorder.start(100);
+}
+function stopRecording() {
+  if (!recording || !recorder) return;
+  recording = false; recorder.stop();
+}
+
+// ── SESSION START ─────────────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('sessionUI').style.display   = 'block';
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+    ? 'video/webm;codecs=vp9' : 'video/webm';
+  recorder = new MediaRecorder(mainCanvas.captureStream(30), { mimeType });
+  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  // Soundtrack
+  const snd = new Audio('media/Contrasts-Dryhope.mp3');
+  snd.loop = true; snd.volume = 0.75; snd.play();
+  document.getElementById('pauseBtn').style.display = 'block';
+  running = true;
+  sessionStart = performance.now();
+  requestAnimationFrame(loop);
+});
+
+// ── SESSION END ───────────────────────────────────────────────────────
+function endSession() {
+  running = false; if (recording) stopRecording();
+  setTimeout(() => {
+    document.getElementById('sessionUI').style.display = 'none';
+    document.getElementById('qrScreen').style.display = 'flex';
+    uploadVideo();
+  }, 600);
+}
+
+// ── UPLOAD + QR ───────────────────────────────────────────────────────
+async function uploadVideo() {
+  const msg = document.getElementById('uploadMsg');
+  const mintURL = MINT_BASE_URL + sessionId;
+  try {
+    msg.textContent = 'lade hoch...';
+    const fd = new FormData();
+    fd.append('file', new Blob(chunks, { type: 'video/webm' }), `${sessionId}.webm`);
+    fd.append('upload_preset', UPLOAD_PRESET);
+    fd.append('public_id', sessionId);
+    const res  = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`,
+      { method: 'POST', body: fd }
+    );
+    const data = await res.json();
+    msg.textContent = data.secure_url ? 'upload erfolgreich' : 'upload fehlgeschlagen';
+  } catch { msg.textContent = 'upload fehlgeschlagen'; }
+  if (!qrGenerated) {
+    qrGenerated = true;
+    new QRCode(document.getElementById('qrBox'), {
+      text: mintURL, width: 200, height: 200,
+      colorDark: '#000', colorLight: '#fff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+}
+
+// ── PAUSE ─────────────────────────────────────────────────────────────
+document.getElementById('pauseBtn').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? 'WEITER' : 'PAUSE';
+  if (!paused) sessionStart += performance.now() - (sessionStart + elapsed * 1000);
+});
+document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+
+</script>
+</body>
+</html>
