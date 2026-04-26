@@ -159,7 +159,8 @@ const SessionManager = {
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
-    const fullLink = window.location.origin + window.location.pathname + '?sid=' + sessionId;
+    const currentUrl = window.location.origin + window.location.pathname;
+    const fullLink = currentUrl + '?sid=' + sessionId;
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
@@ -169,15 +170,14 @@ const SessionManager = {
     document.getElementById('joinBtn').onclick = () => this.join();
     
     const peerId = isHost ? sessionId : null;
-    peer = new Peer(peerId, { debug: 2, config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
+    peer = new Peer(peerId, { debug: 1, config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
     
     peer.on('open', id => { 
-        console.log("Peer offen. Meine ID:", id);
+        console.log("P2P Netz bereit. ID:", id);
         if (!isHost) this.connectToHost(); 
     });
     
     peer.on('connection', c => { 
-        console.log("Eingehende Verbindung von:", c.peer);
         conn = c; 
         this.setupConnection(); 
     });
@@ -190,7 +190,6 @@ const SessionManager = {
   },
 
   connectToHost() {
-    console.log("Verbinde zu Host:", sessionId);
     conn = peer.connect(sessionId, { reliable: true });
     this.setupConnection();
     setTimeout(() => { 
@@ -203,16 +202,20 @@ const SessionManager = {
 
   setupConnection() {
     conn.on('open', () => {
-      console.log("Verbindung steht!");
+      console.log("Verbindung zum Partner offen.");
       this.retryCount = 0;
+      // Falls ich schon beigetreten bin, schicke meine Daten sofort
       if (this.joined) this.sendStatus('online');
     });
+
     conn.on('data', (data) => {
-      console.log("Daten empfangen:", data);
+      console.log("Nachricht erhalten:", data);
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status, data.role);
-        // Wenn ich Host bin und ein Gast online geht, antworte ich sofort mit meinem Status
-        if (isHost && data.status === 'online') this.sendStatus('online');
+        // Echo-Logik: Wenn jemand online geht, schicke ich meinen Status als Bestätigung zurück
+        if (data.status === 'online' && this.joined) {
+            this.sendStatus('online');
+        }
       }
       if (data.type === 'START_EXPERIENCE') startExperience(true);
       if (data.type === 'INTERACTION') {
@@ -221,10 +224,15 @@ const SessionManager = {
         if (data.kind === 'WHALE') createWhale(false);
       }
     });
-    conn.on('close', () => { 
-        if (isHost) this.updateUser(this.guest.name, 'offline', 'guest');
-        else this.updateUser(this.host.name, 'offline', 'host');
-    });
+
+    conn.on('close', () => this.handleDisconnect());
+    conn.on('error', () => this.handleDisconnect());
+  },
+
+  handleDisconnect() {
+    console.log("Verbindung verloren.");
+    if (isHost) this.updateUser(this.guest.name, 'offline', 'guest');
+    else this.updateUser(this.host.name, 'offline', 'host');
   },
 
   sendStatus(status) { 
@@ -241,7 +249,10 @@ const SessionManager = {
     localStorage.setItem('artcube_name', myName);
     this.joined = true;
     
+    // UI lokal aktualisieren
     this.updateUser(myName, 'online', isHost ? 'host' : 'guest');
+    
+    // Status an Partner senden
     this.sendStatus('online');
     
     document.getElementById('userName').disabled = true;
@@ -261,20 +272,17 @@ const SessionManager = {
   },
 
   updateUI() {
-    const s1 = document.getElementById('user1');
-    const s2 = document.getElementById('user2');
-    
-    // Slot 1: Host
+    // Host Slot
     document.getElementById('name1').textContent = this.host.name;
     document.getElementById('statText1').textContent = this.host.status;
     document.getElementById('dot1').className = 'status-dot ' + (this.host.status === 'offline' ? 'offline' : '');
-    s1.classList.add('visible');
+    document.getElementById('user1').classList.add('visible');
 
-    // Slot 2: Gast
+    // Gast Slot
     document.getElementById('name2').textContent = this.guest.name;
     document.getElementById('statText2').textContent = this.guest.status;
     document.getElementById('dot2').className = 'status-dot ' + (this.guest.status === 'offline' ? 'offline' : '');
-    s2.classList.add('visible');
+    document.getElementById('user2').classList.add('visible');
   }
 };
 SessionManager.init();
