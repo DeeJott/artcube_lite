@@ -205,9 +205,9 @@ const SessionManager = {
       if (data.type === 'INTERACTION') {
         const lx = data.rx * W;
         const ly = data.ry * H;
-        if (data.kind === 'FISH_SCHOOL') createFishSchool(lx, ly, data.dir, false);
-        if (data.kind === 'JELLYFISH') createJellyfish(lx, ly, false, data.colorIdx);
-        if (data.kind === 'WHALE') createWhale(false, data.ry);
+        if (data.kind === 'FISH_SCHOOL') createFishSchool(lx, ly, data.dir, false, data.fishArray);
+        if (data.kind === 'JELLYFISH') createJellyfish(lx, ly, false, data.colorIdx, data.vx, data.vy);
+        if (data.kind === 'WHALE') createWhale(false, data.ry, data.speed);
       }
     });
     conn.on('close', () => this.handleDisconnect());
@@ -277,10 +277,7 @@ let elapsed = 0, lastFrameTime = 0, isMouseDown = false;
 let lastSwipeX = 0, lastSwipeDir = 0, swipeCount = 0, gesturePath = [];
 let recorder = null, chunks = [];
 
-// Gesture State
-let jellyfishPending = false;
-let whalePending = false;
-let lastTouchPos = {x:0, y:0};
+let jellyfishPending = false, whalePending = false, lastTouchPos = {x:0, y:0};
 
 function resize() {
   const targetAspect = 16 / 9;
@@ -288,8 +285,7 @@ function resize() {
   let displayW, displayH;
   if (windowAspect > targetAspect) { displayH = window.innerHeight; displayW = displayH * targetAspect; } 
   else { displayW = window.innerWidth; displayH = displayW / targetAspect; }
-  mainCanvas.style.width = displayW + 'px';
-  mainCanvas.style.height = displayH + 'px';
+  mainCanvas.style.width = displayW + 'px'; mainCanvas.style.height = displayH + 'px';
   mainCanvas.width = W; mainCanvas.height = H;
   const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
   const frame = document.getElementById('captureFrame');
@@ -305,18 +301,29 @@ function getVirtualCoords(clientX, clientY) {
 
 const FISH = [], FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00', '#ff3300', '#0077ff', '#00ffcc', '#ffcc00', '#ffffff', '#ff99cc'];
 function createFish(x, y, vx, vy, isLocal = true, colorIdx) {
-  const cIdx = colorIdx !== undefined ? colorIdx : Math.floor(Math.random()*FISH_COLORS.length);
-  FISH.push({ x, y, vx, vy, size: 6+Math.random()*8, color: FISH_COLORS[cIdx], born: elapsed, flash: 0, isLocal });
+  FISH.push({ x, y, vx, vy, size: 6+Math.random()*8, color: FISH_COLORS[colorIdx], born: elapsed, flash: 0, isLocal });
 }
-function createFishSchool(x, y, dir, isLocal = true) {
-  const count = (elapsed >= 12) ? 5 + Math.floor(Math.random() * 5) : 1;
-  for (let i = 0; i < count; i++) {
-    const ox = (Math.random() - 0.5) * 80, oy = (Math.random() - 0.5) * 80;
-    const svx = dir * (0.75 + Math.random() * 0.5); // 50% Speed reduction
-    const cIdx = Math.floor(Math.random()*FISH_COLORS.length);
-    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.15, isLocal, cIdx);
+function createFishSchool(x, y, dir, isLocal = true, fishArray) {
+  if (isLocal) {
+    const count = (elapsed >= 12) ? 5 + Math.floor(Math.random() * 5) : 1;
+    const school = [];
+    for (let i = 0; i < count; i++) {
+        const f = {
+            ox: (Math.random() - 0.5) * 80,
+            oy: (Math.random() - 0.5) * 80,
+            vx: dir * (0.75 + Math.random() * 0.5),
+            vy: (Math.random()-0.5)*0.15,
+            cIdx: Math.floor(Math.random()*FISH_COLORS.length)
+        };
+        school.push(f);
+        createFish(x + f.ox, y + f.oy, f.vx, f.vy, true, f.cIdx);
+    }
+    SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir, fishArray: school });
+  } else {
+    fishArray.forEach(f => {
+        createFish(x + f.ox, y + f.oy, f.vx, f.vy, false, f.cIdx);
+    });
   }
-  if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir });
 }
 function drawFish(t) {
   const bass = AudioEngine.intensity;
@@ -348,8 +355,7 @@ function drawSnow(t) {
     const px = p.x*W, py = p.y*H;
     ctx.shadowBlur = p.glow*30; ctx.shadowColor = '#00ffff';
     ctx.fillStyle = `rgba(200, 255, 255, ${p.alpha + p.glow})`;
-    const s = p.size * (1+p.glow*2);
-    ctx.fillRect(px, py, s, s);
+    const s = p.size * (1+p.glow*2); ctx.fillRect(px, py, s, s);
   });
 }
 
@@ -366,8 +372,7 @@ function drawPlants(t) {
     for(let i = 1; i <= a.segments; i++) {
       ctx.beginPath(); ctx.moveTo(px, py);
       const y = H - (i * a.segLen), x = a.x + Math.sin(t * 0.3 + a.phase + i * 0.1) * (i * 2.5);
-      ctx.lineWidth = a.w * (1 - i / a.segments) + 0.5; ctx.lineTo(x, y); ctx.strokeStyle = a.color; ctx.lineCap = 'round'; ctx.stroke();
-      px = x; py = y;
+      ctx.lineWidth = a.w * (1 - i / a.segments) + 0.5; ctx.lineTo(x, y); ctx.strokeStyle = a.color; ctx.lineCap = 'round'; ctx.stroke(); px = x; py = y;
     }
   });
   CORALS.forEach(c => {
@@ -375,18 +380,17 @@ function drawPlants(t) {
     if (c.alpha <= 0) return;
     ctx.save(); ctx.translate(c.x, H); ctx.rotate(c.rot); ctx.globalAlpha = c.alpha;
     ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-c.size, -c.size*0.5, 0, -c.size); ctx.quadraticCurveTo(c.size, -c.size*0.5, 0, 0);
-    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill();
-    ctx.restore();
+    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill(); ctx.restore();
   });
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
 const WHALES = [];
-function createWhale(isLocal = true, ry) {
-  const whaleW = 600 + Math.random() * 300;
+function createWhale(isLocal = true, ry, forcedSpeed) {
+  const speed = forcedSpeed !== undefined ? forcedSpeed : 1.2 + Math.random() * 0.8;
   const yPos = ry !== undefined ? ry * H : 200 + Math.random() * (H - 400);
-  WHALES.push({ x: -1000, y: yPos, w: whaleW, h: whaleW * 0.15, speed: 1.2 + Math.random() * 0.8, isLocal }); // 50% Speed reduction
-  if (isLocal) SessionManager.sendInteraction('WHALE', { x: 0, y: yPos / H });
+  WHALES.push({ x: -1000, y: yPos, w: 600 + Math.random() * 300, h: 90 + Math.random() * 50, speed, isLocal });
+  if (isLocal) SessionManager.sendInteraction('WHALE', { x: 0, y: yPos / H, speed });
 }
 function drawWhales(t) {
   WHALES.forEach((w, i) => {
@@ -406,10 +410,12 @@ function drawWhales(t) {
 }
 
 const JELLYFISH = [];
-function createJellyfish(x, y, isLocal = true, forcedColorIdx) {
+function createJellyfish(x, y, isLocal = true, forcedColorIdx, fvx, fvy) {
   const cIdx = forcedColorIdx !== undefined ? forcedColorIdx : Math.floor(Math.random()*FISH_COLORS.length);
-  JELLYFISH.push({ x, y, size: 40+Math.random()*30, vx: (Math.random()-0.5)*0.4, vy: -0.2-Math.random()*0.4, alpha: 0, born: elapsed, color: FISH_COLORS[cIdx], isLocal }); // 50% Speed reduction
-  if (isLocal) SessionManager.sendInteraction('JELLYFISH', { x, y, colorIdx: cIdx });
+  const vx = fvx !== undefined ? fvx : (Math.random()-0.5)*0.4;
+  const vy = fvy !== undefined ? fvy : -0.2-Math.random()*0.4;
+  JELLYFISH.push({ x, y, size: 40+Math.random()*30, vx, vy, alpha: 0, born: elapsed, color: FISH_COLORS[cIdx], isLocal });
+  if (isLocal) SessionManager.sendInteraction('JELLYFISH', { x, y, colorIdx: cIdx, vx, vy });
 }
 function drawJellyfish(t) {
   const bass = AudioEngine.intensity;
@@ -440,8 +446,7 @@ const AudioEngine = {
     this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 256;
     this.data = new Uint8Array(this.analyser.frequencyBinCount);
     this.source.connect(this.analyser); this.analyser.connect(this.ctx.destination);
-    this.source.start(0); this.active = true;
-    await this.ctx.resume();
+    this.source.start(0); this.active = true; await this.ctx.resume();
   },
   update() {
     if (!this.active || paused) { this.intensity = 0; return; }
@@ -530,21 +535,14 @@ const handleInput = (x, y) => {
   const v = getVirtualCoords(x, y);
   gesturePath.push({x: v.x, y: v.y}); if (gesturePath.length > 40) gesturePath.shift();
   lastTouchPos = v;
-  
-  if (elapsed > 23 && checkSwirl()) {
-      jellyfishPending = true;
-  }
-  
+  if (elapsed > 23 && checkSwirl()) jellyfishPending = true;
   const dx = v.x - lastSwipeX, currentDir = dx > 0 ? 1 : -1;
   if (currentDir !== lastSwipeDir && Math.abs(dx) > 15) {
     swipeCount++; lastSwipeDir = currentDir;
-    if (swipeCount >= 4 && elapsed > 30) { 
-        whalePending = true; 
-    }
+    if (swipeCount >= 4 && elapsed > 30) whalePending = true;
   }
   lastSwipeX = v.x;
 };
-
 function checkSwirl() {
   if (gesturePath.length < 20) return false;
   let rot = 0;
@@ -560,13 +558,9 @@ window.addEventListener('mousemove', e => { if(isMouseDown) handleInput(e.client
 window.addEventListener('touchmove', e => handleInput(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
 
 const onDown = (clientX, clientY) => {
-  isMouseDown = true;
-  jellyfishPending = false;
-  whalePending = false;
+  isMouseDown = true; jellyfishPending = false; whalePending = false;
   const v = getVirtualCoords(clientX, clientY);
-  lastSwipeX = v.x;
-  gesturePath = [];
-  swipeCount = 0;
+  lastSwipeX = v.x; gesturePath = []; swipeCount = 0;
 };
 window.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
 window.addEventListener('touchstart', e => onDown(e.touches[0].clientX, e.touches[0].clientY));
@@ -574,14 +568,8 @@ window.addEventListener('touchstart', e => onDown(e.touches[0].clientX, e.touche
 const onUp = () => {
     if (!isMouseDown) return;
     isMouseDown = false;
-    // Spawn only on release
-    if (jellyfishPending) {
-        createJellyfish(lastTouchPos.x, lastTouchPos.y, true);
-        jellyfishPending = false;
-    } else if (whalePending) {
-        createWhale(true, lastTouchPos.y / H);
-        whalePending = false;
-    }
+    if (jellyfishPending) { createJellyfish(lastTouchPos.x, lastTouchPos.y, true); jellyfishPending = false; }
+    else if (whalePending) { createWhale(true, lastTouchPos.y / H); whalePending = false; }
 };
 window.addEventListener('mouseup', onUp);
 window.addEventListener('touchend', onUp);
