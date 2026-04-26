@@ -315,7 +315,7 @@ function getVirtualCoords(clientX, clientY) {
   };
 }
 
-const FISH = [], FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00'];
+const FISH = [], FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00', '#ff3300', '#0077ff', '#00ffcc', '#ffcc00', '#ffffff', '#ff99cc'];
 function createFish(x, y, vx, vy, isLocal = true, colorIdx) {
   const cIdx = colorIdx !== undefined ? colorIdx : Math.floor(Math.random()*FISH_COLORS.length);
   FISH.push({ x, y, vx, vy, size: 6+Math.random()*8, color: FISH_COLORS[cIdx], born: elapsed, flash: 0, isLocal });
