@@ -151,13 +151,14 @@ let peer = null;
 let conn = null;
 
 const SessionManager = {
-  users: [],
+  users: [], // { name, status }
   retryCount: 0,
   
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
-    const fullLink = window.location.origin + window.location.pathname + '?sid=' + sessionId;
+    const currentUrl = window.location.origin + window.location.pathname;
+    const fullLink = currentUrl + '?sid=' + sessionId;
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
@@ -177,14 +178,20 @@ const SessionManager = {
   },
 
   connectToHost() {
+    console.log("Verbinde zu Host...");
     conn = peer.connect(sessionId, { reliable: true });
     this.setupConnection();
     setTimeout(() => { if ((!conn || !conn.open) && this.retryCount < 5) { this.retryCount++; this.connectToHost(); } }, 4000);
   },
 
   setupConnection() {
-    conn.on('open', () => { this.retryCount = 0; if (myName) this.sendStatus('online'); });
+    conn.on('open', () => {
+      console.log("P2P Verbindung offen!");
+      this.retryCount = 0;
+      if (myName) this.sendStatus('online');
+    });
     conn.on('data', (data) => {
+      console.log("Empfangen:", data);
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status);
         if (isHost && data.status === 'online') this.sendStatus('online');
@@ -207,7 +214,7 @@ const SessionManager = {
     if (!myName) return;
     localStorage.setItem('artcube_name', myName);
     this.updateUser(myName, 'online');
-    this.sendStatus('online');
+    if (conn && conn.open) this.sendStatus('online');
     document.getElementById('userName').disabled = true;
     document.getElementById('joinBtn').style.display = 'none';
     if (isHost) {
@@ -220,8 +227,10 @@ const SessionManager = {
 
   updateUser(name, status) {
     let user = this.users.find(u => u.name === name);
-    if (!user) user = this.users[this.users.length] = { name, status };
-    else user.status = status;
+    if (!user) {
+      user = { name, status };
+      this.users.push(user);
+    } else user.status = status;
     this.updateUI();
   },
 
@@ -263,9 +272,9 @@ function createFish(x, y, vx, vy, isLocal = true) {
 function createFishSchool(x, y, dir, isLocal = true) {
   const count = (elapsed >= 12) ? 4 + Math.floor(Math.random() * 4) : 1;
   for (let i = 0; i < count; i++) {
-    const ox = (Math.random() - 0.5) * 50, oy = (Math.random() - 0.5) * 50;
-    const svx = dir * (0.15 + Math.random() * 0.1);
-    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.05, isLocal);
+    const ox = (Math.random() - 0.5) * 60, oy = (Math.random() - 0.5) * 60;
+    const svx = dir * (0.15 + Math.random() * 0.15);
+    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.02, isLocal);
   }
   if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir });
 }
@@ -286,6 +295,22 @@ function drawFish(t) {
     ctx.fillStyle = f.color; ctx.fill(); ctx.restore();
     if (f.x < -200 || f.x > W + 200 || t - f.born > 25) FISH.splice(i, 1);
   }
+}
+
+const SNOW_PARTICLES = Array.from({ length: 400 }, () => ({ x: Math.random(), y: Math.random(), size: 0.5+Math.random()*1.5, speedY: 0.0001+Math.random()*0.0004, driftX: (Math.random()-0.5)*0.0001, alpha: 0.1+Math.random()*0.4, isReactive: Math.random()>0.8, glow: 0 }));
+function drawSnow(t) {
+  const bass = AudioEngine.intensity;
+  SNOW_PARTICLES.forEach(p => {
+    p.y += p.speedY * (1 + bass*3); p.x += p.driftX;
+    if (p.y > 1.05) { p.y = -0.05; p.x = Math.random(); }
+    if (p.isReactive && bass > 0.5) p.glow = Math.max(p.glow, bass*2.5);
+    p.glow *= 0.92;
+    const px = p.x*W, py = p.y*H;
+    ctx.shadowBlur = p.glow*25; ctx.shadowColor = '#00ffff';
+    ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha + p.glow})`;
+    const s = p.size * (1+p.glow*1.5);
+    ctx.fillRect(px, py, s, s);
+  });
 }
 
 const ALGAE = [], CORALS = [];
@@ -310,7 +335,8 @@ function drawPlants(t) {
     if (c.alpha <= 0) return;
     ctx.save(); ctx.translate(c.x, H); ctx.rotate(c.rot); ctx.globalAlpha = c.alpha;
     ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-c.size, -c.size*0.5, 0, -c.size); ctx.quadraticCurveTo(c.size, -c.size*0.5, 0, 0);
-    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill(); ctx.restore();
+    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill();
+    ctx.restore();
   });
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
@@ -388,7 +414,14 @@ function loop(ts) {
   const dt = (ts - lastFrameTime) / 1000; lastFrameTime = ts;
   if (paused) { requestAnimationFrame(loop); return; }
   elapsed += dt; AudioEngine.update();
-  if (AudioEngine.intensity > 0.55) FISH.filter(f => Math.random() > 0.8).forEach(f => f.flash = 2.0);
+  
+  // 2) Nur maximal 3 zufällige Fische blinken beim Beat
+  if (AudioEngine.intensity > 0.58) {
+      const candidates = FISH.filter(f => f.flash < 0.1);
+      for(let i=0; i<Math.min(3, candidates.length); i++) {
+          candidates[Math.floor(Math.random()*candidates.length)].flash = 2.0;
+      }
+  }
 
   let globalAlpha = (elapsed > 90) ? Math.max(0, 1 - (elapsed - 90) / 10) : 1.0;
   ctx.globalAlpha = globalAlpha;
@@ -398,6 +431,8 @@ function loop(ts) {
   const r = 1*(1-finalMix)+2*finalMix, g = 2*(1-finalMix)+15*finalMix, b = 8*(1-finalMix)+60*finalMix;
   ctx.fillStyle = `rgb(${r}, ${g}, ${b})`; ctx.fillRect(0, 0, W, H);
 
+  // 1) Marine Snow wieder aktivieren
+  drawSnow(elapsed);
   drawPlants(elapsed); drawFish(elapsed); drawJellyfish(elapsed); drawWhales(elapsed);
 
   if (recorder && recorder.state === 'recording') {
@@ -426,7 +461,8 @@ async function startExperience(asGuest = false) {
   document.getElementById('sessionUI').style.display = 'block';
   initPlants();
   if (!asGuest) {
-    const file = audioInput.files[0]; await AudioEngine.init(file);
+    const file = audioInput.files[0]; if(!file) return;
+    await AudioEngine.init(file);
     if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
   }
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
@@ -436,7 +472,7 @@ async function startExperience(asGuest = false) {
 }
 
 async function uploadVideo() {
-  const mintURL = MINT_BASE_URL + sessionId + "_" + myName;
+  const mintURL = MINT_BASE_URL + sessionId + "_" + (myName || "guest");
   const msg = document.getElementById('uploadMsg');
   try {
     msg.textContent = 'lade dein souvenir hoch...';
