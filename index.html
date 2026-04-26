@@ -116,11 +116,11 @@ input[type="file"] { display: none; }
   <div id="onlineStatus">
     <div id="user1" class="user-row">
       <div class="status-dot" id="dot1"></div>
-      <div class="user-name"><span id="name1"></span> <span id="statText1">offline</span></div>
+      <div class="user-name"><span id="name1">Host</span> <span id="statText1">offline</span></div>
     </div>
     <div id="user2" class="user-row">
       <div class="status-dot" id="dot2"></div>
-      <div class="user-name"><span id="name2"></span> <span id="statText2">offline</span></div>
+      <div class="user-name"><span id="name2">Gast</span> <span id="statText2">offline</span></div>
     </div>
   </div>
 </div>
@@ -151,7 +151,8 @@ let peer = null;
 let conn = null;
 
 const SessionManager = {
-  users: [], // { name, status }
+  host: { name: "Host", status: "offline" },
+  guest: { name: "Gast", status: "offline" },
   retryCount: 0,
   
   init() {
@@ -167,7 +168,7 @@ const SessionManager = {
     };
     document.getElementById('joinBtn').onclick = () => this.join();
     const peerId = isHost ? sessionId : null;
-    peer = new Peer(peerId, { debug: 2, config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
+    peer = new Peer(peerId, { debug: 1, config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
     peer.on('open', id => { if (!isHost) this.connectToHost(); });
     peer.on('connection', c => { conn = c; this.setupConnection(); });
     window.addEventListener('beforeunload', () => this.sendStatus('offline'));
@@ -178,7 +179,6 @@ const SessionManager = {
   },
 
   connectToHost() {
-    console.log("Verbinde zu Host...");
     conn = peer.connect(sessionId, { reliable: true });
     this.setupConnection();
     setTimeout(() => { if ((!conn || !conn.open) && this.retryCount < 5) { this.retryCount++; this.connectToHost(); } }, 4000);
@@ -186,14 +186,12 @@ const SessionManager = {
 
   setupConnection() {
     conn.on('open', () => {
-      console.log("P2P Verbindung offen!");
       this.retryCount = 0;
       if (myName) this.sendStatus('online');
     });
     conn.on('data', (data) => {
-      console.log("Empfangen:", data);
       if (data.type === 'STATUS') {
-        this.updateUser(data.name, data.status);
+        this.updateUser(data.name, data.status, data.role);
         if (isHost && data.status === 'online') this.sendStatus('online');
       }
       if (data.type === 'START_EXPERIENCE') startExperience(true);
@@ -203,18 +201,28 @@ const SessionManager = {
         if (data.kind === 'WHALE') createWhale(false);
       }
     });
-    conn.on('close', () => { if (this.users[1]) this.updateUser(this.users[1].name, 'offline'); });
+    conn.on('close', () => { 
+        if (isHost) this.updateUser(this.guest.name, 'offline', 'guest');
+        else this.updateUser(this.host.name, 'offline', 'host');
+    });
   },
 
-  sendStatus(status) { if (conn && conn.open && myName) conn.send({ type: 'STATUS', name: myName, status: status }); },
+  sendStatus(status) { 
+    if (conn && conn.open && myName) {
+        conn.send({ type: 'STATUS', name: myName, status: status, role: isHost ? 'host' : 'guest' });
+    }
+  },
+
   sendInteraction(kind, data) { if (conn && conn.open) conn.send({ type: 'INTERACTION', kind, ...data }); },
 
   join() {
     myName = document.getElementById('userName').value.trim();
     if (!myName) return;
     localStorage.setItem('artcube_name', myName);
-    this.updateUser(myName, 'online');
-    if (conn && conn.open) this.sendStatus('online');
+    
+    this.updateUser(myName, 'online', isHost ? 'host' : 'guest');
+    this.sendStatus('online');
+    
     document.getElementById('userName').disabled = true;
     document.getElementById('joinBtn').style.display = 'none';
     if (isHost) {
@@ -225,26 +233,24 @@ const SessionManager = {
     }
   },
 
-  updateUser(name, status) {
-    let user = this.users.find(u => u.name === name);
-    if (!user) {
-      user = { name, status };
-      this.users.push(user);
-    } else user.status = status;
+  updateUser(name, status, role) {
+    if (role === 'host') this.host = { name, status };
+    else if (role === 'guest') this.guest = { name, status };
     this.updateUI();
   },
 
   updateUI() {
-    this.users.forEach((u, i) => {
-      const idx = i + 1;
-      const row = document.getElementById('user' + idx);
-      if (row) {
-        document.getElementById('name' + idx).textContent = u.name;
-        document.getElementById('statText' + idx).textContent = u.status;
-        document.getElementById('dot' + idx).className = 'status-dot ' + (u.status === 'offline' ? 'offline' : '');
-        row.classList.add('visible');
-      }
-    });
+    // Slot 1: Host
+    document.getElementById('name1').textContent = this.host.name;
+    document.getElementById('statText1').textContent = this.host.status;
+    document.getElementById('dot1').className = 'status-dot ' + (this.host.status === 'offline' ? 'offline' : '');
+    document.getElementById('user1').classList.add('visible');
+
+    // Slot 2: Gast
+    document.getElementById('name2').textContent = this.guest.name;
+    document.getElementById('statText2').textContent = this.guest.status;
+    document.getElementById('dot2').className = 'status-dot ' + (this.guest.status === 'offline' ? 'offline' : '');
+    document.getElementById('user2').classList.add('visible');
   }
 };
 SessionManager.init();
@@ -400,12 +406,20 @@ const AudioEngine = {
     this.gain = this.ctx.createGain(); this.gain.gain.value = 0.75;
     this.source.connect(this.gain); this.gain.connect(this.analyser); this.analyser.connect(this.ctx.destination);
     this.source.start(0); this.active = true;
+    await this.ctx.resume();
   },
   update() {
     if (!this.active || paused) { this.intensity = 0; return; }
     this.analyser.getByteFrequencyData(this.data);
     let sum = 0; for (let i=0; i<12; i++) sum += this.data[i];
     this.intensity = (sum/12)/255;
+  },
+  fadeOut(duration) {
+    if(this.gain) {
+        const now = this.ctx.currentTime;
+        this.gain.gain.linearRampToValueAtTime(this.gain.gain.value, now);
+        this.gain.gain.linearRampToValueAtTime(0, now + duration);
+    }
   }
 };
 
@@ -416,38 +430,26 @@ function loop(ts) {
   if (paused) { requestAnimationFrame(loop); return; }
   elapsed += dt; AudioEngine.update();
   
-  // 2) Streng limitierte Beat-Logik: Nur 3 Fische pro Beat-Ereignis
   if (AudioEngine.intensity > 0.62) {
       if (!beatActive) {
           const candidates = FISH.filter(f => f.flash < 0.1);
-          // Mische die Kandidaten und nimm die ersten 3
           const shuffled = candidates.sort(() => 0.5 - Math.random());
-          for(let i=0; i<Math.min(3, shuffled.length); i++) {
-              shuffled[i].flash = 2.5;
-          }
-          beatActive = true; // Sperre aktivieren
+          for(let i=0; i<Math.min(3, shuffled.length); i++) { shuffled[i].flash = 2.5; }
+          beatActive = true;
       }
-  } else if (AudioEngine.intensity < 0.55) {
-      beatActive = false; // Sperre erst wieder lösen, wenn Bass nachlässt
-  }
+  } else if (AudioEngine.intensity < 0.55) { beatActive = false; }
 
   let globalAlpha = (elapsed > 90) ? Math.max(0, 1 - (elapsed - 90) / 10) : 1.0;
   ctx.globalAlpha = globalAlpha;
-
-  // BG
   let lightMix = Math.min(1, Math.max(0, (elapsed - 23) / 15)), darkMix = (elapsed > 90) ? Math.min(1, (elapsed - 90) / 10) : 0, finalMix = lightMix * (1 - darkMix);
   const r = 1*(1-finalMix)+2*finalMix, g = 2*(1-finalMix)+15*finalMix, b = 8*(1-finalMix)+60*finalMix;
   ctx.fillStyle = `rgb(${r}, ${g}, ${b})`; ctx.fillRect(0, 0, W, H);
-
-  // 1) Marine Snow wieder aktivieren
-  drawSnow(elapsed);
-  drawPlants(elapsed); drawFish(elapsed); drawJellyfish(elapsed); drawWhales(elapsed);
+  drawSnow(elapsed); drawPlants(elapsed); drawFish(elapsed); drawJellyfish(elapsed); drawWhales(elapsed);
 
   if (recorder && recorder.state === 'recording') {
     const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
     offscreenCtx.drawImage(mainCanvas, (W - fW) / 2, (H - fH) / 2, fW, fH, 0, 0, fW, fH);
   }
-
   const status = document.getElementById('status');
   if (elapsed < 60) status.textContent = "gestalte deine tiefe...";
   else if (elapsed < 65) { status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); }
@@ -457,7 +459,6 @@ function loop(ts) {
     if (recorder && recorder.state === 'recording') { recorder.onstop = () => uploadVideo(); recorder.stop(); }
     document.getElementById('qrScreen').style.display = 'flex';
   }
-  
   const secs = Math.floor(elapsed);
   document.getElementById('timerText').textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
   requestAnimationFrame(loop);
