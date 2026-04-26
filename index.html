@@ -178,7 +178,7 @@ const SessionManager = {
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
-      linkBtn.textContent = "KOPIERT!";
+      linkBtn.textContent = "LINK KOPIERT!";
       setTimeout(() => { linkBtn.textContent = fullLink; }, 2000);
     };
     document.getElementById('joinBtn').onclick = () => this.join();
