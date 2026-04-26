@@ -173,7 +173,6 @@ const SessionManager = {
     peer = new Peer(peerId, { debug: 1, config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
     
     peer.on('open', id => { 
-        console.log("P2P Netz bereit. ID:", id);
         if (!isHost) this.connectToHost(); 
     });
     
@@ -192,36 +191,27 @@ const SessionManager = {
   connectToHost() {
     conn = peer.connect(sessionId, { reliable: true });
     this.setupConnection();
-    setTimeout(() => { 
-        if ((!conn || !conn.open) && this.retryCount < 5) { 
-            this.retryCount++; 
-            this.connectToHost(); 
-        } 
-    }, 4000);
+    setTimeout(() => { if ((!conn || !conn.open) && this.retryCount < 5) { this.retryCount++; this.connectToHost(); } }, 4000);
   },
 
   setupConnection() {
     conn.on('open', () => {
-      console.log("Verbindung zum Partner offen.");
       this.retryCount = 0;
-      // Falls ich schon beigetreten bin, schicke meine Daten sofort
       if (this.joined) this.sendStatus('online');
     });
 
     conn.on('data', (data) => {
-      console.log("Nachricht erhalten:", data);
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status, data.role);
-        // Echo-Logik: Wenn jemand online geht, schicke ich meinen Status als Bestätigung zurück
-        if (data.status === 'online' && this.joined) {
-            this.sendStatus('online');
-        }
+        if (data.status === 'online' && this.joined) this.sendStatus('online');
       }
       if (data.type === 'START_EXPERIENCE') startExperience(true);
       if (data.type === 'INTERACTION') {
-        if (data.kind === 'FISH_SCHOOL') createFishSchool(data.x, data.y, data.dir, false);
-        if (data.kind === 'JELLYFISH') createJellyfish(data.x, data.y, false);
-        if (data.kind === 'WHALE') createWhale(false);
+        const rx = data.rx * window.innerWidth;
+        const ry = data.ry * window.innerHeight;
+        if (data.kind === 'FISH_SCHOOL') createFishSchool(rx, ry, data.dir, false, data.colorIdx);
+        if (data.kind === 'JELLYFISH') createJellyfish(rx, ry, false, data.colorIdx);
+        if (data.kind === 'WHALE') createWhale(false, data.ry);
       }
     });
 
@@ -230,7 +220,6 @@ const SessionManager = {
   },
 
   handleDisconnect() {
-    console.log("Verbindung verloren.");
     if (isHost) this.updateUser(this.guest.name, 'offline', 'guest');
     else this.updateUser(this.host.name, 'offline', 'host');
   },
@@ -241,20 +230,22 @@ const SessionManager = {
     }
   },
 
-  sendInteraction(kind, data) { if (conn && conn.open) conn.send({ type: 'INTERACTION', kind, ...data }); },
+  sendInteraction(kind, data) { 
+    if (conn && conn.open) {
+        // Normalisierte Koordinaten senden (0 bis 1)
+        const rx = data.x / window.innerWidth;
+        const ry = data.y / window.innerHeight;
+        conn.send({ type: 'INTERACTION', kind, rx, ry, ...data });
+    }
+  },
 
   join() {
     myName = document.getElementById('userName').value.trim();
     if (!myName) return;
     localStorage.setItem('artcube_name', myName);
     this.joined = true;
-    
-    // UI lokal aktualisieren
     this.updateUser(myName, 'online', isHost ? 'host' : 'guest');
-    
-    // Status an Partner senden
     this.sendStatus('online');
-    
     document.getElementById('userName').disabled = true;
     document.getElementById('joinBtn').style.display = 'none';
     if (isHost) {
@@ -272,13 +263,11 @@ const SessionManager = {
   },
 
   updateUI() {
-    // Host Slot
     document.getElementById('name1').textContent = this.host.name;
     document.getElementById('statText1').textContent = this.host.status;
     document.getElementById('dot1').className = 'status-dot ' + (this.host.status === 'offline' ? 'offline' : '');
     document.getElementById('user1').classList.add('visible');
 
-    // Gast Slot
     document.getElementById('name2').textContent = this.guest.name;
     document.getElementById('statText2').textContent = this.guest.status;
     document.getElementById('dot2').className = 'status-dot ' + (this.guest.status === 'offline' ? 'offline' : '');
@@ -304,17 +293,19 @@ function resize() {
 window.addEventListener('resize', resize); resize();
 
 const FISH = [], FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00'];
-function createFish(x, y, vx, vy, isLocal = true) {
-  FISH.push({ x, y, vx, vy, size: (W<600?2:4)+Math.random()*5, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)], born: elapsed, flash: 0, isLocal });
+function createFish(x, y, vx, vy, isLocal = true, colorIdx) {
+  const cIdx = colorIdx !== undefined ? colorIdx : Math.floor(Math.random()*FISH_COLORS.length);
+  FISH.push({ x, y, vx, vy, size: (W<600?2:4)+Math.random()*5, color: FISH_COLORS[cIdx], born: elapsed, flash: 0, isLocal });
 }
-function createFishSchool(x, y, dir, isLocal = true) {
+function createFishSchool(x, y, dir, isLocal = true, forcedColorIdx) {
+  const cIdx = forcedColorIdx !== undefined ? forcedColorIdx : Math.floor(Math.random()*FISH_COLORS.length);
   const count = (elapsed >= 12) ? 4 + Math.floor(Math.random() * 4) : 1;
   for (let i = 0; i < count; i++) {
     const ox = (Math.random() - 0.5) * 60, oy = (Math.random() - 0.5) * 60;
     const svx = dir * (0.15 + Math.random() * 0.15);
-    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.02, isLocal);
+    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.02, isLocal, cIdx);
   }
-  if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir });
+  if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir, colorIdx: cIdx });
 }
 function drawFish(t) {
   const bass = AudioEngine.intensity;
@@ -331,7 +322,7 @@ function drawFish(t) {
     ctx.fill();
     ctx.beginPath(); ctx.moveTo(-f.size * 1.2, 0); ctx.lineTo(-f.size * 2, osc); ctx.lineTo(-f.size * 2, -osc); ctx.closePath();
     ctx.fillStyle = f.color; ctx.fill(); ctx.restore();
-    if (f.x < -200 || f.x > W + 200 || t - f.born > 25) FISH.splice(i, 1);
+    if (f.x < -250 || f.x > W + 250 || t - f.born > 25) FISH.splice(i, 1);
   }
 }
 
@@ -380,10 +371,11 @@ function drawPlants(t) {
 }
 
 const WHALES = [];
-function createWhale(isLocal = true) {
+function createWhale(isLocal = true, ry) {
   const whaleW = (W < 600 ? 300 : 500) + Math.random() * 200;
-  WHALES.push({ x: -800, y: 100 + Math.random() * (H - 400), w: whaleW, h: whaleW * 0.12, speed: (0.5 + Math.random() * 0.3) * 1.5, isLocal });
-  if (isLocal) SessionManager.sendInteraction('WHALE', {});
+  const yPos = ry !== undefined ? ry * H : 100 + Math.random() * (H - 400);
+  WHALES.push({ x: -800, y: yPos, w: whaleW, h: whaleW * 0.12, speed: (0.5 + Math.random() * 0.3) * 1.5, isLocal });
+  if (isLocal) SessionManager.sendInteraction('WHALE', { x: 0, y: yPos });
 }
 function drawWhales(t) {
   WHALES.forEach((w, i) => {
@@ -398,14 +390,15 @@ function drawWhales(t) {
     ctx.lineTo(-w.w*0.1, flukeSway - 30); ctx.lineTo(-w.w*0.1, flukeSway + 30); ctx.lineTo(0, flukeSway*0.3);
     ctx.bezierCurveTo(w.w*0.3, w.h*0.8, w.w*0.8, w.h*1.2, w.w, 0);
     ctx.fillStyle = grad; ctx.fill(); ctx.restore();
-    if (w.x > W + 800) WHALES.splice(i, 1);
+    if (w.x > W + 1000) WHALES.splice(i, 1);
   });
 }
 
 const JELLYFISH = [];
-function createJellyfish(x, y, isLocal = true) {
-  JELLYFISH.push({ x, y, size: (W<600?10:20)+Math.random()*20, vx: (Math.random()-0.5)*0.3, vy: -0.2-Math.random()*0.3, alpha: 0, born: elapsed, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)], isLocal });
-  if (isLocal) SessionManager.sendInteraction('JELLYFISH', { x, y });
+function createJellyfish(x, y, isLocal = true, forcedColorIdx) {
+  const cIdx = forcedColorIdx !== undefined ? forcedColorIdx : Math.floor(Math.random()*FISH_COLORS.length);
+  JELLYFISH.push({ x, y, size: (W<600?10:20)+Math.random()*20, vx: (Math.random()-0.5)*0.3, vy: -0.2-Math.random()*0.3, alpha: 0, born: elapsed, color: FISH_COLORS[cIdx], isLocal });
+  if (isLocal) SessionManager.sendInteraction('JELLYFISH', { x, y, colorIdx: cIdx });
 }
 function drawJellyfish(t) {
   const bass = AudioEngine.intensity;
@@ -423,7 +416,7 @@ function drawJellyfish(t) {
         ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(vx, vy); ctx.lineWidth = bw * (1 - seg / 8) + 1; ctx.stroke(); px = vx; py = vy;
       }
     }
-    ctx.restore(); if (j.y < -300) JELLYFISH.splice(i, 1);
+    ctx.restore(); if (j.y < -350) JELLYFISH.splice(i, 1);
   });
 }
 
@@ -539,7 +532,7 @@ const handleInput = (x, y) => {
   const dx = x - lastSwipeX, currentDir = dx > 0 ? 1 : -1;
   if (currentDir !== lastSwipeDir && Math.abs(dx) > 15) {
     swipeCount++; lastSwipeDir = currentDir;
-    if (swipeCount >= 4 && elapsed > 30) { createWhale(true); swipeCount = 0; }
+    if (swipeCount >= 4 && elapsed > 30) { createWhale(true, y); swipeCount = 0; }
   }
   lastSwipeX = x;
 };
