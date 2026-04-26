@@ -409,18 +409,26 @@ const AudioEngine = {
   }
 };
 
+let beatActive = false;
 function loop(ts) {
   if (!running) { lastFrameTime = ts; return; }
   const dt = (ts - lastFrameTime) / 1000; lastFrameTime = ts;
   if (paused) { requestAnimationFrame(loop); return; }
   elapsed += dt; AudioEngine.update();
   
-  // 2) Nur maximal 3 zufällige Fische blinken beim Beat
-  if (AudioEngine.intensity > 0.58) {
-      const candidates = FISH.filter(f => f.flash < 0.1);
-      for(let i=0; i<Math.min(3, candidates.length); i++) {
-          candidates[Math.floor(Math.random()*candidates.length)].flash = 2.0;
+  // 2) Streng limitierte Beat-Logik: Nur 3 Fische pro Beat-Ereignis
+  if (AudioEngine.intensity > 0.62) {
+      if (!beatActive) {
+          const candidates = FISH.filter(f => f.flash < 0.1);
+          // Mische die Kandidaten und nimm die ersten 3
+          const shuffled = candidates.sort(() => 0.5 - Math.random());
+          for(let i=0; i<Math.min(3, shuffled.length); i++) {
+              shuffled[i].flash = 2.5;
+          }
+          beatActive = true; // Sperre aktivieren
       }
+  } else if (AudioEngine.intensity < 0.55) {
+      beatActive = false; // Sperre erst wieder lösen, wenn Bass nachlässt
   }
 
   let globalAlpha = (elapsed > 90) ? Math.max(0, 1 - (elapsed - 90) / 10) : 1.0;
