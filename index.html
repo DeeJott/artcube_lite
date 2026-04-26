@@ -202,10 +202,9 @@ const SessionManager = {
       }
       if (data.type === 'START_EXPERIENCE') startExperience(true);
       if (data.type === 'INTERACTION') {
-        // Umrechnung von relativen (0..1) in lokale (W/H) Koordinaten
         const lx = data.rx * W;
         const ly = data.ry * H;
-        if (data.kind === 'FISH_SCHOOL') createFishSchool(lx, ly, data.dir, false, data.colorIdx);
+        if (data.kind === 'FISH_SCHOOL') createFishSchool(lx, ly, data.dir, false);
         if (data.kind === 'JELLYFISH') createJellyfish(lx, ly, false, data.colorIdx);
         if (data.kind === 'WHALE') createWhale(false, data.ry);
       }
@@ -226,7 +225,6 @@ const SessionManager = {
 
   sendInteraction(kind, data) { 
     if (conn && conn.open) {
-      // Sende immer relative Koordinaten (0..1)
       const rx = data.x / W;
       const ry = data.y / H;
       conn.send({ type: 'INTERACTION', kind, rx, ry, ...data });
@@ -272,47 +270,35 @@ SessionManager.init();
 // --- ANIMATION LOGIC ---
 const mainCanvas = document.getElementById('main'), ctx = mainCanvas.getContext('2d');
 const offscreenCanvas = document.createElement('canvas'), offscreenCtx = offscreenCanvas.getContext('2d');
-// VIRTUAL RESOLUTION (Stays 16:9 regardless of device)
 let W = 1920, H = 1080;
 let running = false, paused = false, canInteract = true, isRecordingPhase = false;
-let elapsed = 0, lastFrameTime = 0, isMouseDown = false, lastSwipeX = 0, lastSwipeDir = 0, swipeCount = 0, gesturePath = [];
+let elapsed = 0, lastFrameTime = 0, isMouseDown = false;
+let lastSwipeX = 0, lastSwipeDir = 0, swipeCount = 0, gesturePath = [];
 let recorder = null, chunks = [];
+
+// Gesture Spawning Locks
+let jellyfishSpawnedInGesture = false;
+let whaleSpawnedInGesture = false;
 
 function resize() {
   const targetAspect = 16 / 9;
   const windowAspect = window.innerWidth / window.innerHeight;
   let displayW, displayH;
-
-  if (windowAspect > targetAspect) {
-    displayH = window.innerHeight;
-    displayW = displayH * targetAspect;
-  } else {
-    displayW = window.innerWidth;
-    displayH = displayW / targetAspect;
-  }
-
+  if (windowAspect > targetAspect) { displayH = window.innerHeight; displayW = displayH * targetAspect; } 
+  else { displayW = window.innerWidth; displayH = displayW / targetAspect; }
   mainCanvas.style.width = displayW + 'px';
   mainCanvas.style.height = displayH + 'px';
-  mainCanvas.width = W; 
-  mainCanvas.height = H;
-
+  mainCanvas.width = W; mainCanvas.height = H;
   const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
   const frame = document.getElementById('captureFrame');
-  if (frame) { 
-    frame.style.width = (displayH * 0.75 * 0.75) + 'px'; 
-    frame.style.height = (displayH * 0.75) + 'px'; 
-  }
+  if (frame) { frame.style.width = (displayH * 0.75 * 0.75) + 'px'; frame.style.height = (displayH * 0.75) + 'px'; }
   offscreenCanvas.width = fW; offscreenCanvas.height = fH;
 }
 window.addEventListener('resize', resize); resize();
 
-// Helper to map screen coordinates to virtual 16:9 coordinates
 function getVirtualCoords(clientX, clientY) {
   const rect = mainCanvas.getBoundingClientRect();
-  return {
-    x: (clientX - rect.left) * (W / rect.width),
-    y: (clientY - rect.top) * (H / rect.height)
-  };
+  return { x: (clientX - rect.left) * (W / rect.width), y: (clientY - rect.top) * (H / rect.height) };
 }
 
 const FISH = [], FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00', '#ff3300', '#0077ff', '#00ffcc', '#ffcc00', '#ffffff', '#ff99cc'];
@@ -320,15 +306,16 @@ function createFish(x, y, vx, vy, isLocal = true, colorIdx) {
   const cIdx = colorIdx !== undefined ? colorIdx : Math.floor(Math.random()*FISH_COLORS.length);
   FISH.push({ x, y, vx, vy, size: 6+Math.random()*8, color: FISH_COLORS[cIdx], born: elapsed, flash: 0, isLocal });
 }
-function createFishSchool(x, y, dir, isLocal = true, forcedColorIdx) {
-  const cIdx = forcedColorIdx !== undefined ? forcedColorIdx : Math.floor(Math.random()*FISH_COLORS.length);
+function createFishSchool(x, y, dir, isLocal = true) {
   const count = (elapsed >= 12) ? 5 + Math.floor(Math.random() * 5) : 1;
   for (let i = 0; i < count; i++) {
     const ox = (Math.random() - 0.5) * 80, oy = (Math.random() - 0.5) * 80;
     const svx = dir * (1.5 + Math.random() * 1.0);
+    // Jeder Fisch bekommt jetzt eine EIGENE Zufallsfarbe aus der Palette
+    const cIdx = Math.floor(Math.random()*FISH_COLORS.length);
     createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.3, isLocal, cIdx);
   }
-  if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir, colorIdx: cIdx });
+  if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir });
 }
 function drawFish(t) {
   const bass = AudioEngine.intensity;
@@ -398,7 +385,7 @@ function createWhale(isLocal = true, ry) {
   const whaleW = 600 + Math.random() * 300;
   const yPos = ry !== undefined ? ry * H : 200 + Math.random() * (H - 400);
   WHALES.push({ x: -1000, y: yPos, w: whaleW, h: whaleW * 0.15, speed: 2.5 + Math.random() * 1.5, isLocal });
-  if (isLocal) SessionManager.sendInteraction('WHALE', { x: 0, y: yPos });
+  if (isLocal) SessionManager.sendInteraction('WHALE', { x: 0, y: yPos / H });
 }
 function drawWhales(t) {
   WHALES.forEach((w, i) => {
@@ -469,7 +456,6 @@ function loop(ts) {
   const dt = (ts - lastFrameTime) / 1000; lastFrameTime = ts;
   if (paused) { requestAnimationFrame(loop); return; }
   elapsed += dt; AudioEngine.update();
-  
   if (AudioEngine.intensity > 0.62) {
       if (!beatActive) {
           const candidates = FISH.filter(f => f.flash < 0.1);
@@ -478,14 +464,12 @@ function loop(ts) {
           beatActive = true;
       }
   } else if (AudioEngine.intensity < 0.55) { beatActive = false; }
-
   let globalAlpha = (elapsed > 90) ? Math.max(0, 1 - (elapsed - 90) / 10) : 1.0;
   ctx.globalAlpha = globalAlpha;
   let lightMix = Math.min(1, Math.max(0, (elapsed - 23) / 15)), darkMix = (elapsed > 90) ? Math.min(1, (elapsed - 90) / 10) : 0, finalMix = lightMix * (1 - darkMix);
   const r = 1*(1-finalMix)+2*finalMix, g = 2*(1-finalMix)+15*finalMix, b = 8*(1-finalMix)+60*finalMix;
   ctx.fillStyle = `rgb(${r}, ${g}, ${b})`; ctx.fillRect(0, 0, W, H);
   drawSnow(elapsed); drawPlants(elapsed); drawFish(elapsed); drawJellyfish(elapsed); drawWhales(elapsed);
-
   if (recorder && recorder.state === 'recording') {
     const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
     offscreenCtx.drawImage(mainCanvas, (W - fW) / 2, (H - fH) / 2, fW, fH, 0, 0, fW, fH);
@@ -544,14 +528,26 @@ const handleInput = (x, y) => {
   if (!canInteract || isRecordingPhase) return;
   const v = getVirtualCoords(x, y);
   gesturePath.push({x: v.x, y: v.y}); if (gesturePath.length > 40) gesturePath.shift();
-  if (elapsed > 23 && checkSwirl()) createJellyfish(v.x, v.y, true);
+  
+  // Jellyfish Spawning with Lock
+  if (elapsed > 23 && checkSwirl() && !jellyfishSpawnedInGesture) {
+      createJellyfish(v.x, v.y, true);
+      jellyfishSpawnedInGesture = true;
+  }
+  
   const dx = v.x - lastSwipeX, currentDir = dx > 0 ? 1 : -1;
   if (currentDir !== lastSwipeDir && Math.abs(dx) > 15) {
     swipeCount++; lastSwipeDir = currentDir;
-    if (swipeCount >= 4 && elapsed > 30) { createWhale(true, v.y / H); swipeCount = 0; }
+    // Whale Spawning with Lock
+    if (swipeCount >= 4 && elapsed > 30 && !whaleSpawnedInGesture) {
+      createWhale(true, v.y / H);
+      whaleSpawnedInGesture = true;
+      swipeCount = 0;
+    }
   }
   lastSwipeX = v.x;
 };
+
 function checkSwirl() {
   if (gesturePath.length < 20) return false;
   let rot = 0;
@@ -562,12 +558,31 @@ function checkSwirl() {
   }
   return Math.abs(rot) > Math.PI * 1.8;
 }
+
 window.addEventListener('mousemove', e => { if(isMouseDown) handleInput(e.clientX, e.clientY); });
 window.addEventListener('touchmove', e => handleInput(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-window.addEventListener('mousedown', e => { isMouseDown = true; const v = getVirtualCoords(e.clientX, e.clientY); lastSwipeX = v.x; });
+
+const onDown = (clientX, clientY) => {
+  isMouseDown = true;
+  jellyfishSpawnedInGesture = false;
+  whaleSpawnedInGesture = false;
+  const v = getVirtualCoords(clientX, clientY);
+  lastSwipeX = v.x;
+  gesturePath = [];
+  swipeCount = 0;
+};
+window.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
+window.addEventListener('touchstart', e => onDown(e.touches[0].clientX, e.touches[0].clientY));
+
 window.addEventListener('mouseup', () => isMouseDown = false);
-window.addEventListener('touchstart', e => { const v = getVirtualCoords(e.touches[0].clientX, e.touches[0].clientY); lastSwipeX = v.x; });
-window.addEventListener('dblclick', e => { if (running && !isRecordingPhase) { const v = getVirtualCoords(e.clientX, e.clientY); createFishSchool(v.x, v.y, Math.random() > 0.5 ? 1 : -1, true); } });
+window.addEventListener('touchend', () => isMouseDown = false);
+
+window.addEventListener('dblclick', e => { 
+  if (running && !isRecordingPhase) { 
+    const v = getVirtualCoords(e.clientX, e.clientY); 
+    createFishSchool(v.x, v.y, Math.random() > 0.5 ? 1 : -1, true); 
+  } 
+});
 </script>
 </body>
 </html>
