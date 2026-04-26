@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Abyssal Glow - Artcube</title>
+<title>Abyssal Glow - Collaborative Artcube</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; background: #000; color: #fff; width: 100vw; height: 100vh; }
@@ -17,10 +17,7 @@ canvas#main { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 }
 #orientationOverlay svg { width: 50px; height: 50px; fill: #fff; margin-bottom: 1.5rem; animation: rotate 2s infinite ease-in-out; }
 @keyframes rotate { 0% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
-
-@media (orientation: portrait) {
-  #orientationOverlay { display: flex; }
-}
+@media (orientation: portrait) { #orientationOverlay { display: flex; } }
 
 /* Start Screen Styles */
 #startScreen {
@@ -34,16 +31,15 @@ canvas#main { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 
 /* Name & Session UI */
 #setupUI { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 0.8rem; }
-.input-group { display: flex; flex-direction: column; gap: 0.5rem; }
 input#userName {
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
   color: #fff; padding: 0.8rem; font-size: 0.9rem; letter-spacing: 0.1em;
-  text-align: center; outline: none; border-radius: 0;
+  text-align: center; outline: none; border-radius: 0; width: 100%;
 }
 #joinBtn {
   background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
   color: #fff; padding: 0.8rem; cursor: pointer; letter-spacing: 0.1em; 
-  font-family: inherit; font-size: 0.75rem; border-radius: 0;
+  font-family: inherit; font-size: 0.75rem; border-radius: 0; width: 100%;
 }
 
 #shareLinkArea {
@@ -65,24 +61,17 @@ input#userName {
 
 /* Status Bar */
 #onlineStatus {
-  position: absolute; bottom: 1.5rem; left: 1.5rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
+  position: absolute; bottom: 2rem; left: 2rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
   text-align: left; pointer-events: none; z-index: 11;
 }
 .user-row { display: flex; align-items: center; gap: 0.6rem; opacity: 0; transition: opacity 0.5s; }
 .user-row.visible { opacity: 1; }
 .status-dot { width: 6px; height: 6px; background: #00ff9f; border-radius: 50%; box-shadow: 0 0 8px #00ff9f; transition: background 0.3s; }
 .status-dot.offline { background: #ff4b4b; box-shadow: 0 0 8px #ff4b4b; }
-.user-name { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.user-name { font-size: 0.7rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
 
-/* Responsive Overrides */
-@media (max-height: 450px) {
-  #startScreen h1 { margin-bottom: 0.2rem; }
-  #startScreen p { margin-bottom: 0.8rem; }
-  #onlineStatus { bottom: 1rem; left: 1rem; }
-}
-
-/* Base Styles (from original) */
+/* Base Styles */
 #sessionUI { position: fixed; top: 1.5rem; left: 0; right: 0; text-align: center; z-index: 10; display: none; pointer-events: none; }
 #pauseBtn { background: transparent; border: 1px solid rgba(255,255,255,.22); color: rgba(255,255,255,.45); padding: .2rem .9rem; font-size: .65rem; letter-spacing: .18em; cursor: pointer; font-family: inherit; transition: all .3s; vertical-align: middle; margin-left: .8rem; pointer-events: all; }
 #timer  { font-size: .7rem; letter-spacing: .25em; color: rgba(255,255,255,.3); margin-bottom: .4rem; }
@@ -162,52 +151,24 @@ let peer = null;
 let conn = null;
 
 const SessionManager = {
-  users: [], // { name, status }
+  users: [],
   retryCount: 0,
   
   init() {
     if (myName) document.getElementById('userName').value = myName;
-
     const linkBtn = document.getElementById('sessionLink');
-    const currentUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-    const fullLink = currentUrl + '?sid=' + sessionId;
-    
+    const fullLink = window.location.origin + window.location.pathname + '?sid=' + sessionId;
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
       linkBtn.textContent = "KOPIERT!";
       setTimeout(() => { linkBtn.textContent = fullLink; }, 2000);
     };
-
     document.getElementById('joinBtn').onclick = () => this.join();
-    
-    // Peer initialisieren
     const peerId = isHost ? sessionId : null;
-    peer = new Peer(peerId, { 
-      debug: 2,
-      config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} 
-    });
-
-    peer.on('open', (id) => {
-      console.log('Peer bereit. Meine ID:', id);
-      if (!isHost) {
-        this.connectToHost();
-      }
-    });
-
-    peer.on('connection', (c) => {
-      console.log('Eingehende Verbindung von:', c.peer);
-      conn = c;
-      this.setupConnection();
-    });
-
-    peer.on('error', (err) => {
-      console.error('PeerJS Fehler:', err.type, err);
-      if (err.type === 'peer-disconnected' || err.type === 'network') {
-        setTimeout(() => location.reload(), 3000);
-      }
-    });
-
+    peer = new Peer(peerId, { debug: 2, config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
+    peer.on('open', id => { if (!isHost) this.connectToHost(); });
+    peer.on('connection', c => { conn = c; this.setupConnection(); });
     window.addEventListener('beforeunload', () => this.sendStatus('offline'));
     window.addEventListener('resize', () => {
       const isPortrait = window.innerHeight > window.innerWidth;
@@ -216,64 +177,39 @@ const SessionManager = {
   },
 
   connectToHost() {
-    console.log('Verbinde zu Host:', sessionId, '(Versuch ' + (this.retryCount + 1) + ')');
     conn = peer.connect(sessionId, { reliable: true });
     this.setupConnection();
-    
-    // Timeout für Retry, falls Host noch nicht da
-    setTimeout(() => {
-      if ((!conn || !conn.open) && this.retryCount < 5) {
-        this.retryCount++;
-        this.connectToHost();
-      }
-    }, 4000);
+    setTimeout(() => { if ((!conn || !conn.open) && this.retryCount < 5) { this.retryCount++; this.connectToHost(); } }, 4000);
   },
 
   setupConnection() {
-    conn.on('open', () => {
-      console.log('Datenverbindung steht!');
-      this.retryCount = 0;
-      if (myName) this.sendStatus('online');
-    });
-
+    conn.on('open', () => { this.retryCount = 0; if (myName) this.sendStatus('online'); });
     conn.on('data', (data) => {
-      console.log('Nachricht empfangen:', data);
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status);
-        // Echo für den Gast, damit er den Host auch sieht
-        if (isHost && data.status === 'online') {
-          this.sendStatus('online');
-        }
+        if (isHost && data.status === 'online') this.sendStatus('online');
       }
-      if (data.type === 'START_EXPERIENCE') {
-        startExperience(true);
+      if (data.type === 'START_EXPERIENCE') startExperience(true);
+      if (data.type === 'INTERACTION') {
+        if (data.kind === 'FISH_SCHOOL') createFishSchool(data.x, data.y, data.dir, false);
+        if (data.kind === 'JELLYFISH') createJellyfish(data.x, data.y, false);
+        if (data.kind === 'WHALE') createWhale(false);
       }
     });
-
-    conn.on('close', () => {
-      console.log('Verbindung geschlossen');
-      if (this.users[1]) this.updateUser(this.users[1].name, 'offline');
-    });
+    conn.on('close', () => { if (this.users[1]) this.updateUser(this.users[1].name, 'offline'); });
   },
 
-  sendStatus(status) {
-    if (conn && conn.open && myName) {
-      conn.send({ type: 'STATUS', name: myName, status: status });
-    }
-  },
+  sendStatus(status) { if (conn && conn.open && myName) conn.send({ type: 'STATUS', name: myName, status: status }); },
+  sendInteraction(kind, data) { if (conn && conn.open) conn.send({ type: 'INTERACTION', kind, ...data }); },
 
   join() {
     myName = document.getElementById('userName').value.trim();
     if (!myName) return;
     localStorage.setItem('artcube_name', myName);
-    
-    console.log('Trete bei als:', myName);
     this.updateUser(myName, 'online');
     this.sendStatus('online');
-    
     document.getElementById('userName').disabled = true;
     document.getElementById('joinBtn').style.display = 'none';
-    
     if (isHost) {
       document.getElementById('shareLinkArea').style.display = 'block';
       document.getElementById('startBtn').style.display = 'block';
@@ -284,157 +220,112 @@ const SessionManager = {
 
   updateUser(name, status) {
     let user = this.users.find(u => u.name === name);
-    if (!user) {
-      user = { name: name, status: status };
-      this.users.push(user);
-    } else {
-      user.status = status;
-    }
+    if (!user) user = this.users[this.users.length] = { name, status };
+    else user.status = status;
     this.updateUI();
   },
 
   updateUI() {
     this.users.forEach((u, i) => {
-      // Host ist immer User 1 in seiner Sicht, Gast ist User 2
-      // Wir weisen die Slots einfach nach Reihenfolge des Beitritts zu
       const idx = i + 1;
-      const nameEl = document.getElementById('name' + idx);
-      const textEl = document.getElementById('statText' + idx);
-      const dotEl = document.getElementById('dot' + idx);
-      const rowEl = document.getElementById('user' + idx);
-
-      if (nameEl && rowEl) {
-        nameEl.textContent = u.name;
-        textEl.textContent = u.status;
-        dotEl.className = 'status-dot ' + (u.status === 'offline' ? 'offline' : '');
-        rowEl.classList.add('visible');
+      const row = document.getElementById('user' + idx);
+      if (row) {
+        document.getElementById('name' + idx).textContent = u.name;
+        document.getElementById('statText' + idx).textContent = u.status;
+        document.getElementById('dot' + idx).className = 'status-dot ' + (u.status === 'offline' ? 'offline' : '');
+        row.classList.add('visible');
       }
     });
   }
 };
-
 SessionManager.init();
 
-async function startExperience(asGuest = false) {
-  document.getElementById('startScreen').style.opacity = '0';
-  setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 3000);
-  document.getElementById('sessionUI').style.display = 'block';
-  initPlants();
-  
-  if (!asGuest) {
-    const file = audioInput.files[0];
-    await AudioEngine.init(file);
-    if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
-  }
-
-  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
-  recorder = new MediaRecorder(offscreenCanvas.captureStream(30), { mimeType });
-  recorder.ondataavailable = ev => { if(ev.data.size > 0) chunks.push(ev.data); };
-  running = true; lastFrameTime = performance.now(); requestAnimationFrame(loop);
-}
-
-// --- CANVAS & ANIMATION LOGIC ---
-const mainCanvas = document.getElementById('main');
-const ctx = mainCanvas.getContext('2d');
-const offscreenCanvas = document.createElement('canvas');
-const offscreenCtx = offscreenCanvas.getContext('2d');
-
-let W, H;
-function resize() { 
-    W = mainCanvas.width = window.innerWidth; 
-    H = mainCanvas.height = window.innerHeight; 
-    const frameH = Math.floor(H * 0.75);
-    const frameW = Math.floor(frameH * 0.75);
-    const frame = document.getElementById('captureFrame');
-    if(frame) {
-        frame.style.width = frameW + 'px';
-        frame.style.height = frameH + 'px';
-    }
-    offscreenCanvas.width = frameW;
-    offscreenCanvas.height = frameH;
-}
-window.addEventListener('resize', resize);
-resize();
-
-let running = false, paused = false, canInteract = true;
-let elapsed = 0, lastFrameTime = 0;
-let mouseX = -1000, mouseY = -1000, isMouseDown = false;
-let gesturePath = [];
-let swipeCount = 0, lastSwipeX = 0, lastSwipeDir = 0;
+// --- ANIMATION LOGIC ---
+const mainCanvas = document.getElementById('main'), ctx = mainCanvas.getContext('2d');
+const offscreenCanvas = document.createElement('canvas'), offscreenCtx = offscreenCanvas.getContext('2d');
+let W, H, running = false, paused = false, canInteract = true, isRecordingPhase = false;
+let elapsed = 0, lastFrameTime = 0, isMouseDown = false, lastSwipeX = 0, lastSwipeDir = 0, swipeCount = 0, gesturePath = [];
 let recorder = null, chunks = [];
 
-const CLOUD_NAME = 'dvsypjad8';
-const UPLOAD_PRESET = 'artbox';
-const MINT_BASE_URL = 'https://art-box-beta.vercel.app/mint?nft=';
+function resize() {
+  W = mainCanvas.width = window.innerWidth; H = mainCanvas.height = window.innerHeight;
+  const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
+  const frame = document.getElementById('captureFrame');
+  if (frame) { frame.style.width = fW + 'px'; frame.style.height = fH + 'px'; }
+  offscreenCanvas.width = fW; offscreenCanvas.height = fH;
+}
+window.addEventListener('resize', resize); resize();
 
-const FISH = [];
-const FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00'];
-function createFish(x, y, vx, vy) {
-  if(!canInteract) return;
-  FISH.push({ x: x, y: y, vx: vx, vy: vy, size: (W<600?2:4)+Math.random()*5, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)], born: elapsed, flash: 0 });
+const FISH = [], FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00'];
+function createFish(x, y, vx, vy, isLocal = true) {
+  FISH.push({ x, y, vx, vy, size: (W<600?2:4)+Math.random()*5, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)], born: elapsed, flash: 0, isLocal });
+}
+function createFishSchool(x, y, dir, isLocal = true) {
+  const count = (elapsed >= 12) ? 4 + Math.floor(Math.random() * 4) : 1;
+  for (let i = 0; i < count; i++) {
+    const ox = (Math.random() - 0.5) * 50, oy = (Math.random() - 0.5) * 50;
+    const svx = dir * (0.15 + Math.random() * 0.1);
+    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.05, isLocal);
+  }
+  if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir });
 }
 function drawFish(t) {
   const bass = AudioEngine.intensity;
   for (let i = FISH.length - 1; i >= 0; i--) {
     const f = FISH[i];
+    if (isRecordingPhase && !f.isLocal) continue;
     f.x += f.vx * (1 + bass * 1.5); f.y += f.vy * (1 + bass * 1.5);
     if (f.flash > 0) f.flash *= 0.90;
-    const osc = Math.sin(t * 8 + f.born) * 2;
-    const angle = f.vx > 0 ? 0 : Math.PI;
+    const osc = Math.sin(t * 8 + f.born) * 2, angle = f.vx > 0 ? 0 : Math.PI;
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(angle); if (f.vx < 0) ctx.scale(1, -1);
     ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.5, f.size, 0, 0, Math.PI * 2);
     ctx.fillStyle = f.color; ctx.shadowBlur = 15 + (f.flash * 40); ctx.shadowColor = f.color;
     if (f.flash > 0.1) ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.beginPath(); ctx.moveTo(-f.size * 1.2, 0); ctx.lineTo(-f.size * 2, osc); ctx.lineTo(-f.size * 2, -osc); ctx.closePath();
-    ctx.fillStyle = f.color; ctx.fill();
-    ctx.restore();
+    ctx.fillStyle = f.color; ctx.fill(); ctx.restore();
     if (f.x < -200 || f.x > W + 200 || t - f.born > 25) FISH.splice(i, 1);
   }
 }
 
 const ALGAE = [], CORALS = [];
 function initPlants() {
-    for(let i=0; i<12; i++) ALGAE.push({ x: Math.random() * W, segments: 10 + Math.random() * 10, segLen: 5 + Math.random() * 5, w: 10 + Math.random() * 10, phase: Math.random() * Math.PI * 2, color: `hsl(${130 + Math.random() * 40}, 40%, 15%)`, alpha: 0 });
-    for(let i=0; i<8; i++) CORALS.push({ x: Math.random() * W, size: 20 + Math.random() * 30, color: `hsl(${Math.random() * 360}, 60%, 40%)`, alpha: 0, rot: Math.random() * 0.4 - 0.2 });
+  for(let i=0; i<12; i++) ALGAE.push({ x: Math.random() * W, segments: 10 + Math.random() * 10, segLen: 5 + Math.random() * 5, w: 10 + Math.random() * 10, phase: Math.random() * Math.PI * 2, color: `hsl(${130 + Math.random() * 40}, 40%, 15%)`, alpha: 0 });
+  for(let i=0; i<8; i++) CORALS.push({ x: Math.random() * W, size: 20 + Math.random() * 30, color: `hsl(${Math.random() * 360}, 60%, 40%)`, alpha: 0, rot: Math.random() * 0.4 - 0.2 });
 }
 function drawPlants(t) {
-    ALGAE.forEach(a => {
-        if (elapsed > 12) a.alpha = Math.min(0.8, a.alpha + 0.005);
-        if (a.alpha <= 0) return;
-        let px = a.x, py = H;
-        ctx.globalAlpha = a.alpha; ctx.shadowBlur = 10; ctx.shadowColor = a.color;
-        for(let i = 1; i <= a.segments; i++) {
-            ctx.beginPath(); ctx.moveTo(px, py);
-            const y = H - (i * a.segLen);
-            const x = a.x + Math.sin(t * 0.3 + a.phase + i * 0.1) * (i * 1.5);
-            ctx.lineWidth = a.w * (1 - i / a.segments) + 0.5;
-            ctx.lineTo(x, y); ctx.strokeStyle = a.color; ctx.lineCap = 'round'; ctx.stroke();
-            px = x; py = y;
-        }
-    });
-    CORALS.forEach(c => {
-        if (elapsed > 40) c.alpha = Math.min(1, c.alpha + 0.005);
-        if (c.alpha <= 0) return;
-        ctx.save(); ctx.translate(c.x, H); ctx.rotate(c.rot); ctx.globalAlpha = c.alpha;
-        ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-c.size, -c.size*0.5, 0, -c.size); ctx.quadraticCurveTo(c.size, -c.size*0.5, 0, 0);
-        ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill();
-        ctx.restore();
-    });
-    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  ALGAE.forEach(a => {
+    if (elapsed > 12) a.alpha = Math.min(0.8, a.alpha + 0.005);
+    if (a.alpha <= 0) return;
+    let px = a.x, py = H; ctx.globalAlpha = a.alpha; ctx.shadowBlur = 10; ctx.shadowColor = a.color;
+    for(let i = 1; i <= a.segments; i++) {
+      ctx.beginPath(); ctx.moveTo(px, py);
+      const y = H - (i * a.segLen), x = a.x + Math.sin(t * 0.3 + a.phase + i * 0.1) * (i * 1.5);
+      ctx.lineWidth = a.w * (1 - i / a.segments) + 0.5; ctx.lineTo(x, y); ctx.strokeStyle = a.color; ctx.lineCap = 'round'; ctx.stroke();
+      px = x; py = y;
+    }
+  });
+  CORALS.forEach(c => {
+    if (elapsed > 40) c.alpha = Math.min(1, c.alpha + 0.005);
+    if (c.alpha <= 0) return;
+    ctx.save(); ctx.translate(c.x, H); ctx.rotate(c.rot); ctx.globalAlpha = c.alpha;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-c.size, -c.size*0.5, 0, -c.size); ctx.quadraticCurveTo(c.size, -c.size*0.5, 0, 0);
+    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill(); ctx.restore();
+  });
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
 const WHALES = [];
-function createWhale() {
-  if(!canInteract) return;
+function createWhale(isLocal = true) {
   const whaleW = (W < 600 ? 300 : 500) + Math.random() * 200;
-  WHALES.push({ x: -800, y: 100 + Math.random() * (H - 400), w: whaleW, h: whaleW * 0.12, speed: (0.5 + Math.random() * 0.3) * 1.5 });
+  WHALES.push({ x: -800, y: 100 + Math.random() * (H - 400), w: whaleW, h: whaleW * 0.12, speed: (0.5 + Math.random() * 0.3) * 1.5, isLocal });
+  if (isLocal) SessionManager.sendInteraction('WHALE', {});
 }
 function drawWhales(t) {
   WHALES.forEach((w, i) => {
+    if (isRecordingPhase && !w.isLocal) return;
     w.x += w.speed;
-    const bodySway = Math.sin(t * 0.4) * 15;
-    const flukeSway = Math.sin(t * 0.8) * 35;
+    const bodySway = Math.sin(t * 0.4) * 15, flukeSway = Math.sin(t * 0.8) * 35;
     ctx.save(); ctx.translate(w.x, w.y + bodySway);
     const grad = ctx.createLinearGradient(w.w*0.2, -w.h, w.w*0.2, w.h);
     grad.addColorStop(0, 'rgba(0, 200, 255, 0.5)'); grad.addColorStop(0.4, 'rgba(30, 80, 140, 0.7)'); grad.addColorStop(1, 'rgba(5, 15, 40, 0.6)');
@@ -442,35 +333,33 @@ function drawWhales(t) {
     ctx.beginPath(); ctx.moveTo(w.w, 0); ctx.bezierCurveTo(w.w*0.8, -w.h*1.2, w.w*0.3, -w.h*0.5, 0, flukeSway*0.3);
     ctx.lineTo(-w.w*0.1, flukeSway - 30); ctx.lineTo(-w.w*0.1, flukeSway + 30); ctx.lineTo(0, flukeSway*0.3);
     ctx.bezierCurveTo(w.w*0.3, w.h*0.8, w.w*0.8, w.h*1.2, w.w, 0);
-    ctx.fillStyle = grad; ctx.fill();
-    ctx.restore();
+    ctx.fillStyle = grad; ctx.fill(); ctx.restore();
     if (w.x > W + 800) WHALES.splice(i, 1);
   });
 }
 
 const JELLYFISH = [];
-function createJellyfish(x, y) {
-  if(!canInteract) return;
-  JELLYFISH.push({ x: x, y: y, size: (W<600?10:20)+Math.random()*20, vx: (Math.random()-0.5)*0.3, vy: -0.2-Math.random()*0.3, alpha: 0, born: elapsed, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)] });
+function createJellyfish(x, y, isLocal = true) {
+  JELLYFISH.push({ x, y, size: (W<600?10:20)+Math.random()*20, vx: (Math.random()-0.5)*0.3, vy: -0.2-Math.random()*0.3, alpha: 0, born: elapsed, color: FISH_COLORS[Math.floor(Math.random()*FISH_COLORS.length)], isLocal });
+  if (isLocal) SessionManager.sendInteraction('JELLYFISH', { x, y });
 }
 function drawJellyfish(t) {
   const bass = AudioEngine.intensity;
   JELLYFISH.forEach((j, i) => {
+    if (isRecordingPhase && !j.isLocal) return;
     j.x += j.vx; j.y += j.vy; j.alpha = Math.min(0.6, j.alpha + 0.01);
     const s = j.size * (Math.sin(t * 1.5 + j.born) * 0.1 + 1);
     ctx.save(); ctx.globalAlpha = j.alpha; ctx.shadowBlur = 15 + 20 * bass; ctx.shadowColor = j.color; ctx.fillStyle = j.color; ctx.strokeStyle = j.color;
     ctx.beginPath(); ctx.moveTo(j.x - s, j.y); ctx.bezierCurveTo(j.x - s, j.y - s * 1.2, j.x + s, j.y - s * 1.2, j.x + s, j.y); ctx.lineTo(j.x - s, j.y); ctx.fill();
     const ts = s * 0.5, bw = s * 0.25;
     for (let k = 0; k < 4; k++) {
-        let tx = j.x - s * 0.75 + k * ts; let px = tx, py = j.y;
-        for (let seg = 1; seg <= 8; seg++) {
-            const vy = j.y + seg * (s * 0.45); const vx = tx + Math.sin(t * 2.5 + seg * 0.8 + j.born) * (s * 0.35);
-            ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(vx, vy); ctx.lineWidth = bw * (1 - seg / 8) + 1; ctx.stroke();
-            px = vx; py = vy;
-        }
+      let tx = j.x - s * 0.75 + k * ts, px = tx, py = j.y;
+      for (let seg = 1; seg <= 8; seg++) {
+        const vy = j.y + seg * (s * 0.45), vx = tx + Math.sin(t * 2.5 + seg * 0.8 + j.born) * (s * 0.35);
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(vx, vy); ctx.lineWidth = bw * (1 - seg / 8) + 1; ctx.stroke(); px = vx; py = vy;
+      }
     }
-    ctx.restore();
-    if (j.y < -300) JELLYFISH.splice(i, 1);
+    ctx.restore(); if (j.y < -300) JELLYFISH.splice(i, 1);
   });
 }
 
@@ -491,150 +380,92 @@ const AudioEngine = {
     this.analyser.getByteFrequencyData(this.data);
     let sum = 0; for (let i=0; i<12; i++) sum += this.data[i];
     this.intensity = (sum/12)/255;
-  },
-  fadeOut(duration) {
-    if(this.gain) {
-        const now = this.ctx.currentTime;
-        this.gain.gain.linearRampToValueAtTime(this.gain.gain.value, now);
-        this.gain.gain.linearRampToValueAtTime(0, now + duration);
-    }
   }
 };
 
-function drawSceneBG(t) {
-  const bass = AudioEngine.intensity;
-  let lightMix = Math.min(1, Math.max(0, (elapsed - 23) / 15));
-  let darkMix = (elapsed > 90) ? Math.min(1, (elapsed - 90) / 10) : 0;
-  let finalMix = lightMix * (1 - darkMix);
-  const r = 1*(1-finalMix)+2*finalMix, g = 2*(1-finalMix)+15*finalMix, b = 8*(1-finalMix)+60*finalMix;
-  ctx.fillStyle = `rgb(${r+bass*5}, ${g+bass*5}, ${b+bass*10})`; ctx.fillRect(0, 0, W, H);
-}
-
-const SNOW_PARTICLES = Array.from({ length: 400 }, () => ({ x: Math.random(), y: Math.random(), size: 0.5+Math.random()*1.5, speedY: 0.0001+Math.random()*0.0004, driftX: (Math.random()-0.5)*0.0001, alpha: 0.1+Math.random()*0.4, isReactive: Math.random()>0.8, glow: 0 }));
-function drawSnow(t) {
-  const bass = AudioEngine.intensity;
-  SNOW_PARTICLES.forEach(p => {
-    p.y += p.speedY * (1 + bass*2); p.x += p.driftX;
-    if (p.y > 1.05) { p.y = -0.05; p.x = Math.random(); }
-    if (p.isReactive && bass > 0.45) p.glow = Math.max(p.glow, bass*2);
-    p.glow *= 0.92;
-    const px = p.x*W, py = p.y*H;
-    ctx.shadowBlur = p.glow*20; ctx.shadowColor = '#00ffff';
-    ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha + p.glow})`;
-    ctx.fillRect(px, py, p.size * (1+p.glow), p.size * (1+p.glow));
-  });
-}
-
-async function uploadVideo() {
-  const mintURL = MINT_BASE_URL + sessionId;
-  const msg = document.getElementById('uploadMsg');
-  if (chunks.length === 0) { msg.textContent = 'Fehler: Keine Daten'; return; }
-  try {
-    msg.textContent = 'lade hoch...';
-    const blob = new Blob(chunks, { type: 'video/webm' });
-    const fd = new FormData();
-    fd.append('file', blob, `${sessionId}.webm`);
-    fd.append('upload_preset', UPLOAD_PRESET);
-    fd.append('public_id', sessionId);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data.secure_url) msg.textContent = 'upload erfolgreich';
-    else throw new Error("Cloudinary");
-  } catch (err) { msg.textContent = 'upload fehlgeschlagen'; }
-  const qrBox = document.getElementById('qrBox');
-  qrBox.innerHTML = "";
-  new QRCode(qrBox, { text: mintURL, width: 160, height: 160 });
-}
-
-let beatActive = false, state = 0;
 function loop(ts) {
   if (!running) { lastFrameTime = ts; return; }
-  const dt = (ts - lastFrameTime) / 1000;
-  lastFrameTime = ts;
+  const dt = (ts - lastFrameTime) / 1000; lastFrameTime = ts;
   if (paused) { requestAnimationFrame(loop); return; }
   elapsed += dt; AudioEngine.update();
+  if (AudioEngine.intensity > 0.55) FISH.filter(f => Math.random() > 0.8).forEach(f => f.flash = 2.0);
 
-  if (AudioEngine.intensity > 0.55 && !beatActive) {
-      const ftf = [...FISH].sort(() => 0.5-Math.random()).slice(0, 3);
-      ftf.forEach(f => f.flash = 2.0); beatActive = true;
-  } else if (AudioEngine.intensity < 0.45) beatActive = false;
-
-  let globalAlpha = 1.0;
-  if (elapsed > 90) globalAlpha = Math.max(0, 1 - (elapsed - 90) / 10);
+  let globalAlpha = (elapsed > 90) ? Math.max(0, 1 - (elapsed - 90) / 10) : 1.0;
   ctx.globalAlpha = globalAlpha;
 
-  drawSceneBG(elapsed);
-  drawSnow(elapsed);
-  drawPlants(elapsed);
-  drawFish(elapsed);
-  drawJellyfish(elapsed);
-  drawWhales(elapsed);
+  // BG
+  let lightMix = Math.min(1, Math.max(0, (elapsed - 23) / 15)), darkMix = (elapsed > 90) ? Math.min(1, (elapsed - 90) / 10) : 0, finalMix = lightMix * (1 - darkMix);
+  const r = 1*(1-finalMix)+2*finalMix, g = 2*(1-finalMix)+15*finalMix, b = 8*(1-finalMix)+60*finalMix;
+  ctx.fillStyle = `rgb(${r}, ${g}, ${b})`; ctx.fillRect(0, 0, W, H);
+
+  drawPlants(elapsed); drawFish(elapsed); drawJellyfish(elapsed); drawWhales(elapsed);
 
   if (recorder && recorder.state === 'recording') {
-      const fH = Math.floor(H * 0.75);
-      const fW = Math.floor(fH * 0.75);
-      const sx = (W - fW) / 2;
-      const sy = (H - fH) / 2;
-      offscreenCtx.drawImage(mainCanvas, sx, sy, fW, fH, 0, 0, fW, fH);
+    const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
+    offscreenCtx.drawImage(mainCanvas, (W - fW) / 2, (H - fH) / 2, fW, fH, 0, 0, fW, fH);
   }
 
   const status = document.getElementById('status');
-  if (elapsed < 12) status.textContent = "der abstieg...";
-  else if (elapsed < 65) status.textContent = "gestalte deine tiefe...";
-  else if (elapsed < 75) status.textContent = "aufnahme...";
-  else status.textContent = "souvenir bereit";
-
-  if (elapsed >= 60 && elapsed < 65) {
-      document.getElementById('souvenirUI').style.display = 'flex';
-      document.getElementById('countdown').textContent = Math.ceil(65 - elapsed);
-  } else if (elapsed >= 65 && elapsed < 75) {
-      document.getElementById('souvenirUI').style.display = 'none';
-      document.getElementById('captureFrame').style.display = 'block';
-      if (recorder && recorder.state === 'inactive') { chunks = []; recorder.start(); }
-  } else if (elapsed >= 75 && state === 0) {
-      state = 1; canInteract = false;
-      document.getElementById('captureFrame').style.display = 'none';
-      if (recorder && recorder.state === 'recording') { recorder.onstop = () => uploadVideo(); recorder.stop(); }
-      else uploadVideo();
-      document.getElementById('qrScreen').style.display = 'flex';
-  } else if (elapsed >= 90 && state === 1) {
-      state = 2; AudioEngine.fadeOut(10);
-      if (elapsed >= 100) location.reload();
+  if (elapsed < 60) status.textContent = "gestalte deine tiefe...";
+  else if (elapsed < 65) { status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); }
+  else if (elapsed < 75) { isRecordingPhase = true; document.getElementById('souvenirUI').style.display = 'none'; document.getElementById('captureFrame').style.display = 'block'; if (recorder && recorder.state === 'inactive') recorder.start(); }
+  else {
+    document.getElementById('captureFrame').style.display = 'none';
+    if (recorder && recorder.state === 'recording') { recorder.onstop = () => uploadVideo(); recorder.stop(); }
+    document.getElementById('qrScreen').style.display = 'flex';
   }
-
-  ctx.globalAlpha = 1.0;
+  
   const secs = Math.floor(elapsed);
   document.getElementById('timerText').textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
   requestAnimationFrame(loop);
 }
 
-const startBtn = document.getElementById('startBtn'), audioInput = document.getElementById('audioInput');
-startBtn.addEventListener('click', () => audioInput.click());
-audioInput.addEventListener('change', async (e) => {
-  if (e.target.files.length === 0) return;
-  startExperience(false);
-});
+async function startExperience(asGuest = false) {
+  document.getElementById('startScreen').style.opacity = '0';
+  setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 3000);
+  document.getElementById('sessionUI').style.display = 'block';
+  initPlants();
+  if (!asGuest) {
+    const file = audioInput.files[0]; await AudioEngine.init(file);
+    if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
+  }
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+  recorder = new MediaRecorder(offscreenCanvas.captureStream(30), { mimeType });
+  recorder.ondataavailable = ev => { if(ev.data.size > 0) chunks.push(ev.data); };
+  running = true; lastFrameTime = performance.now(); requestAnimationFrame(loop);
+}
 
-document.getElementById('pauseBtn').addEventListener('click', () => {
-  paused = !paused; document.getElementById('pauseBtn').textContent = paused ? 'WEITER' : 'PAUSE';
-  if (AudioEngine.ctx) { if (paused) AudioEngine.ctx.suspend(); else AudioEngine.ctx.resume(); }
-});
+async function uploadVideo() {
+  const mintURL = MINT_BASE_URL + sessionId + "_" + myName;
+  const msg = document.getElementById('uploadMsg');
+  try {
+    msg.textContent = 'lade dein souvenir hoch...';
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const fd = new FormData();
+    fd.append('file', blob, `${sessionId}_${myName}.webm`);
+    fd.append('upload_preset', 'artbox');
+    const res = await fetch(`https://api.cloudinary.com/v1_1/dvsypjad8/video/upload`, { method: 'POST', body: fd });
+    const data = await res.json();
+    msg.textContent = data.secure_url ? 'bereit zum minten' : 'upload fehler';
+  } catch (e) { msg.textContent = 'fehler'; }
+  new QRCode(document.getElementById('qrBox'), { text: mintURL, width: 160, height: 160 });
+}
 
-// Input Handling (Desktop & Mobile)
+document.getElementById('startBtn').onclick = () => audioInput.click();
+audioInput.onchange = e => { if (e.target.files.length) startExperience(false); };
+document.getElementById('pauseBtn').onclick = () => { paused = !paused; if (AudioEngine.ctx) paused ? AudioEngine.ctx.suspend() : AudioEngine.ctx.resume(); };
+
 const handleInput = (x, y) => {
-  if (paused || !canInteract) return;
-  gesturePath.push({x, y});
-  if (gesturePath.length > 40) gesturePath.shift();
-  if (elapsed > 23 && checkSwirl()) createJellyfish(x, y);
-  const dx = x - lastSwipeX;
-  const currentDir = dx > 0 ? 1 : -1;
+  if (!canInteract || isRecordingPhase) return;
+  gesturePath.push({x, y}); if (gesturePath.length > 40) gesturePath.shift();
+  if (elapsed > 23 && checkSwirl()) createJellyfish(x, y, true);
+  const dx = x - lastSwipeX, currentDir = dx > 0 ? 1 : -1;
   if (currentDir !== lastSwipeDir && Math.abs(dx) > 15) {
-      swipeCount++; lastSwipeDir = currentDir;
-      if (swipeCount >= 4 && elapsed > 30) { createWhale(); swipeCount = 0; }
+    swipeCount++; lastSwipeDir = currentDir;
+    if (swipeCount >= 4 && elapsed > 30) { createWhale(true); swipeCount = 0; }
   }
   lastSwipeX = x;
 };
-
 function checkSwirl() {
   if (gesturePath.length < 20) return false;
   let rot = 0;
@@ -643,20 +474,14 @@ function checkSwirl() {
     const angle = Math.atan2(v2.y, v2.x) - Math.atan2(v1.y, v1.x);
     rot += (angle > Math.PI) ? angle - 2*Math.PI : (angle < -Math.PI) ? angle + 2*Math.PI : angle;
   }
-  if (Math.abs(rot) > Math.PI * 1.8) { gesturePath = []; return true; }
-  return false;
+  return Math.abs(rot) > Math.PI * 1.8;
 }
-
 window.addEventListener('mousemove', e => { if(isMouseDown) handleInput(e.clientX, e.clientY); });
-window.addEventListener('touchmove', e => { handleInput(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+window.addEventListener('touchmove', e => handleInput(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
 window.addEventListener('mousedown', e => { isMouseDown = true; lastSwipeX = e.clientX; });
 window.addEventListener('mouseup', () => isMouseDown = false);
 window.addEventListener('touchstart', e => { lastSwipeX = e.touches[0].clientX; });
-window.addEventListener('dblclick', e => {
-  if (!running || paused || !canInteract) return;
-  const dir = Math.random() > 0.5 ? 1 : -1;
-  for (let i = 0; i < 5; i++) createFish(e.clientX, e.clientY, dir * (0.15 + Math.random() * 0.15), 0);
-});
+window.addEventListener('dblclick', e => { if (running && !isRecordingPhase) createFishSchool(e.clientX, e.clientY, Math.random() > 0.5 ? 1 : -1, true); });
 </script>
 </body>
 </html>
