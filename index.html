@@ -6,8 +6,24 @@
 <title>Abyssal Glow - Collaborative Artcube</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; background: #000; color: #fff; width: 100vw; height: 100vh; }
-canvas#main { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+body { overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; background: #000; color: #fff; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+/* Canvas Container for 16:9 Letterboxing */
+#canvasContainer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
+}
+canvas#main { 
+  background: #001; 
+  box-shadow: 0 0 50px rgba(0,0,0,0.5);
+  display: block;
+}
 
 /* Orientation Overlay */
 #orientationOverlay {
@@ -24,10 +40,10 @@ canvas#main { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   position: fixed; inset: 0; background: #000;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; z-index: 10; text-align: center;
-  transition: opacity 3s ease-in-out; padding: 1rem;
+  transition: opacity 2s ease-in-out; padding: 1rem;
 }
 #startScreen h1 { font-size: clamp(1.5rem, 8vw, 4rem); font-weight: 200; letter-spacing: .3em; margin-bottom: .6rem; }
-#startScreen p  { font-size: clamp(0.6rem, 2.5vw, 0.85rem); color: rgba(255,255,255,.4); letter-spacing: .12em; margin-bottom: 1.5rem; font-weight: 300; max-width: 80%; }
+#startScreen p  { font-size: clamp(0.6rem, 2.5vw, 0.85rem); color: rgba(255,255,255,.4); letter-spacing: .12em; margin-bottom: 1.5rem; font-weight: 300; }
 
 /* Name & Session UI */
 #setupUI { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 0.8rem; }
@@ -46,11 +62,7 @@ input#userName {
   margin-top: 1rem; padding: 0.8rem; background: rgba(255,255,255,0.03);
   border: 1px dashed rgba(255,255,255,0.1); display: none; width: 100%;
 }
-#shareLinkArea small { display: block; margin-bottom: 0.5rem; color: rgba(255,255,255,0.3); font-size: 0.65rem; letter-spacing: 0.1em; }
-#sessionLink { 
-  font-size: 0.65rem; color: #00f2ff; word-break: break-all; cursor: pointer; 
-  text-decoration: underline; background: transparent; border: none; font-family: inherit; width: 100%;
-}
+#sessionLink { font-size: 0.65rem; color: #00f2ff; word-break: break-all; cursor: pointer; text-decoration: underline; background: transparent; border: none; font-family: inherit; width: 100%; }
 
 #startBtn {
   background: transparent; border: 1px solid rgba(255,255,255,.25);
@@ -71,13 +83,13 @@ input#userName {
 .status-dot.offline { background: #ff4b4b; box-shadow: 0 0 8px #ff4b4b; }
 .user-name { font-size: 0.7rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
 
-/* Base Styles */
+/* HUD Styles */
 #sessionUI { position: fixed; top: 1.5rem; left: 0; right: 0; text-align: center; z-index: 10; display: none; pointer-events: none; }
 #pauseBtn { background: transparent; border: 1px solid rgba(255,255,255,.22); color: rgba(255,255,255,.45); padding: .2rem .9rem; font-size: .65rem; letter-spacing: .18em; cursor: pointer; font-family: inherit; transition: all .3s; vertical-align: middle; margin-left: .8rem; pointer-events: all; }
 #timer  { font-size: .7rem; letter-spacing: .25em; color: rgba(255,255,255,.3); margin-bottom: .4rem; }
 #status { font-size: .8rem; letter-spacing: .08em; color: rgba(255,255,255,.45); font-weight: 300; }
 #souvenirUI { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 5; pointer-events: none; font-size: 1.5rem; letter-spacing: 0.2em; color: #fff; text-transform: uppercase; }
-#captureFrame { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,0.8); display: none; z-index: 4; box-shadow: 0 0 0 5000px rgba(0,0,0,0.4); }
+#captureFrame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,0.8); display: none; z-index: 4; box-shadow: 0 0 0 5000px rgba(0,0,0,0.4); }
 #qrScreen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20; transition: opacity 10s linear; }
 #qrBox { background: #fff; padding: 1rem; margin-bottom: 1rem; }
 #qrText { font-size: 0.85rem; color: #fff; letter-spacing: 0.1em; text-align: center; max-width: 80%; }
@@ -92,7 +104,11 @@ input[type="file"] { display: none; }
   <p>Bitte drehe dein Gerät ins Querformat.</p>
 </div>
 
-<canvas id="main"></canvas>
+<div id="canvasContainer">
+  <canvas id="main"></canvas>
+  <div id="captureFrame"></div>
+</div>
+
 <input type="file" id="audioInput" accept="audio/*">
 
 <div id="startScreen">
@@ -131,7 +147,6 @@ input[type="file"] { display: none; }
 </div>
 
 <div id="souvenirUI">Erstelle dein Souvenir in <span id="countdown">5</span></div>
-<div id="captureFrame"></div>
 
 <div id="qrScreen">
   <div id="uploadMsg">verbinde zur blockchain...</div>
@@ -153,14 +168,12 @@ let conn = null;
 const SessionManager = {
   host: { name: "Host", status: "offline" },
   guest: { name: "Gast", status: "offline" },
-  retryCount: 0,
   joined: false,
   
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
-    const currentUrl = window.location.origin + window.location.pathname;
-    const fullLink = currentUrl + '?sid=' + sessionId;
+    const fullLink = window.location.origin + window.location.pathname + '?sid=' + sessionId;
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
@@ -168,55 +181,36 @@ const SessionManager = {
       setTimeout(() => { linkBtn.textContent = fullLink; }, 2000);
     };
     document.getElementById('joinBtn').onclick = () => this.join();
-    
     const peerId = isHost ? sessionId : null;
     peer = new Peer(peerId, { debug: 1, config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
-    
-    peer.on('open', id => { 
-        if (!isHost) this.connectToHost(); 
-    });
-    
-    peer.on('connection', c => { 
-        conn = c; 
-        this.setupConnection(); 
-    });
-
-    window.addEventListener('beforeunload', () => this.sendStatus('offline'));
-    window.addEventListener('resize', () => {
-      const isPortrait = window.innerHeight > window.innerWidth;
-      this.sendStatus(isPortrait ? 'offline' : 'online');
-    });
+    peer.on('open', id => { if (!isHost) this.connectToHost(); });
+    peer.on('connection', c => { conn = c; this.setupConnection(); });
   },
 
   connectToHost() {
     conn = peer.connect(sessionId, { reliable: true });
     this.setupConnection();
-    setTimeout(() => { if ((!conn || !conn.open) && this.retryCount < 5) { this.retryCount++; this.connectToHost(); } }, 4000);
+    setTimeout(() => { if ((!conn || !conn.open)) this.connectToHost(); }, 5000);
   },
 
   setupConnection() {
-    conn.on('open', () => {
-      this.retryCount = 0;
-      if (this.joined) this.sendStatus('online');
-    });
-
-    conn.on('data', (data) => {
+    conn.on('open', () => { if (this.joined) this.sendStatus('online'); });
+    conn.on('data', data => {
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status, data.role);
         if (data.status === 'online' && this.joined) this.sendStatus('online');
       }
       if (data.type === 'START_EXPERIENCE') startExperience(true);
       if (data.type === 'INTERACTION') {
-        const rx = data.rx * window.innerWidth;
-        const ry = data.ry * window.innerHeight;
-        if (data.kind === 'FISH_SCHOOL') createFishSchool(rx, ry, data.dir, false, data.colorIdx);
-        if (data.kind === 'JELLYFISH') createJellyfish(rx, ry, false, data.colorIdx);
+        // Umrechnung von relativen (0..1) in lokale (W/H) Koordinaten
+        const lx = data.rx * W;
+        const ly = data.ry * H;
+        if (data.kind === 'FISH_SCHOOL') createFishSchool(lx, ly, data.dir, false, data.colorIdx);
+        if (data.kind === 'JELLYFISH') createJellyfish(lx, ly, false, data.colorIdx);
         if (data.kind === 'WHALE') createWhale(false, data.ry);
       }
     });
-
     conn.on('close', () => this.handleDisconnect());
-    conn.on('error', () => this.handleDisconnect());
   },
 
   handleDisconnect() {
@@ -226,16 +220,16 @@ const SessionManager = {
 
   sendStatus(status) { 
     if (conn && conn.open && myName) {
-        conn.send({ type: 'STATUS', name: myName, status: status, role: isHost ? 'host' : 'guest' });
+      conn.send({ type: 'STATUS', name: myName, status: status, role: isHost ? 'host' : 'guest' });
     }
   },
 
   sendInteraction(kind, data) { 
     if (conn && conn.open) {
-        // Normalisierte Koordinaten senden (0 bis 1)
-        const rx = data.x / window.innerWidth;
-        const ry = data.y / window.innerHeight;
-        conn.send({ type: 'INTERACTION', kind, rx, ry, ...data });
+      // Sende immer relative Koordinaten (0..1)
+      const rx = data.x / W;
+      const ry = data.y / H;
+      conn.send({ type: 'INTERACTION', kind, rx, ry, ...data });
     }
   },
 
@@ -267,7 +261,6 @@ const SessionManager = {
     document.getElementById('statText1').textContent = this.host.status;
     document.getElementById('dot1').className = 'status-dot ' + (this.host.status === 'offline' ? 'offline' : '');
     document.getElementById('user1').classList.add('visible');
-
     document.getElementById('name2').textContent = this.guest.name;
     document.getElementById('statText2').textContent = this.guest.status;
     document.getElementById('dot2').className = 'status-dot ' + (this.guest.status === 'offline' ? 'offline' : '');
@@ -279,31 +272,61 @@ SessionManager.init();
 // --- ANIMATION LOGIC ---
 const mainCanvas = document.getElementById('main'), ctx = mainCanvas.getContext('2d');
 const offscreenCanvas = document.createElement('canvas'), offscreenCtx = offscreenCanvas.getContext('2d');
-let W, H, running = false, paused = false, canInteract = true, isRecordingPhase = false;
+// VIRTUAL RESOLUTION (Stays 16:9 regardless of device)
+let W = 1920, H = 1080;
+let running = false, paused = false, canInteract = true, isRecordingPhase = false;
 let elapsed = 0, lastFrameTime = 0, isMouseDown = false, lastSwipeX = 0, lastSwipeDir = 0, swipeCount = 0, gesturePath = [];
 let recorder = null, chunks = [];
 
 function resize() {
-  W = mainCanvas.width = window.innerWidth; H = mainCanvas.height = window.innerHeight;
+  const targetAspect = 16 / 9;
+  const windowAspect = window.innerWidth / window.innerHeight;
+  let displayW, displayH;
+
+  if (windowAspect > targetAspect) {
+    displayH = window.innerHeight;
+    displayW = displayH * targetAspect;
+  } else {
+    displayW = window.innerWidth;
+    displayH = displayW / targetAspect;
+  }
+
+  mainCanvas.style.width = displayW + 'px';
+  mainCanvas.style.height = displayH + 'px';
+  mainCanvas.width = W; 
+  mainCanvas.height = H;
+
   const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
   const frame = document.getElementById('captureFrame');
-  if (frame) { frame.style.width = fW + 'px'; frame.style.height = fH + 'px'; }
+  if (frame) { 
+    frame.style.width = (displayH * 0.75 * 0.75) + 'px'; 
+    frame.style.height = (displayH * 0.75) + 'px'; 
+  }
   offscreenCanvas.width = fW; offscreenCanvas.height = fH;
 }
 window.addEventListener('resize', resize); resize();
 
+// Helper to map screen coordinates to virtual 16:9 coordinates
+function getVirtualCoords(clientX, clientY) {
+  const rect = mainCanvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left) * (W / rect.width),
+    y: (clientY - rect.top) * (H / rect.height)
+  };
+}
+
 const FISH = [], FISH_COLORS = ['#00f2ff', '#00ff9f', '#ff00e5', '#bd00ff', '#f0ff00'];
 function createFish(x, y, vx, vy, isLocal = true, colorIdx) {
   const cIdx = colorIdx !== undefined ? colorIdx : Math.floor(Math.random()*FISH_COLORS.length);
-  FISH.push({ x, y, vx, vy, size: (W<600?2:4)+Math.random()*5, color: FISH_COLORS[cIdx], born: elapsed, flash: 0, isLocal });
+  FISH.push({ x, y, vx, vy, size: 6+Math.random()*8, color: FISH_COLORS[cIdx], born: elapsed, flash: 0, isLocal });
 }
 function createFishSchool(x, y, dir, isLocal = true, forcedColorIdx) {
   const cIdx = forcedColorIdx !== undefined ? forcedColorIdx : Math.floor(Math.random()*FISH_COLORS.length);
-  const count = (elapsed >= 12) ? 4 + Math.floor(Math.random() * 4) : 1;
+  const count = (elapsed >= 12) ? 5 + Math.floor(Math.random() * 5) : 1;
   for (let i = 0; i < count; i++) {
-    const ox = (Math.random() - 0.5) * 60, oy = (Math.random() - 0.5) * 60;
-    const svx = dir * (0.15 + Math.random() * 0.15);
-    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.02, isLocal, cIdx);
+    const ox = (Math.random() - 0.5) * 80, oy = (Math.random() - 0.5) * 80;
+    const svx = dir * (1.5 + Math.random() * 1.0);
+    createFish(x + ox, y + oy, svx, (Math.random()-0.5)*0.3, isLocal, cIdx);
   }
   if (isLocal) SessionManager.sendInteraction('FISH_SCHOOL', { x, y, dir, colorIdx: cIdx });
 }
@@ -312,40 +335,40 @@ function drawFish(t) {
   for (let i = FISH.length - 1; i >= 0; i--) {
     const f = FISH[i];
     if (isRecordingPhase && !f.isLocal) continue;
-    f.x += f.vx * (1 + bass * 1.5); f.y += f.vy * (1 + bass * 1.5);
+    f.x += f.vx * (1 + bass * 2.0); f.y += f.vy * (1 + bass * 2.0);
     if (f.flash > 0) f.flash *= 0.90;
-    const osc = Math.sin(t * 8 + f.born) * 2, angle = f.vx > 0 ? 0 : Math.PI;
+    const osc = Math.sin(t * 8 + f.born) * 5, angle = f.vx > 0 ? 0 : Math.PI;
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(angle); if (f.vx < 0) ctx.scale(1, -1);
     ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.5, f.size, 0, 0, Math.PI * 2);
-    ctx.fillStyle = f.color; ctx.shadowBlur = 15 + (f.flash * 40); ctx.shadowColor = f.color;
+    ctx.fillStyle = f.color; ctx.shadowBlur = 20 + (f.flash * 50); ctx.shadowColor = f.color;
     if (f.flash > 0.1) ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.beginPath(); ctx.moveTo(-f.size * 1.2, 0); ctx.lineTo(-f.size * 2, osc); ctx.lineTo(-f.size * 2, -osc); ctx.closePath();
     ctx.fillStyle = f.color; ctx.fill(); ctx.restore();
-    if (f.x < -250 || f.x > W + 250 || t - f.born > 25) FISH.splice(i, 1);
+    if (f.x < -400 || f.x > W + 400 || t - f.born > 25) FISH.splice(i, 1);
   }
 }
 
-const SNOW_PARTICLES = Array.from({ length: 400 }, () => ({ x: Math.random(), y: Math.random(), size: 0.5+Math.random()*1.5, speedY: 0.0001+Math.random()*0.0004, driftX: (Math.random()-0.5)*0.0001, alpha: 0.1+Math.random()*0.4, isReactive: Math.random()>0.8, glow: 0 }));
+const SNOW_PARTICLES = Array.from({ length: 500 }, () => ({ x: Math.random(), y: Math.random(), size: 1.0+Math.random()*2.0, speedY: 0.0002+Math.random()*0.0006, driftX: (Math.random()-0.5)*0.0002, alpha: 0.15+Math.random()*0.4, isReactive: Math.random()>0.8, glow: 0 }));
 function drawSnow(t) {
   const bass = AudioEngine.intensity;
   SNOW_PARTICLES.forEach(p => {
-    p.y += p.speedY * (1 + bass*3); p.x += p.driftX;
+    p.y += p.speedY * (1 + bass*4); p.x += p.driftX;
     if (p.y > 1.05) { p.y = -0.05; p.x = Math.random(); }
-    if (p.isReactive && bass > 0.5) p.glow = Math.max(p.glow, bass*2.5);
+    if (p.isReactive && bass > 0.5) p.glow = Math.max(p.glow, bass*3.0);
     p.glow *= 0.92;
     const px = p.x*W, py = p.y*H;
-    ctx.shadowBlur = p.glow*25; ctx.shadowColor = '#00ffff';
-    ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha + p.glow})`;
-    const s = p.size * (1+p.glow*1.5);
+    ctx.shadowBlur = p.glow*30; ctx.shadowColor = '#00ffff';
+    ctx.fillStyle = `rgba(200, 255, 255, ${p.alpha + p.glow})`;
+    const s = p.size * (1+p.glow*2);
     ctx.fillRect(px, py, s, s);
   });
 }
 
 const ALGAE = [], CORALS = [];
 function initPlants() {
-  for(let i=0; i<12; i++) ALGAE.push({ x: Math.random() * W, segments: 10 + Math.random() * 10, segLen: 5 + Math.random() * 5, w: 10 + Math.random() * 10, phase: Math.random() * Math.PI * 2, color: `hsl(${130 + Math.random() * 40}, 40%, 15%)`, alpha: 0 });
-  for(let i=0; i<8; i++) CORALS.push({ x: Math.random() * W, size: 20 + Math.random() * 30, color: `hsl(${Math.random() * 360}, 60%, 40%)`, alpha: 0, rot: Math.random() * 0.4 - 0.2 });
+  for(let i=0; i<15; i++) ALGAE.push({ x: Math.random() * W, segments: 12 + Math.random() * 12, segLen: 8 + Math.random() * 8, w: 15 + Math.random() * 15, phase: Math.random() * Math.PI * 2, color: `hsl(${130 + Math.random() * 40}, 40%, 15%)`, alpha: 0 });
+  for(let i=0; i<10; i++) CORALS.push({ x: Math.random() * W, size: 30 + Math.random() * 50, color: `hsl(${Math.random() * 360}, 60%, 40%)`, alpha: 0, rot: Math.random() * 0.4 - 0.2 });
 }
 function drawPlants(t) {
   ALGAE.forEach(a => {
@@ -354,7 +377,7 @@ function drawPlants(t) {
     let px = a.x, py = H; ctx.globalAlpha = a.alpha; ctx.shadowBlur = 10; ctx.shadowColor = a.color;
     for(let i = 1; i <= a.segments; i++) {
       ctx.beginPath(); ctx.moveTo(px, py);
-      const y = H - (i * a.segLen), x = a.x + Math.sin(t * 0.3 + a.phase + i * 0.1) * (i * 1.5);
+      const y = H - (i * a.segLen), x = a.x + Math.sin(t * 0.3 + a.phase + i * 0.1) * (i * 2.5);
       ctx.lineWidth = a.w * (1 - i / a.segments) + 0.5; ctx.lineTo(x, y); ctx.strokeStyle = a.color; ctx.lineCap = 'round'; ctx.stroke();
       px = x; py = y;
     }
@@ -372,32 +395,32 @@ function drawPlants(t) {
 
 const WHALES = [];
 function createWhale(isLocal = true, ry) {
-  const whaleW = (W < 600 ? 300 : 500) + Math.random() * 200;
-  const yPos = ry !== undefined ? ry * H : 100 + Math.random() * (H - 400);
-  WHALES.push({ x: -800, y: yPos, w: whaleW, h: whaleW * 0.12, speed: (0.5 + Math.random() * 0.3) * 1.5, isLocal });
+  const whaleW = 600 + Math.random() * 300;
+  const yPos = ry !== undefined ? ry * H : 200 + Math.random() * (H - 400);
+  WHALES.push({ x: -1000, y: yPos, w: whaleW, h: whaleW * 0.15, speed: 2.5 + Math.random() * 1.5, isLocal });
   if (isLocal) SessionManager.sendInteraction('WHALE', { x: 0, y: yPos });
 }
 function drawWhales(t) {
   WHALES.forEach((w, i) => {
     if (isRecordingPhase && !w.isLocal) return;
     w.x += w.speed;
-    const bodySway = Math.sin(t * 0.4) * 15, flukeSway = Math.sin(t * 0.8) * 35;
+    const bodySway = Math.sin(t * 0.4) * 25, flukeSway = Math.sin(t * 0.8) * 50;
     ctx.save(); ctx.translate(w.x, w.y + bodySway);
     const grad = ctx.createLinearGradient(w.w*0.2, -w.h, w.w*0.2, w.h);
     grad.addColorStop(0, 'rgba(0, 200, 255, 0.5)'); grad.addColorStop(0.4, 'rgba(30, 80, 140, 0.7)'); grad.addColorStop(1, 'rgba(5, 15, 40, 0.6)');
-    ctx.shadowBlur = 30; ctx.shadowColor = 'rgba(0, 150, 255, 0.4)';
+    ctx.shadowBlur = 40; ctx.shadowColor = 'rgba(0, 150, 255, 0.4)';
     ctx.beginPath(); ctx.moveTo(w.w, 0); ctx.bezierCurveTo(w.w*0.8, -w.h*1.2, w.w*0.3, -w.h*0.5, 0, flukeSway*0.3);
-    ctx.lineTo(-w.w*0.1, flukeSway - 30); ctx.lineTo(-w.w*0.1, flukeSway + 30); ctx.lineTo(0, flukeSway*0.3);
+    ctx.lineTo(-w.w*0.1, flukeSway - 40); ctx.lineTo(-w.w*0.1, flukeSway + 40); ctx.lineTo(0, flukeSway*0.3);
     ctx.bezierCurveTo(w.w*0.3, w.h*0.8, w.w*0.8, w.h*1.2, w.w, 0);
     ctx.fillStyle = grad; ctx.fill(); ctx.restore();
-    if (w.x > W + 1000) WHALES.splice(i, 1);
+    if (w.x > W + 1200) WHALES.splice(i, 1);
   });
 }
 
 const JELLYFISH = [];
 function createJellyfish(x, y, isLocal = true, forcedColorIdx) {
   const cIdx = forcedColorIdx !== undefined ? forcedColorIdx : Math.floor(Math.random()*FISH_COLORS.length);
-  JELLYFISH.push({ x, y, size: (W<600?10:20)+Math.random()*20, vx: (Math.random()-0.5)*0.3, vy: -0.2-Math.random()*0.3, alpha: 0, born: elapsed, color: FISH_COLORS[cIdx], isLocal });
+  JELLYFISH.push({ x, y, size: 40+Math.random()*30, vx: (Math.random()-0.5)*0.8, vy: -0.5-Math.random()*1.0, alpha: 0, born: elapsed, color: FISH_COLORS[cIdx], isLocal });
   if (isLocal) SessionManager.sendInteraction('JELLYFISH', { x, y, colorIdx: cIdx });
 }
 function drawJellyfish(t) {
@@ -406,30 +429,29 @@ function drawJellyfish(t) {
     if (isRecordingPhase && !j.isLocal) return;
     j.x += j.vx; j.y += j.vy; j.alpha = Math.min(0.6, j.alpha + 0.01);
     const s = j.size * (Math.sin(t * 1.5 + j.born) * 0.1 + 1);
-    ctx.save(); ctx.globalAlpha = j.alpha; ctx.shadowBlur = 15 + 20 * bass; ctx.shadowColor = j.color; ctx.fillStyle = j.color; ctx.strokeStyle = j.color;
+    ctx.save(); ctx.globalAlpha = j.alpha; ctx.shadowBlur = 20 + 30 * bass; ctx.shadowColor = j.color; ctx.fillStyle = j.color; ctx.strokeStyle = j.color;
     ctx.beginPath(); ctx.moveTo(j.x - s, j.y); ctx.bezierCurveTo(j.x - s, j.y - s * 1.2, j.x + s, j.y - s * 1.2, j.x + s, j.y); ctx.lineTo(j.x - s, j.y); ctx.fill();
     const ts = s * 0.5, bw = s * 0.25;
     for (let k = 0; k < 4; k++) {
       let tx = j.x - s * 0.75 + k * ts, px = tx, py = j.y;
       for (let seg = 1; seg <= 8; seg++) {
-        const vy = j.y + seg * (s * 0.45), vx = tx + Math.sin(t * 2.5 + seg * 0.8 + j.born) * (s * 0.35);
+        const vy = j.y + seg * (s * 0.5), vx = tx + Math.sin(t * 2.5 + seg * 0.8 + j.born) * (s * 0.4);
         ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(vx, vy); ctx.lineWidth = bw * (1 - seg / 8) + 1; ctx.stroke(); px = vx; py = vy;
       }
     }
-    ctx.restore(); if (j.y < -350) JELLYFISH.splice(i, 1);
+    ctx.restore(); if (j.y < -400) JELLYFISH.splice(i, 1);
   });
 }
 
 const AudioEngine = {
-  ctx: null, analyser: null, data: null, source: null, gain: null, intensity: 0, active: false,
+  ctx: null, analyser: null, data: null, source: null, intensity: 0, active: false,
   async init(file) {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     const audBuf = await this.ctx.decodeAudioData(await file.arrayBuffer());
     this.source = this.ctx.createBufferSource(); this.source.buffer = audBuf; this.source.loop = true;
     this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 256;
     this.data = new Uint8Array(this.analyser.frequencyBinCount);
-    this.gain = this.ctx.createGain(); this.gain.gain.value = 0.75;
-    this.source.connect(this.gain); this.gain.connect(this.analyser); this.analyser.connect(this.ctx.destination);
+    this.source.connect(this.analyser); this.analyser.connect(this.ctx.destination);
     this.source.start(0); this.active = true;
     await this.ctx.resume();
   },
@@ -438,13 +460,6 @@ const AudioEngine = {
     this.analyser.getByteFrequencyData(this.data);
     let sum = 0; for (let i=0; i<12; i++) sum += this.data[i];
     this.intensity = (sum/12)/255;
-  },
-  fadeOut(duration) {
-    if(this.gain) {
-        const now = this.ctx.currentTime;
-        this.gain.gain.linearRampToValueAtTime(this.gain.gain.value, now);
-        this.gain.gain.linearRampToValueAtTime(0, now + duration);
-    }
   }
 };
 
@@ -491,7 +506,7 @@ function loop(ts) {
 
 async function startExperience(asGuest = false) {
   document.getElementById('startScreen').style.opacity = '0';
-  setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 3000);
+  setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 2000);
   document.getElementById('sessionUI').style.display = 'block';
   initPlants();
   if (!asGuest) {
@@ -527,14 +542,15 @@ document.getElementById('pauseBtn').onclick = () => { paused = !paused; if (Audi
 
 const handleInput = (x, y) => {
   if (!canInteract || isRecordingPhase) return;
-  gesturePath.push({x, y}); if (gesturePath.length > 40) gesturePath.shift();
-  if (elapsed > 23 && checkSwirl()) createJellyfish(x, y, true);
-  const dx = x - lastSwipeX, currentDir = dx > 0 ? 1 : -1;
+  const v = getVirtualCoords(x, y);
+  gesturePath.push({x: v.x, y: v.y}); if (gesturePath.length > 40) gesturePath.shift();
+  if (elapsed > 23 && checkSwirl()) createJellyfish(v.x, v.y, true);
+  const dx = v.x - lastSwipeX, currentDir = dx > 0 ? 1 : -1;
   if (currentDir !== lastSwipeDir && Math.abs(dx) > 15) {
     swipeCount++; lastSwipeDir = currentDir;
-    if (swipeCount >= 4 && elapsed > 30) { createWhale(true, y); swipeCount = 0; }
+    if (swipeCount >= 4 && elapsed > 30) { createWhale(true, v.y / H); swipeCount = 0; }
   }
-  lastSwipeX = x;
+  lastSwipeX = v.x;
 };
 function checkSwirl() {
   if (gesturePath.length < 20) return false;
@@ -548,10 +564,10 @@ function checkSwirl() {
 }
 window.addEventListener('mousemove', e => { if(isMouseDown) handleInput(e.clientX, e.clientY); });
 window.addEventListener('touchmove', e => handleInput(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-window.addEventListener('mousedown', e => { isMouseDown = true; lastSwipeX = e.clientX; });
+window.addEventListener('mousedown', e => { isMouseDown = true; const v = getVirtualCoords(e.clientX, e.clientY); lastSwipeX = v.x; });
 window.addEventListener('mouseup', () => isMouseDown = false);
-window.addEventListener('touchstart', e => { lastSwipeX = e.touches[0].clientX; });
-window.addEventListener('dblclick', e => { if (running && !isRecordingPhase) createFishSchool(e.clientX, e.clientY, Math.random() > 0.5 ? 1 : -1, true); });
+window.addEventListener('touchstart', e => { const v = getVirtualCoords(e.touches[0].clientX, e.touches[0].clientY); lastSwipeX = v.x; });
+window.addEventListener('dblclick', e => { if (running && !isRecordingPhase) { const v = getVirtualCoords(e.clientX, e.clientY); createFishSchool(v.x, v.y, Math.random() > 0.5 ? 1 : -1, true); } });
 </script>
 </body>
 </html>
