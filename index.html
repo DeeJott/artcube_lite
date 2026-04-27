@@ -77,7 +77,7 @@ input#userName {
 #captureFrame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,0.8); display: none; z-index: 4; box-shadow: 0 0 0 5000px rgba(0,0,0,0.4); }
 
 #finalScreen {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+  position: fixed; inset: 0; background: rgba(0,0,0,0.96);
   display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20;
 }
 #uploadMsg { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 2rem; letter-spacing: 0.2em; text-transform: uppercase; }
@@ -166,7 +166,8 @@ const SessionManager = {
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
-    const fullLink = window.location.origin + window.location.pathname + '?sid=' + sessionId;
+    const currentUrl = window.location.origin + window.location.pathname;
+    const fullLink = currentUrl + '?sid=' + sessionId;
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
@@ -303,8 +304,7 @@ function drawFish(t) {
     ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.5, f.size, 0, 0, Math.PI * 2);
     ctx.fillStyle = f.color; ctx.shadowBlur = 20 + (f.flash * 50); ctx.shadowColor = f.color;
     if (f.flash > 0.1) ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-f.size * 1.2, 0); ctx.lineTo(-f.size * 2, osc); ctx.lineTo(-f.size * 2, -osc); ctx.closePath();
+    ctx.fill(); ctx.beginPath(); ctx.moveTo(-f.size*1.2, 0); ctx.lineTo(-f.size*2, osc); ctx.lineTo(-f.size*2, -osc); ctx.closePath();
     ctx.fillStyle = f.color; ctx.fill(); ctx.restore();
     if (f.x < -400 || f.x > W + 400 || t - f.born > 25) FISH.splice(i, 1);
   }
@@ -346,7 +346,8 @@ function drawPlants(t) {
     if (c.alpha <= 0) return;
     ctx.save(); ctx.translate(c.x, H); ctx.rotate(c.rot); ctx.globalAlpha = c.alpha;
     ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-c.size, -c.size*0.5, 0, -c.size); ctx.quadraticCurveTo(c.size, -c.size*0.5, 0, 0);
-    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill(); ctx.restore();
+    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill();
+    ctx.restore();
   });
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
@@ -434,27 +435,43 @@ function loop(ts) {
       beatActive = true;
   } else if (AudioEngine.intensity < 0.55) { beatActive = false; }
   
-  let globalAlpha = (elapsed > 90) ? Math.max(0, 1 - (elapsed - 90) / 10) : 1.0;
-  ctx.globalAlpha = globalAlpha;
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
   let lMix = Math.min(1, Math.max(0, (elapsed - 23) / 15)), dMix = (elapsed > 90) ? Math.min(1, (elapsed - 90) / 10) : 0, fMix = lMix * (1 - dMix);
   ctx.fillStyle = `rgb(${1*(1-fMix)+2*fMix}, ${2*(1-fMix)+15*fMix}, ${8*(1-fMix)+60*fMix})`; ctx.fillRect(0, 0, W, H);
   
   drawSnow(elapsed); drawPlants(elapsed); drawFish(elapsed); drawJellyfish(elapsed); drawWhales(elapsed);
   
-  if (recorder && recorder.state === 'recording') {
+  if (isRecordingPhase && recorder && recorder.state === 'recording') {
     const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
+    offscreenCtx.fillStyle = "#001"; offscreenCtx.fillRect(0,0,fW,fH);
     offscreenCtx.drawImage(mainCanvas, (W - fW) / 2, (H - fH) / 2, fW, fH, 0, 0, fW, fH);
   }
   
   const status = document.getElementById('status');
   if (elapsed < 60) status.textContent = "gestalte deine tiefe...";
-  else if (elapsed < 65) { status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); }
-  else if (elapsed < 75) { isRecordingPhase = true; document.getElementById('souvenirUI').style.display = 'none'; document.getElementById('captureFrame').style.display = 'block'; if (recorder && recorder.state === 'inactive') recorder.start(); }
+  else if (elapsed < 65) { 
+    status.textContent = "bereitmachen..."; 
+    document.getElementById('souvenirUI').style.display = 'flex'; 
+    document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); 
+  }
+  else if (elapsed < 75) { 
+    if(!isRecordingPhase) {
+      isRecordingPhase = true;
+      chunks = [];
+      const stream = offscreenCanvas.captureStream(30);
+      recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+      recorder.ondataavailable = ev => { if(ev.data.size > 0) chunks.push(ev.data); };
+      recorder.onstop = () => uploadVideo();
+      recorder.start();
+    }
+    document.getElementById('souvenirUI').style.display = 'none'; 
+    document.getElementById('captureFrame').style.display = 'block'; 
+  }
   else if (!finalTriggered) {
     finalTriggered = true;
     document.getElementById('finalScreen').style.display = 'flex';
     document.getElementById('captureFrame').style.display = 'none';
-    if (recorder && recorder.state === 'recording') { recorder.onstop = () => uploadVideo(); recorder.stop(); }
+    if (recorder && recorder.state === 'recording') recorder.stop();
     else uploadVideo();
   }
   const secs = Math.floor(elapsed);
@@ -472,9 +489,6 @@ async function startExperience(asGuest = false) {
     await AudioEngine.init(file);
     if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
   }
-  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
-  recorder = new MediaRecorder(offscreenCanvas.captureStream(30), { mimeType });
-  recorder.ondataavailable = ev => { if(ev.data.size > 0) chunks.push(ev.data); };
   running = true; lastFrameTime = performance.now(); requestAnimationFrame(loop);
 }
 
@@ -482,7 +496,7 @@ async function uploadVideo() {
   const safeName = (myName || "guest").replace(/[^a-z0-9]/gi, '_');
   const mintURL = MINT_BASE_URL + sessionId + "_" + safeName;
   const msg = document.getElementById('uploadMsg'), btn = document.getElementById('mintBtn');
-  if (!chunks.length) { msg.textContent = "fehler: keine aufnahme"; return; }
+  if (!chunks.length) { msg.textContent = "fehler: keine daten"; return; }
   try {
     msg.textContent = 'lade dein souvenir hoch...';
     const blob = new Blob(chunks, { type: 'video/webm' });
@@ -492,8 +506,8 @@ async function uploadVideo() {
     const res = await fetch(`https://api.cloudinary.com/v1_1/dvsypjad8/video/upload`, { method: 'POST', body: fd });
     const data = await res.json();
     if(data.secure_url) { msg.textContent = 'dein souvenir ist bereit!'; btn.href = mintURL; btn.style.display = 'inline-block'; }
-    else { msg.textContent = 'upload fehler'; }
-  } catch (e) { msg.textContent = 'fehler beim hochladen'; }
+    else { msg.textContent = 'upload fehler - versuche es erneut'; }
+  } catch (e) { msg.textContent = 'verbindungsfehler'; }
 }
 
 document.getElementById('startBtn').onclick = () => audioInput.click();
@@ -501,7 +515,6 @@ audioInput.onchange = e => { if (e.target.files.length) startExperience(false); 
 document.getElementById('pauseBtn').onclick = () => { paused = !paused; if (AudioEngine.ctx) paused ? AudioEngine.ctx.suspend() : AudioEngine.ctx.resume(); };
 
 const handleInput = (x, y) => {
-  if (!canInteract) return; // Interaction allowed even during isRecordingPhase
   const v = getVirtualCoords(x, y);
   gesturePath.push({x: v.x, y: v.y}); if (gesturePath.length > 40) gesturePath.shift();
   lastTouchPos = v;
@@ -542,13 +555,7 @@ const onUp = () => {
     else if (whalePending) { createWhale(true, lastTouchPos.y / H); whalePending = false; }
 };
 window.addEventListener('mouseup', onUp); window.addEventListener('touchend', onUp);
-
-window.addEventListener('dblclick', e => { 
-    if (running) { 
-        const v = getVirtualCoords(e.clientX, e.clientY); 
-        createFishSchool(v.x, v.y, Math.random() > 0.5 ? 1 : -1, true); 
-    } 
-});
+window.addEventListener('dblclick', e => { if (running) { const v = getVirtualCoords(e.clientX, e.clientY); createFishSchool(v.x, v.y, Math.random() > 0.5 ? 1 : -1, true); } });
 </script>
 </body>
 </html>
