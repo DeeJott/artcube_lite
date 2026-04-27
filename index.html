@@ -322,7 +322,16 @@ function drawFish(t) {
     ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.5, f.size, 0, 0, Math.PI * 2);
     ctx.fillStyle = f.color; ctx.shadowBlur = 20 + (f.flash * 50); ctx.shadowColor = f.color;
     if (f.flash > 0.1) ctx.fillStyle = '#fff';
-    ctx.fill(); ctx.restore();
+    ctx.fill();
+    // Heckflosse wiederherstellen
+    ctx.beginPath();
+    ctx.moveTo(-f.size * 1.2, 0);
+    ctx.lineTo(-f.size * 2, osc);
+    ctx.lineTo(-f.size * 2, -osc);
+    ctx.closePath();
+    ctx.fillStyle = f.color;
+    ctx.fill();
+    ctx.restore();
     if (f.x < -400 || f.x > W + 400 || t - f.born > 25 || (elapsed >= 63 && elapsed < 65 && globalFade <= 0)) FISH.splice(i, 1);
   }
 }
