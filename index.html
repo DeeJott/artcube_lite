@@ -265,7 +265,7 @@ function resize() {
   mainCanvas.width = W; mainCanvas.height = H;
   const fH = Math.floor(H * 0.75), fW = Math.floor(fH * 0.75);
   const frame = document.getElementById('captureFrame');
-  if (frame) { frame.style.width = (dH * 0.75 * 0.75) + 'px'; frame.style.height = (dH * 0.75) + 'px'; }
+  if (frame) { frame.style.width = (dW * 0.75 * 0.75) + 'px'; frame.style.height = (dW * 0.75) + 'px'; }
   offscreenCanvas.width = fW; offscreenCanvas.height = fH;
 }
 window.addEventListener('resize', resize); resize();
@@ -494,15 +494,17 @@ async function startExperience(asGuest = false) {
 
 async function uploadVideo() {
   const safeName = (myName || "guest").replace(/[^a-z0-9]/gi, '_');
-  const mintURL = MINT_BASE_URL + sessionId + "_" + safeName;
+  const publicId = `${sessionId}_${safeName}`;
+  const mintURL = MINT_BASE_URL + publicId;
   const msg = document.getElementById('uploadMsg'), btn = document.getElementById('mintBtn');
-  if (!chunks.length) { msg.textContent = "fehler: keine daten"; return; }
+  if (!chunks.length) { msg.textContent = "fehler: keine aufnahme"; return; }
   try {
     msg.textContent = 'lade dein souvenir hoch...';
     const blob = new Blob(chunks, { type: 'video/webm' });
     const fd = new FormData();
-    fd.append('file', blob, `${sessionId}_${safeName}.webm`);
+    fd.append('file', blob);
     fd.append('upload_preset', 'artbox');
+    fd.append('public_id', publicId);
     const res = await fetch(`https://api.cloudinary.com/v1_1/dvsypjad8/video/upload`, { method: 'POST', body: fd });
     const data = await res.json();
     if(data.secure_url) { msg.textContent = 'dein souvenir ist bereit!'; btn.href = mintURL; btn.style.display = 'inline-block'; }
