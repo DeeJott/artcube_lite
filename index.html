@@ -90,10 +90,22 @@ input#userName {
 #status { font-size: .8rem; letter-spacing: .08em; color: rgba(255,255,255,.45); font-weight: 300; }
 #souvenirUI { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 5; pointer-events: none; font-size: 1.5rem; letter-spacing: 0.2em; color: #fff; text-transform: uppercase; }
 #captureFrame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,0.8); display: none; z-index: 4; box-shadow: 0 0 0 5000px rgba(0,0,0,0.4); }
-#qrScreen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20; transition: opacity 10s linear; }
-#qrBox { background: #fff; padding: 1rem; margin-bottom: 1rem; }
-#qrText { font-size: 0.85rem; color: #fff; letter-spacing: 0.1em; text-align: center; max-width: 80%; }
-#uploadMsg { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-bottom: 1.5rem; letter-spacing: 0.1em; }
+
+#finalScreen {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+  display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20;
+}
+#uploadMsg { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 2rem; letter-spacing: 0.2em; text-transform: uppercase; }
+#mintBtn {
+  display: none;
+  background: transparent; border: 1px solid #00f2ff;
+  color: #00f2ff; padding: 1.2rem 2.5rem;
+  font-size: 0.9rem; letter-spacing: 0.2em; cursor: pointer;
+  text-decoration: none; transition: all 0.4s;
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+}
+#mintBtn:hover { background: rgba(0, 242, 255, 0.1); box-shadow: 0 0 30px rgba(0, 242, 255, 0.4); }
+
 input[type="file"] { display: none; }
 </style>
 </head>
@@ -148,13 +160,11 @@ input[type="file"] { display: none; }
 
 <div id="souvenirUI">Erstelle dein Souvenir in <span id="countdown">5</span></div>
 
-<div id="qrScreen">
+<div id="finalScreen">
   <div id="uploadMsg">verbinde zur blockchain...</div>
-  <div id="qrBox"></div>
-  <div id="qrText">Scanne den Code um dein Souvenir einzusammeln.</div>
+  <a id="mintBtn" target="_blank">SOUVENIR JETZT EINSAMMELN</a>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
 // --- SESSION LOGIC (PEERJS) ---
@@ -168,6 +178,7 @@ let conn = null;
 const SessionManager = {
   host: { name: "Host", status: "offline" },
   guest: { name: "Gast", status: "offline" },
+  retryCount: 0,
   joined: false,
   
   init() {
@@ -279,6 +290,8 @@ let recorder = null, chunks = [];
 
 let jellyfishPending = false, whalePending = false, lastTouchPos = {x:0, y:0};
 
+const MINT_BASE_URL = 'https://art-box-beta.vercel.app/mint?nft=';
+
 function resize() {
   const targetAspect = 16 / 9;
   const windowAspect = window.innerWidth / window.innerHeight;
@@ -380,7 +393,8 @@ function drawPlants(t) {
     if (c.alpha <= 0) return;
     ctx.save(); ctx.translate(c.x, H); ctx.rotate(c.rot); ctx.globalAlpha = c.alpha;
     ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-c.size, -c.size*0.5, 0, -c.size); ctx.quadraticCurveTo(c.size, -c.size*0.5, 0, 0);
-    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill(); ctx.restore();
+    ctx.fillStyle = c.color; ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fill();
+    ctx.restore();
   });
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
@@ -485,9 +499,9 @@ function loop(ts) {
   else if (elapsed < 65) { status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); }
   else if (elapsed < 75) { isRecordingPhase = true; document.getElementById('souvenirUI').style.display = 'none'; document.getElementById('captureFrame').style.display = 'block'; if (recorder && recorder.state === 'inactive') recorder.start(); }
   else {
+    document.getElementById('finalScreen').style.display = 'flex';
     document.getElementById('captureFrame').style.display = 'none';
     if (recorder && recorder.state === 'recording') { recorder.onstop = () => uploadVideo(); recorder.stop(); }
-    document.getElementById('qrScreen').style.display = 'flex';
   }
   const secs = Math.floor(elapsed);
   document.getElementById('timerText').textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
@@ -513,6 +527,7 @@ async function startExperience(asGuest = false) {
 async function uploadVideo() {
   const mintURL = MINT_BASE_URL + sessionId + "_" + (myName || "guest");
   const msg = document.getElementById('uploadMsg');
+  const btn = document.getElementById('mintBtn');
   try {
     msg.textContent = 'lade dein souvenir hoch...';
     const blob = new Blob(chunks, { type: 'video/webm' });
@@ -521,9 +536,12 @@ async function uploadVideo() {
     fd.append('upload_preset', 'artbox');
     const res = await fetch(`https://api.cloudinary.com/v1_1/dvsypjad8/video/upload`, { method: 'POST', body: fd });
     const data = await res.json();
-    msg.textContent = data.secure_url ? 'bereit zum minten' : 'upload fehler';
-  } catch (e) { msg.textContent = 'fehler'; }
-  new QRCode(document.getElementById('qrBox'), { text: mintURL, width: 160, height: 160 });
+    if(data.secure_url) {
+        msg.textContent = 'dein souvenir ist bereit!';
+        btn.href = mintURL;
+        btn.style.display = 'inline-block';
+    } else { msg.textContent = 'upload fehler'; }
+  } catch (e) { msg.textContent = 'fehler beim hochladen'; }
 }
 
 document.getElementById('startBtn').onclick = () => audioInput.click();
@@ -575,10 +593,10 @@ window.addEventListener('mouseup', onUp);
 window.addEventListener('touchend', onUp);
 
 window.addEventListener('dblclick', e => { 
-  if (running && !isRecordingPhase) { 
-    const v = getVirtualCoords(e.clientX, e.clientY); 
-    createFishSchool(v.x, v.y, Math.random() > 0.5 ? 1 : -1, true); 
-  } 
+    if (running && !isRecordingPhase) { 
+        const v = getVirtualCoords(e.clientX, e.clientY); 
+        createFishSchool(v.x, v.y, Math.random() > 0.5 ? 1 : -1, true); 
+    } 
 });
 </script>
 </body>
