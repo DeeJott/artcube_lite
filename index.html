@@ -109,8 +109,8 @@ input[type="file"] { display: none; }
 <input type="file" id="audioInput" accept="audio/*">
 
 <div id="startScreen">
-  <h1>abyssal<span style="opacity:.28">.</span>glow</h1>
-  <p id="subline">wähle musik &middot; gestalte deine tiefe &middot; minte dein nft</p>
+  <h1>deep<span style="opacity:.28">.</span>blue</h1>
+  <p id="subline">gestalte deine tiefe &middot; minte dein nft</p>
   
   <div id="setupUI">
     <div class="input-group">
@@ -124,7 +124,10 @@ input[type="file"] { display: none; }
     </div>
   </div>
 
-  <button id="startBtn">START</button>
+  <div style="display:flex; gap: 1rem; margin-top: 1.5rem;">
+    <button id="startBtn" style="display:none; margin-top: 0;">START (EIGENE MUSIK)</button>
+    <button id="startDefaultBtn" style="display:none; background: rgba(0,242,255,0.1); border: 1px solid rgba(0,242,255,0.3); color: #00f2ff; padding: .75rem 2rem; font-size: .8rem; letter-spacing: .2em; cursor: pointer; transition: all .4s; font-family: inherit;">START (DEFAULT)</button>
+  </div>
 
   <div id="onlineStatus">
     <div id="user1" class="user-row">
