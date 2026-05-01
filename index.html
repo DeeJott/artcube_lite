@@ -126,11 +126,11 @@ input#userName {
   <div id="onlineStatus">
     <div id="user1" class="user-row">
       <div class="status-dot" id="dot1"></div>
-      <div class="user-name"><span id="name1"></span> <span id="statText1">offline</span></div>
+      <div class="user-name"><span id="name1">Host</span> <span id="statText1">offline</span></div>
     </div>
     <div id="user2" class="user-row">
       <div class="status-dot" id="dot2"></div>
-      <div class="user-name"><span id="name2"></span> <span id="statText2">offline</span></div>
+      <div class="user-name"><span id="name2">Gast</span> <span id="statText2">offline</span></div>
     </div>
   </div>
 </div>
@@ -149,7 +149,7 @@ input#userName {
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-// --- SESSION LOGIC ---
+// --- SESSION LOGIC (PEERJS) ---
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('sid') || 'art-' + Math.random().toString(36).substring(2, 8);
 let isHost = !urlParams.get('sid');
@@ -157,8 +157,10 @@ let myName = localStorage.getItem('artcube_name') || "";
 let peer = null, conn = null;
 
 const SessionManager = {
-  users: [], // { name, status, role }
+  host: { name: "Host", status: "offline" },
+  guest: { name: "Gast", status: "offline" },
   joined: false,
+  retryCount: 0,
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
@@ -181,7 +183,10 @@ const SessionManager = {
     setTimeout(() => { if (!conn || !conn.open) this.connectToHost(); }, 5000);
   },
   setupConnection() {
-    conn.on('open', () => { if (this.joined) this.sendStatus('online'); });
+    conn.on('open', () => { 
+        this.retryCount = 0;
+        if (this.joined) this.sendStatus('online'); 
+    });
     conn.on('data', data => {
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status, data.role);
@@ -198,8 +203,8 @@ const SessionManager = {
     conn.on('close', () => this.handleDisconnect());
   },
   handleDisconnect() {
-    this.users.forEach(u => { if(u.name !== myName) u.status = 'offline'; });
-    this.updateUI();
+    if (isHost) this.updateUser(this.guest.name, 'offline', 'guest');
+    else this.updateUser(this.host.name, 'offline', 'host');
   },
   sendStatus(status) { 
     if (conn && conn.open && myName) conn.send({ type: 'STATUS', name: myName, status, role: isHost ? 'host' : 'guest' });
@@ -213,7 +218,6 @@ const SessionManager = {
     localStorage.setItem('artcube_name', myName);
     this.joined = true;
 
-    // Fullscreen Request
     const el = document.documentElement;
     if (el.requestFullscreen) el.requestFullscreen();
     else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
@@ -230,28 +234,19 @@ const SessionManager = {
     }
   },
   updateUser(name, status, role) {
-    let user = this.users.find(u => u.name === name);
-    if (!user) {
-      user = { name, status, role };
-      this.users.push(user);
-    } else {
-      user.status = status;
-    }
-    // Sort: Host always first
-    this.users.sort((a,b) => (a.role === 'host' ? -1 : 1));
+    if (role === 'host') this.host = { name, status };
+    else if (role === 'guest') this.guest = { name, status };
     this.updateUI();
   },
   updateUI() {
-    this.users.forEach((u, i) => {
-      const idx = i + 1;
-      const row = document.getElementById('user' + idx);
-      if (row) {
-        document.getElementById('name' + idx).textContent = u.name;
-        document.getElementById('statText' + idx).textContent = u.status;
-        document.getElementById('dot' + idx).className = 'status-dot ' + (u.status === 'offline' ? 'offline' : '');
-        row.classList.add('visible');
-      }
-    });
+    document.getElementById('name1').textContent = this.host.name;
+    document.getElementById('statText1').textContent = this.host.status;
+    document.getElementById('dot1').className = 'status-dot ' + (this.host.status === 'offline' ? 'offline' : '');
+    document.getElementById('user1').classList.add('visible');
+    document.getElementById('name2').textContent = this.guest.name;
+    document.getElementById('statText2').textContent = this.guest.status;
+    document.getElementById('dot2').className = 'status-dot ' + (this.guest.status === 'offline' ? 'offline' : '');
+    document.getElementById('user2').classList.add('visible');
   }
 };
 SessionManager.init();
@@ -451,12 +446,8 @@ const AudioEngine = {
   async init(fileOrUrl) {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     let arrayBuffer;
-    if (typeof fileOrUrl === 'string') {
-        const res = await fetch(fileOrUrl);
-        arrayBuffer = await res.arrayBuffer();
-    } else {
-        arrayBuffer = await fileOrUrl.arrayBuffer();
-    }
+    if (typeof fileOrUrl === 'string') { const res = await fetch(fileOrUrl); arrayBuffer = await res.arrayBuffer(); } 
+    else { arrayBuffer = await fileOrUrl.arrayBuffer(); }
     const audBuf = await this.ctx.decodeAudioData(arrayBuffer);
     const source = this.ctx.createBufferSource(); source.buffer = audBuf; source.loop = true;
     this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 256;
@@ -505,8 +496,9 @@ function loop(ts) {
   if (elapsed < 23) status.textContent = "Klicke doppelt und rufe die Meeresbewohner";
   else if (elapsed < 30) status.textContent = "1) Klicke doppelt oder 2) Maustaste gedrückt halten, kreisen und wieder loslassen und rufe die Meeresbewohner";
   else if (elapsed < 60) status.textContent = "1) Klicke doppelt, 2) Maustaste gedrückt halten, kreisen und wieder loslassen oder 3) Maustaste gedrückt halten, mehrmals von links nach rechts wischen und rufe die Meeresbewohner";
-  else if (elapsed < 65) { status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); }
-  else if (elapsed < 75) { 
+  else if (elapsed < 65) { 
+    status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); 
+  } else if (elapsed < 75) { 
     if(!isRecordingPhase) {
       isRecordingPhase = true; chunks = [];
       const stream = offscreenCanvas.captureStream(30);
@@ -517,9 +509,7 @@ function loop(ts) {
     }
     document.getElementById('souvenirUI').style.display = 'none'; document.getElementById('captureFrame').style.display = 'block'; 
   } else if (!finalTriggered) {
-    finalTriggered = true;
-    document.getElementById('finalScreen').style.display = 'flex';
-    document.getElementById('captureFrame').style.display = 'none';
+    finalTriggered = true; document.getElementById('finalScreen').style.display = 'flex'; document.getElementById('captureFrame').style.display = 'none';
     if (recorder && recorder.state === 'recording') recorder.stop();
     else uploadVideo();
   }
@@ -533,8 +523,9 @@ async function startExperience(asGuest = false) {
   setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 2000);
   document.getElementById('sessionUI').style.display = 'block';
   initPlants();
+  // Jedes Gerät lädt die Musik für die Visuals
+  await AudioEngine.init('media/Contrasts-Dryhope.mp3');
   if (!asGuest) {
-    await AudioEngine.init('media/Contrasts-Dryhope.mp3');
     if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
   }
   running = true; lastFrameTime = performance.now(); requestAnimationFrame(loop);
@@ -545,14 +536,11 @@ async function uploadVideo() {
   const publicId = `${sessionId}_${safeName}`;
   const mintURL = MINT_BASE_URL + publicId;
   const msg = document.getElementById('uploadMsg'), btn = document.getElementById('mintBtn');
-  if (!chunks.length) { msg.textContent = "fehler: keine aufnahme"; return; }
   try {
     msg.textContent = 'lade dein souvenir hoch...';
     const blob = new Blob(chunks, { type: 'video/webm' });
     const fd = new FormData();
-    fd.append('file', blob);
-    fd.append('upload_preset', 'artbox');
-    fd.append('public_id', publicId);
+    fd.append('file', blob); fd.append('upload_preset', 'artbox'); fd.append('public_id', publicId);
     const res = await fetch(`https://api.cloudinary.com/v1_1/dvsypjad8/video/upload`, { method: 'POST', body: fd });
     const data = await res.json();
     if(data.secure_url) { msg.textContent = 'Dein Souvenir ist abholbereit.'; btn.href = mintURL; btn.style.display = 'inline-block'; }
