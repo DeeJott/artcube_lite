@@ -160,7 +160,6 @@ const SessionManager = {
   host: { name: "Host", status: "offline" },
   guest: { name: "Gast", status: "offline" },
   joined: false,
-  retryCount: 0,
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
@@ -183,10 +182,7 @@ const SessionManager = {
     setTimeout(() => { if (!conn || !conn.open) this.connectToHost(); }, 5000);
   },
   setupConnection() {
-    conn.on('open', () => { 
-        this.retryCount = 0;
-        if (this.joined) this.sendStatus('online'); 
-    });
+    conn.on('open', () => { if (this.joined) this.sendStatus('online'); });
     conn.on('data', data => {
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status, data.role);
@@ -218,9 +214,13 @@ const SessionManager = {
     localStorage.setItem('artcube_name', myName);
     this.joined = true;
 
+    // Fullscreen Request
     const el = document.documentElement;
     if (el.requestFullscreen) el.requestFullscreen();
     else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+
+    // AUDIO PRELOADING: Musik sofort im Hintergrund laden
+    AudioEngine.preload('media/Contrasts-Dryhope.mp3');
 
     this.updateUser(myName, 'online', isHost ? 'host' : 'guest');
     this.sendStatus('online');
@@ -442,18 +442,27 @@ function drawJellyfish(t) {
 }
 
 const AudioEngine = {
-  ctx: null, analyser: null, data: null, intensity: 0, active: false,
-  async init(fileOrUrl) {
+  ctx: null, analyser: null, data: null, intensity: 0, active: false, preloadedBuffer: null,
+  async preload(url) {
+    const res = await fetch(url);
+    const arrayBuffer = await res.arrayBuffer();
+    const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+    this.preloadedBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+    console.log("Audio vorab geladen.");
+  },
+  async start() {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    let arrayBuffer;
-    if (typeof fileOrUrl === 'string') { const res = await fetch(fileOrUrl); arrayBuffer = await res.arrayBuffer(); } 
-    else { arrayBuffer = await fileOrUrl.arrayBuffer(); }
-    const audBuf = await this.ctx.decodeAudioData(arrayBuffer);
-    const source = this.ctx.createBufferSource(); source.buffer = audBuf; source.loop = true;
-    this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 256;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.preloadedBuffer;
+    source.loop = true;
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 256;
     this.data = new Uint8Array(this.analyser.frequencyBinCount);
-    source.connect(this.analyser); this.analyser.connect(this.ctx.destination);
-    source.start(0); this.active = true; await this.ctx.resume();
+    source.connect(this.analyser);
+    this.analyser.connect(this.ctx.destination);
+    source.start(0);
+    this.active = true;
+    await this.ctx.resume();
   }
 };
 
@@ -496,9 +505,8 @@ function loop(ts) {
   if (elapsed < 23) status.textContent = "Klicke doppelt und rufe die Meeresbewohner";
   else if (elapsed < 30) status.textContent = "1) Klicke doppelt oder 2) Maustaste gedrückt halten, kreisen und wieder loslassen und rufe die Meeresbewohner";
   else if (elapsed < 60) status.textContent = "1) Klicke doppelt, 2) Maustaste gedrückt halten, kreisen und wieder loslassen oder 3) Maustaste gedrückt halten, mehrmals von links nach rechts wischen und rufe die Meeresbewohner";
-  else if (elapsed < 65) { 
-    status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); 
-  } else if (elapsed < 75) { 
+  else if (elapsed < 65) { status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); }
+  else if (elapsed < 75) { 
     if(!isRecordingPhase) {
       isRecordingPhase = true; chunks = [];
       const stream = offscreenCanvas.captureStream(30);
@@ -523,8 +531,10 @@ async function startExperience(asGuest = false) {
   setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 2000);
   document.getElementById('sessionUI').style.display = 'block';
   initPlants();
-  // Jedes Gerät lädt die Musik für die Visuals
-  await AudioEngine.init('media/Contrasts-Dryhope.mp3');
+  
+  // Sofortstart der bereits geladenen Musik
+  await AudioEngine.start();
+  
   if (!asGuest) {
     if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
   }
