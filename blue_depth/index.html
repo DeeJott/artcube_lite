@@ -72,7 +72,7 @@ input#userName {
 #sessionUI { position: fixed; top: 1.5rem; left: 0; right: 0; text-align: center; z-index: 10; display: none; pointer-events: none; }
 #pauseBtn { background: transparent; border: 1px solid rgba(255,255,255,.22); color: rgba(255,255,255,.45); padding: .2rem .9rem; font-size: .65rem; letter-spacing: .18em; cursor: pointer; font-family: inherit; transition: all .3s; vertical-align: middle; margin-left: .8rem; pointer-events: all; }
 #timer  { font-size: .7rem; letter-spacing: .25em; color: rgba(255,255,255,.3); margin-bottom: .4rem; }
-#status { font-size: .8rem; letter-spacing: .08em; color: rgba(255,255,255,.45); font-weight: 300; }
+#status { font-size: 0.7rem; letter-spacing: 0.05em; color: rgba(255,255,255,.6); font-weight: 300; max-width: 80%; margin: 0 auto; line-height: 1.4; }
 #souvenirUI { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 5; pointer-events: none; font-size: 1.5rem; letter-spacing: 0.2em; color: #fff; text-transform: uppercase; }
 #captureFrame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,0.8); display: none; z-index: 4; box-shadow: 0 0 0 5000px rgba(0,0,0,0.4); }
 
@@ -147,12 +147,12 @@ input[type="file"] { display: none; }
 
 <div id="finalScreen">
   <div id="uploadMsg">verbinde zur blockchain...</div>
-  <a id="mintBtn" target="_blank">SOUVENIR JETZT EINSAMMELN</a>
+  <a id="mintBtn" target="_blank">JETZT EINSAMMELN</a>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-// --- SESSION LOGIC ---
+// --- SESSION LOGIC (PEERJS) ---
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('sid') || 'art-' + Math.random().toString(36).substring(2, 8);
 let isHost = !urlParams.get('sid');
@@ -166,7 +166,8 @@ const SessionManager = {
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
-    const fullLink = window.location.origin + window.location.pathname + '?sid=' + sessionId;
+    const currentUrl = window.location.origin + window.location.pathname;
+    const fullLink = currentUrl + '?sid=' + sessionId;
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
@@ -252,7 +253,7 @@ const SessionManager = {
 };
 SessionManager.init();
 
-// --- ANIMATION ---
+// --- ANIMATION LOGIC ---
 const mainCanvas = document.getElementById('main'), ctx = mainCanvas.getContext('2d');
 const offscreenCanvas = document.createElement('canvas'), offscreenCtx = offscreenCanvas.getContext('2d');
 let W = 1920, H = 1080, running = false, paused = false, canInteract = true, isRecordingPhase = false, finalTriggered = false;
@@ -270,14 +271,9 @@ function resize() {
   else { dW = window.innerWidth; dH = dW / targetAspect; }
   mainCanvas.style.width = dW + 'px'; mainCanvas.style.height = dH + 'px';
   mainCanvas.width = W; mainCanvas.height = H;
-
-  // 4:3 Recording Frame
   const recH = H, recW = Math.floor(recH * (4/3));
   const frame = document.getElementById('captureFrame');
-  if (frame) { 
-    frame.style.width = (dH * (4/3)) + 'px'; 
-    frame.style.height = dH + 'px'; 
-  }
+  if (frame) { frame.style.width = (dH * (4/3)) + 'px'; frame.style.height = dH + 'px'; }
   offscreenCanvas.width = recW; offscreenCanvas.height = recH;
 }
 window.addEventListener('resize', resize); resize();
@@ -292,18 +288,18 @@ const LABELS = [];
 
 function createLabel(x, y, text) {
     if (isRecordingPhase) return;
-    LABELS.push({ x, y: y - 60, text, born: elapsed });
+    LABELS.push({ x, y: y - 60, text, born: elapsed, alpha: 0 });
 }
 
 function createFish(x, y, vx, vy, isLocal = true, colorIdx) {
-  FISH.push({ x, y, vx, vy, size: 6+Math.random()*8, color: FISH_COLORS[colorIdx], born: elapsed, flash: 0, isLocal });
+  FISH.push({ x, y, vx, vy, size: 6+Math.random()*8, color: FISH_COLORS[colorIdx], born: elapsed, flash: 0, isLocal, alpha: 0 });
 }
 function createFishSchool(x, y, dir, isLocal = true, fishArray, creatorName) {
   if (isLocal) {
     const count = (elapsed >= 12) ? 5 + Math.floor(Math.random() * 5) : 1;
     const school = [];
     for (let i = 0; i < count; i++) {
-        const f = { ox: (Math.random()-0.5)*80, oy: (Math.random()-0.5)*80, vx: dir*(0.75+Math.random()*0.5), vy: (Math.random()-0.5)*0.15, cIdx: Math.floor(Math.random()*FISH_COLORS.length) };
+        const f = { ox: (Math.random()-0.5)*80, oy: (Math.random()-0.5)*0.80, vx: dir*(0.75+Math.random()*0.5), vy: (Math.random()-0.5)*0.15, cIdx: Math.floor(Math.random()*FISH_COLORS.length) };
         school.push(f); createFish(x + f.ox, y + f.oy, f.vx, f.vy, true, f.cIdx);
     }
     createLabel(x, y, myName);
@@ -318,10 +314,16 @@ function drawFish(t) {
   for (let i = FISH.length - 1; i >= 0; i--) {
     const f = FISH[i];
     if (isRecordingPhase && !f.isLocal) continue;
+    
+    // Fade Logic (0.5s = 0.033 per frame at 60fps)
+    f.alpha = Math.min(1, f.alpha + 0.033);
+    
     f.x += f.vx * (1 + bass * 1.5); f.y += f.vy * (1 + bass * 1.5);
     if (f.flash > 0) f.flash *= 0.90;
     const osc = Math.sin(t * 8 + f.born) * 5, angle = f.vx > 0 ? 0 : Math.PI;
-    ctx.save(); ctx.globalAlpha *= globalFade; ctx.translate(f.x, f.y); ctx.rotate(angle); if (f.vx < 0) ctx.scale(1, -1);
+    ctx.save(); 
+    ctx.globalAlpha = f.alpha * globalFade; 
+    ctx.translate(f.x, f.y); ctx.rotate(angle); if (f.vx < 0) ctx.scale(1, -1);
     ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.5, f.size, 0, 0, Math.PI * 2);
     ctx.fillStyle = f.color; ctx.shadowBlur = 20 + (f.flash * 50); ctx.shadowColor = f.color;
     if (f.flash > 0.1) ctx.fillStyle = '#fff';
@@ -336,7 +338,7 @@ function drawFish(t) {
 function drawLabels() {
     if (isRecordingPhase) return;
     ctx.save(); 
-    ctx.font = "28px 'Helvetica Neue'"; // Vergrößert für bessere Lesbarkeit auf dem Handy
+    ctx.font = "28px 'Helvetica Neue'";
     ctx.textAlign = "center";
     ctx.shadowBlur = 4;
     ctx.shadowColor = "rgba(0,0,0,0.5)";
@@ -344,7 +346,11 @@ function drawLabels() {
         const l = LABELS[i];
         const age = elapsed - l.born;
         if (age > 3) { LABELS.splice(i, 1); continue; }
-        ctx.globalAlpha = Math.min(1, (3 - age));
+        
+        // Label Fade Logic
+        l.alpha = Math.min(1, l.alpha + 0.033);
+        ctx.globalAlpha = l.alpha * Math.min(1, (3 - age));
+        
         ctx.fillStyle = "rgba(255,255,255,0.8)";
         ctx.fillText(l.text, l.x, l.y);
     }
@@ -357,7 +363,7 @@ function drawSnow(t) {
   SNOW_PARTICLES.forEach(p => {
     p.y += p.speedY * (1 + bass*3); p.x += p.driftX;
     if (p.y > 1.05) { p.y = -0.05; p.x = Math.random(); }
-    if (p.isReactive && bass > 0.5) p.glow = Math.max(p.glow, bass*2.5);
+    if (p.isReactive && bass > 0.5) p.glow = Math.max(p.glow, bass*3.0);
     p.glow *= 0.92;
     const px = p.x*W, py = p.y*H;
     ctx.shadowBlur = p.glow*30; ctx.shadowColor = '#00ffff';
@@ -397,16 +403,17 @@ const WHALES = [];
 function createWhale(isLocal = true, ry, forcedSpeed, creatorName) {
   const speed = forcedSpeed !== undefined ? forcedSpeed : 1.2 + Math.random() * 0.8;
   const yPos = ry !== undefined ? ry * H : 200 + Math.random() * (H - 400);
-  WHALES.push({ x: -1000, y: yPos, w: 600 + Math.random() * 300, h: 90 + Math.random() * 50, speed, isLocal });
+  WHALES.push({ x: -1000, y: yPos, w: 600 + Math.random() * 300, h: 90 + Math.random() * 50, speed, isLocal, alpha: 0 });
   if (isLocal) { createLabel(W/2, yPos, myName); SessionManager.sendInteraction('WHALE', { x: 0, y: yPos / H, speed }); }
   else { createLabel(W/2, yPos, creatorName); }
 }
 function drawWhales(t) {
   WHALES.forEach((w, i) => {
     if (isRecordingPhase && !w.isLocal) return;
+    w.alpha = Math.min(1, w.alpha + 0.033);
     w.x += w.speed;
     const bodySway = Math.sin(t * 0.4) * 25, flukeSway = Math.sin(t * 0.8) * 50;
-    ctx.save(); ctx.globalAlpha *= globalFade; ctx.translate(w.x, w.y + bodySway);
+    ctx.save(); ctx.globalAlpha = w.alpha * globalFade; ctx.translate(w.x, w.y + bodySway);
     const grad = ctx.createLinearGradient(w.w*0.2, -w.h, w.w*0.2, w.h);
     grad.addColorStop(0, 'rgba(0, 200, 255, 0.5)'); grad.addColorStop(0.4, 'rgba(30, 80, 140, 0.7)'); grad.addColorStop(1, 'rgba(5, 15, 40, 0.6)');
     ctx.shadowBlur = 40; ctx.shadowColor = 'rgba(0, 150, 255, 0.4)';
@@ -430,7 +437,8 @@ function drawJellyfish(t) {
   const bass = AudioEngine.intensity;
   JELLYFISH.forEach((j, i) => {
     if (isRecordingPhase && !j.isLocal) return;
-    j.x += j.vx; j.y += j.vy; j.alpha = Math.min(0.6, j.alpha + 0.01);
+    j.alpha = Math.min(0.6, j.alpha + 0.033);
+    j.x += j.vx; j.y += j.vy;
     const s = j.size * (Math.sin(t * 1.5 + j.born) * 0.1 + 1);
     ctx.save(); ctx.globalAlpha = j.alpha * globalFade; ctx.shadowBlur = 20 + 30 * bass; ctx.shadowColor = j.color; ctx.fillStyle = j.color; ctx.strokeStyle = j.color;
     ctx.beginPath(); ctx.moveTo(j.x - s, j.y); ctx.bezierCurveTo(j.x - s, j.y - s * 1.2, j.x + s, j.y - s * 1.2, j.x + s, j.y); ctx.lineTo(j.x - s, j.y); ctx.fill();
@@ -496,13 +504,17 @@ function loop(ts) {
   }
   
   const status = document.getElementById('status');
-  if (elapsed < 60) status.textContent = "gestalte deine tiefe...";
-  else if (elapsed < 65) { 
+  if (elapsed < 23) {
+      status.textContent = "Klicke doppelt und rufe die Meeresbewohner";
+  } else if (elapsed < 30) {
+      status.textContent = "1) Klicke doppelt oder 2) Maustaste gedrückt halten, kreisen und wieder loslassen und rufe die Meeresbewohner";
+  } else if (elapsed < 60) {
+      status.textContent = "1) Klicke doppelt, 2) Maustaste gedrückt halten, kreisen und wieder loslassen oder 3) Maustaste gedrückt halten, mehrmals von links nach rechts wischen und rufe die Meeresbewohner";
+  } else if (elapsed < 65) { 
     status.textContent = "bereitmachen..."; 
     document.getElementById('souvenirUI').style.display = 'flex'; 
     document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); 
-  }
-  else if (elapsed < 75) { 
+  } else if (elapsed < 75) { 
     if(!isRecordingPhase) {
       isRecordingPhase = true; chunks = [];
       const stream = offscreenCanvas.captureStream(30);
@@ -513,8 +525,7 @@ function loop(ts) {
     }
     document.getElementById('souvenirUI').style.display = 'none'; 
     document.getElementById('captureFrame').style.display = 'block'; 
-  }
-  else if (!finalTriggered) {
+  } else if (!finalTriggered) {
     finalTriggered = true;
     document.getElementById('finalScreen').style.display = 'flex';
     document.getElementById('captureFrame').style.display = 'none';
@@ -544,7 +555,7 @@ async function uploadVideo() {
   const publicId = `${sessionId}_${safeName}`;
   const mintURL = MINT_BASE_URL + publicId;
   const msg = document.getElementById('uploadMsg'), btn = document.getElementById('mintBtn');
-  if (!chunks.length) { msg.textContent = "fehler: keine aufnahme"; return; }
+  if (!chunks.length) { msg.textContent = "fehler: keine daten"; return; }
   try {
     msg.textContent = 'lade dein souvenir hoch...';
     const blob = new Blob(chunks, { type: 'video/webm' });
@@ -554,7 +565,7 @@ async function uploadVideo() {
     fd.append('public_id', publicId);
     const res = await fetch(`https://api.cloudinary.com/v1_1/dvsypjad8/video/upload`, { method: 'POST', body: fd });
     const data = await res.json();
-    if(data.secure_url) { msg.textContent = 'dein souvenir ist bereit!'; btn.href = mintURL; btn.style.display = 'inline-block'; }
+    if(data.secure_url) { msg.textContent = 'Dein Souvenir ist abholbereit.'; btn.href = mintURL; btn.style.display = 'inline-block'; }
     else { msg.textContent = 'upload fehler'; }
   } catch (e) { msg.textContent = 'verbindungsfehler'; }
 }
@@ -564,6 +575,7 @@ audioInput.onchange = e => { if (e.target.files.length) startExperience(false); 
 document.getElementById('pauseBtn').onclick = () => { paused = !paused; if (AudioEngine.ctx) paused ? AudioEngine.ctx.suspend() : AudioEngine.ctx.resume(); };
 
 const handleInput = (x, y) => {
+  if (!canInteract) return;
   const v = getVirtualCoords(x, y);
   gesturePath.push({x: v.x, y: v.y}); if (gesturePath.length > 40) gesturePath.shift();
   lastTouchPos = v;

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golden Flow - SVG Generative</title>
+    <style>
+        :root {
+            --mouse-x: 0.5;
+            --mouse-y: 0.5;
+            --flow-speed: 0.2s;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            filter: url(#liquid-gold); /* Hier passiert die Magie */
+        }
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            /* Ein leichter Zoom verhindert, dass man die Ränder der Verzerrung sieht */
+            transform: scale(1.1); 
+        }
+
+        /* Das SVG Filter Panel - Wir verstecken es nur visuell */
+        svg.filters {
+            position: absolute;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="media/gold%20flow.jpg" alt="Golden Flow">
+</div>
+
+<svg class="filters">
+    <defs>
+        <filter id="liquid-gold" x="-20%" y="-20%" width="140%" height="140%">
+            <!-- Erzeugt das generative Rauschen -->
+            <feTurbulence 
+                id="turbulence"
+                type="fractalNoise" 
+                baseFrequency="0.015" 
+                numOctaves="3" 
+                seed="1" 
+                result="noise">
+                <animate 
+                    attributeName="baseFrequency" 
+                    values="0.012;0.018;0.012" 
+                    dur="10s" 
+                    repeatCount="indefinite" />
+            </feTurbulence>
+            
+            <!-- Verdrängt die Bildpixel basierend auf dem Rauschen -->
+            <feDisplacementMap 
+                in="SourceGraphic" 
+                in2="noise" 
+                scale="80" 
+                xChannelSelector="R" 
+                yChannelSelector="G" />
+        </filter>
+    </defs>
+</svg>
+
+<script>
+    const turbulence = document.getElementById('turbulence');
+    let seed = 1;
+    let lastTime = 0;
+
+    // Generative Bewegung über den Seed des Rauschens
+    function animate(time) {
+        if (time - lastTime > 100) { // Alle 100ms den Seed leicht ändern für "Fließen"
+            seed += 0.01;
+            // Wir nutzen eine sehr langsame Änderung für ein flüssiges Gefühl
+            // SVG Filter Animationen via JS sind extrem stabil gegen CORS
+            turbulence.setAttribute('seed', Math.floor(time / 50));
+            lastTime = time;
+        }
+        requestAnimationFrame(animate);
+    }
+
+    // Interaktion: Mausbewegung beeinflusst die Frequenz des Rauschens
+    window.addEventListener('mousemove', (e) => {
+        const xNorm = e.clientX / window.innerWidth;
+        const yNorm = e.clientY / window.innerHeight;
+        
+        // Dynamische Frequenzänderung basierend auf Mausposition
+        const freqX = 0.01 + (xNorm * 0.01);
+        const freqY = 0.01 + (yNorm * 0.01);
+        
+        // turbulence.setAttribute('baseFrequency', `${freqX} ${freqY}`);
+    });
+
+    requestAnimationFrame(animate);
+</script>
+
+</body>
+</html>
