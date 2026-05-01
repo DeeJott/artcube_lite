@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Abyssal Glow - Collaborative Artcube</title>
+<title>deep.blue - Collaborative Artcube</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; background: #000; color: #fff; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -53,10 +53,12 @@ input#userName {
 
 #startBtn {
   background: transparent; border: 1px solid rgba(255,255,255,.25);
-  color: rgba(255,255,255,.8); padding: .75rem 2.5rem;
-  font-size: .8rem; letter-spacing: .2em; cursor: pointer; transition: all .4s; font-family: inherit;
+  color: #00f2ff; padding: .75rem 3rem;
+  font-size: .9rem; letter-spacing: .3em; cursor: pointer; transition: all .4s; font-family: inherit;
   margin-top: 1.5rem; display: none;
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
 }
+#startBtn:hover { background: rgba(0, 242, 255, 0.1); border-color: #00f2ff; box-shadow: 0 0 30px rgba(0, 242, 255, 0.3); }
 
 #onlineStatus {
   position: absolute; bottom: 2rem; left: 2rem;
@@ -82,16 +84,13 @@ input#userName {
 }
 #uploadMsg { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 2rem; letter-spacing: 0.2em; text-transform: uppercase; }
 #mintBtn {
-  display: none;
-  background: transparent; border: 1px solid #00f2ff;
+  display: none; background: transparent; border: 1px solid #00f2ff;
   color: #00f2ff; padding: 1.2rem 2.5rem;
   font-size: 0.9rem; letter-spacing: 0.2em; cursor: pointer;
   text-decoration: none; transition: all 0.4s;
   box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
 }
 #mintBtn:hover { background: rgba(0, 242, 255, 0.1); box-shadow: 0 0 30px rgba(0, 242, 255, 0.4); }
-
-input[type="file"] { display: none; }
 </style>
 </head>
 <body>
@@ -105,8 +104,6 @@ input[type="file"] { display: none; }
   <canvas id="main"></canvas>
   <div id="captureFrame"></div>
 </div>
-
-<input type="file" id="audioInput" accept="audio/*">
 
 <div id="startScreen">
   <h1>deep<span style="opacity:.28">.</span>blue</h1>
@@ -124,19 +121,16 @@ input[type="file"] { display: none; }
     </div>
   </div>
 
-  <div style="display:flex; gap: 1rem; margin-top: 1.5rem;">
-    <button id="startBtn" style="display:none; margin-top: 0;">START (EIGENE MUSIK)</button>
-    <button id="startDefaultBtn" style="display:none; background: rgba(0,242,255,0.1); border: 1px solid rgba(0,242,255,0.3); color: #00f2ff; padding: .75rem 2rem; font-size: .8rem; letter-spacing: .2em; cursor: pointer; transition: all .4s; font-family: inherit;">START (DEFAULT)</button>
-  </div>
+  <button id="startBtn">START EXPERIENCE</button>
 
   <div id="onlineStatus">
     <div id="user1" class="user-row">
       <div class="status-dot" id="dot1"></div>
-      <div class="user-name"><span id="name1">Host</span> <span id="statText1">offline</span></div>
+      <div class="user-name"><span id="name1"></span> <span id="statText1">offline</span></div>
     </div>
     <div id="user2" class="user-row">
       <div class="status-dot" id="dot2"></div>
-      <div class="user-name"><span id="name2">Gast</span> <span id="statText2">offline</span></div>
+      <div class="user-name"><span id="name2"></span> <span id="statText2">offline</span></div>
     </div>
   </div>
 </div>
@@ -155,7 +149,7 @@ input[type="file"] { display: none; }
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-// --- SESSION LOGIC (PEERJS) ---
+// --- SESSION LOGIC ---
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('sid') || 'art-' + Math.random().toString(36).substring(2, 8);
 let isHost = !urlParams.get('sid');
@@ -163,14 +157,12 @@ let myName = localStorage.getItem('artcube_name') || "";
 let peer = null, conn = null;
 
 const SessionManager = {
-  host: { name: "Host", status: "offline" },
-  guest: { name: "Gast", status: "offline" },
+  users: [], // { name, status, role }
   joined: false,
   init() {
     if (myName) document.getElementById('userName').value = myName;
     const linkBtn = document.getElementById('sessionLink');
-    const currentUrl = window.location.origin + window.location.pathname;
-    const fullLink = currentUrl + '?sid=' + sessionId;
+    const fullLink = window.location.origin + window.location.pathname + '?sid=' + sessionId;
     linkBtn.textContent = fullLink;
     linkBtn.onclick = () => {
       navigator.clipboard.writeText(fullLink);
@@ -189,13 +181,10 @@ const SessionManager = {
     setTimeout(() => { if (!conn || !conn.open) this.connectToHost(); }, 5000);
   },
   setupConnection() {
-    conn.on('open', () => { 
-        if (this.joined) this.sendStatus('online'); 
-    });
+    conn.on('open', () => { if (this.joined) this.sendStatus('online'); });
     conn.on('data', data => {
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status, data.role);
-        // Bestätigungs-Echo, damit beide den Status sehen
         if (data.status === 'online' && this.joined) this.sendStatus('online');
       }
       if (data.type === 'START_EXPERIENCE') startExperience(true);
@@ -209,13 +198,11 @@ const SessionManager = {
     conn.on('close', () => this.handleDisconnect());
   },
   handleDisconnect() {
-    if (isHost) this.updateUser(this.guest.name, 'offline', 'guest');
-    else this.updateUser(this.host.name, 'offline', 'host');
+    this.users.forEach(u => { if(u.name !== myName) u.status = 'offline'; });
+    this.updateUI();
   },
   sendStatus(status) { 
-    if (conn && conn.open && myName) {
-        conn.send({ type: 'STATUS', name: myName, status, role: isHost ? 'host' : 'guest' });
-    }
+    if (conn && conn.open && myName) conn.send({ type: 'STATUS', name: myName, status, role: isHost ? 'host' : 'guest' });
   },
   sendInteraction(kind, data) { 
     if (conn && conn.open) conn.send({ type: 'INTERACTION', kind, rx: data.x / W, ry: data.y / H, userName: myName, ...data });
@@ -233,32 +220,38 @@ const SessionManager = {
 
     this.updateUser(myName, 'online', isHost ? 'host' : 'guest');
     this.sendStatus('online');
-    
     document.getElementById('userName').disabled = true;
     document.getElementById('joinBtn').style.display = 'none';
-    
     if (isHost) {
       document.getElementById('shareLinkArea').style.display = 'block';
       document.getElementById('startBtn').style.display = 'block';
-      document.getElementById('startDefaultBtn').style.display = 'block';
     } else {
       document.getElementById('subline').innerHTML = "Warte auf den Host...";
     }
   },
   updateUser(name, status, role) {
-    if (role === 'host') this.host = { name, status };
-    else if (role === 'guest') this.guest = { name, status };
+    let user = this.users.find(u => u.name === name);
+    if (!user) {
+      user = { name, status, role };
+      this.users.push(user);
+    } else {
+      user.status = status;
+    }
+    // Sort: Host always first
+    this.users.sort((a,b) => (a.role === 'host' ? -1 : 1));
     this.updateUI();
   },
   updateUI() {
-    document.getElementById('name1').textContent = this.host.name;
-    document.getElementById('statText1').textContent = this.host.status;
-    document.getElementById('dot1').className = 'status-dot ' + (this.host.status === 'offline' ? 'offline' : '');
-    document.getElementById('user1').classList.add('visible');
-    document.getElementById('name2').textContent = this.guest.name;
-    document.getElementById('statText2').textContent = this.guest.status;
-    document.getElementById('dot2').className = 'status-dot ' + (this.guest.status === 'offline' ? 'offline' : '');
-    document.getElementById('user2').classList.add('visible');
+    this.users.forEach((u, i) => {
+      const idx = i + 1;
+      const row = document.getElementById('user' + idx);
+      if (row) {
+        document.getElementById('name' + idx).textContent = u.name;
+        document.getElementById('statText' + idx).textContent = u.status;
+        document.getElementById('dot' + idx).className = 'status-dot ' + (u.status === 'offline' ? 'offline' : '');
+        row.classList.add('visible');
+      }
+    });
   }
 };
 SessionManager.init();
@@ -343,11 +336,7 @@ function drawFish(t) {
 
 function drawLabels() {
     if (isRecordingPhase) return;
-    ctx.save(); 
-    ctx.font = "28px 'Helvetica Neue'";
-    ctx.textAlign = "center";
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.save(); ctx.font = "28px 'Helvetica Neue'"; ctx.textAlign = "center"; ctx.shadowBlur = 4; ctx.shadowColor = "rgba(0,0,0,0.5)";
     for(let i = LABELS.length - 1; i >= 0; i--) {
         const l = LABELS[i];
         const age = elapsed - l.born;
@@ -474,12 +463,6 @@ const AudioEngine = {
     this.data = new Uint8Array(this.analyser.frequencyBinCount);
     source.connect(this.analyser); this.analyser.connect(this.ctx.destination);
     source.start(0); this.active = true; await this.ctx.resume();
-  },
-  update() {
-    if (!this.active || paused) { this.intensity = 0; return; }
-    this.analyser.getByteFrequencyData(this.data);
-    let sum = 0; for (let i=0; i<12; i++) sum += this.data[i];
-    this.intensity = (sum/12)/255;
   }
 };
 
@@ -488,7 +471,12 @@ function loop(ts) {
   if (!running) { lastFrameTime = ts; return; }
   const dt = (ts - lastFrameTime) / 1000; lastFrameTime = ts;
   if (paused) { requestAnimationFrame(loop); return; }
-  elapsed += dt; AudioEngine.update();
+  elapsed += dt;
+  if (AudioEngine.active) {
+    AudioEngine.analyser.getByteFrequencyData(AudioEngine.data);
+    let sum = 0; for (let i=0; i<12; i++) sum += AudioEngine.data[i];
+    AudioEngine.intensity = (sum/12)/255;
+  }
   if (AudioEngine.intensity > 0.62 && !beatActive) {
       const candidates = FISH.filter(f => f.flash < 0.1);
       const shuffled = candidates.sort(() => 0.5 - Math.random());
@@ -540,18 +528,13 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
-async function startExperience(asGuest = false, isDefault = false) {
+async function startExperience(asGuest = false) {
   document.getElementById('startScreen').style.opacity = '0';
   setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 2000);
   document.getElementById('sessionUI').style.display = 'block';
   initPlants();
   if (!asGuest) {
-    if (isDefault) {
-        await AudioEngine.init('media/Contrasts-Dryhope.mp3');
-    } else {
-        const file = audioInput.files[0]; if(!file) return;
-        await AudioEngine.init(file);
-    }
+    await AudioEngine.init('media/Contrasts-Dryhope.mp3');
     if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
   }
   running = true; lastFrameTime = performance.now(); requestAnimationFrame(loop);
@@ -577,9 +560,7 @@ async function uploadVideo() {
   } catch (e) { msg.textContent = 'verbindungsfehler'; }
 }
 
-document.getElementById('startBtn').onclick = () => audioInput.click();
-document.getElementById('startDefaultBtn').onclick = () => startExperience(false, true);
-audioInput.onchange = e => { if (e.target.files.length) startExperience(false, false); };
+document.getElementById('startBtn').onclick = () => startExperience(false);
 document.getElementById('pauseBtn').onclick = () => { paused = !paused; if (AudioEngine.ctx) paused ? AudioEngine.ctx.suspend() : AudioEngine.ctx.resume(); };
 
 const handleInput = (x, y) => {
@@ -605,6 +586,7 @@ function checkSwirl() {
   }
   return Math.abs(rot) > Math.PI * 1.8;
 }
+
 window.addEventListener('mousemove', e => { if(isMouseDown) handleInput(e.clientX, e.clientY); });
 window.addEventListener('touchmove', e => handleInput(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
 const onDown = (clientX, clientY) => {
