@@ -189,10 +189,13 @@ const SessionManager = {
     setTimeout(() => { if (!conn || !conn.open) this.connectToHost(); }, 5000);
   },
   setupConnection() {
-    conn.on('open', () => { if (this.joined) this.sendStatus('online'); });
+    conn.on('open', () => { 
+        if (this.joined) this.sendStatus('online'); 
+    });
     conn.on('data', data => {
       if (data.type === 'STATUS') {
         this.updateUser(data.name, data.status, data.role);
+        // Bestätigungs-Echo, damit beide den Status sehen
         if (data.status === 'online' && this.joined) this.sendStatus('online');
       }
       if (data.type === 'START_EXPERIENCE') startExperience(true);
@@ -210,7 +213,9 @@ const SessionManager = {
     else this.updateUser(this.host.name, 'offline', 'host');
   },
   sendStatus(status) { 
-    if (conn && conn.open && myName) conn.send({ type: 'STATUS', name: myName, status, role: isHost ? 'host' : 'guest' });
+    if (conn && conn.open && myName) {
+        conn.send({ type: 'STATUS', name: myName, status, role: isHost ? 'host' : 'guest' });
+    }
   },
   sendInteraction(kind, data) { 
     if (conn && conn.open) conn.send({ type: 'INTERACTION', kind, rx: data.x / W, ry: data.y / H, userName: myName, ...data });
@@ -225,15 +230,17 @@ const SessionManager = {
     const el = document.documentElement;
     if (el.requestFullscreen) el.requestFullscreen();
     else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    else if (el.msRequestFullscreen) el.msRequestFullscreen();
 
     this.updateUser(myName, 'online', isHost ? 'host' : 'guest');
     this.sendStatus('online');
+    
     document.getElementById('userName').disabled = true;
     document.getElementById('joinBtn').style.display = 'none';
+    
     if (isHost) {
       document.getElementById('shareLinkArea').style.display = 'block';
       document.getElementById('startBtn').style.display = 'block';
+      document.getElementById('startDefaultBtn').style.display = 'block';
     } else {
       document.getElementById('subline').innerHTML = "Warte auf den Host...";
     }
@@ -317,15 +324,11 @@ function drawFish(t) {
   for (let i = FISH.length - 1; i >= 0; i--) {
     const f = FISH[i];
     if (isRecordingPhase && !f.isLocal) continue;
-    
-    // Fade Logic (0.5s = 0.033 per frame at 60fps)
     f.alpha = Math.min(1, f.alpha + 0.033);
-    
     f.x += f.vx * (1 + bass * 1.5); f.y += f.vy * (1 + bass * 1.5);
     if (f.flash > 0) f.flash *= 0.90;
     const osc = Math.sin(t * 8 + f.born) * 5, angle = f.vx > 0 ? 0 : Math.PI;
-    ctx.save(); 
-    ctx.globalAlpha = f.alpha * globalFade; 
+    ctx.save(); ctx.globalAlpha = f.alpha * globalFade; 
     ctx.translate(f.x, f.y); ctx.rotate(angle); if (f.vx < 0) ctx.scale(1, -1);
     ctx.beginPath(); ctx.ellipse(0, 0, f.size * 1.5, f.size, 0, 0, Math.PI * 2);
     ctx.fillStyle = f.color; ctx.shadowBlur = 20 + (f.flash * 50); ctx.shadowColor = f.color;
@@ -349,11 +352,8 @@ function drawLabels() {
         const l = LABELS[i];
         const age = elapsed - l.born;
         if (age > 3) { LABELS.splice(i, 1); continue; }
-        
-        // Label Fade Logic
         l.alpha = Math.min(1, l.alpha + 0.033);
         ctx.globalAlpha = l.alpha * Math.min(1, (3 - age));
-        
         ctx.fillStyle = "rgba(255,255,255,0.8)";
         ctx.fillText(l.text, l.x, l.y);
     }
@@ -459,9 +459,16 @@ function drawJellyfish(t) {
 
 const AudioEngine = {
   ctx: null, analyser: null, data: null, intensity: 0, active: false,
-  async init(file) {
+  async init(fileOrUrl) {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const audBuf = await this.ctx.decodeAudioData(await file.arrayBuffer());
+    let arrayBuffer;
+    if (typeof fileOrUrl === 'string') {
+        const res = await fetch(fileOrUrl);
+        arrayBuffer = await res.arrayBuffer();
+    } else {
+        arrayBuffer = await fileOrUrl.arrayBuffer();
+    }
+    const audBuf = await this.ctx.decodeAudioData(arrayBuffer);
     const source = this.ctx.createBufferSource(); source.buffer = audBuf; source.loop = true;
     this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 256;
     this.data = new Uint8Array(this.analyser.frequencyBinCount);
@@ -507,17 +514,11 @@ function loop(ts) {
   }
   
   const status = document.getElementById('status');
-  if (elapsed < 23) {
-      status.textContent = "Klicke doppelt und rufe die Meeresbewohner";
-  } else if (elapsed < 30) {
-      status.textContent = "1) Klicke doppelt oder 2) Maustaste gedrückt halten, kreisen und wieder loslassen und rufe die Meeresbewohner";
-  } else if (elapsed < 60) {
-      status.textContent = "1) Klicke doppelt, 2) Maustaste gedrückt halten, kreisen und wieder loslassen oder 3) Maustaste gedrückt halten, mehrmals von links nach rechts wischen und rufe die Meeresbewohner";
-  } else if (elapsed < 65) { 
-    status.textContent = "bereitmachen..."; 
-    document.getElementById('souvenirUI').style.display = 'flex'; 
-    document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); 
-  } else if (elapsed < 75) { 
+  if (elapsed < 23) status.textContent = "Klicke doppelt und rufe die Meeresbewohner";
+  else if (elapsed < 30) status.textContent = "1) Klicke doppelt oder 2) Maustaste gedrückt halten, kreisen und wieder loslassen und rufe die Meeresbewohner";
+  else if (elapsed < 60) status.textContent = "1) Klicke doppelt, 2) Maustaste gedrückt halten, kreisen und wieder loslassen oder 3) Maustaste gedrückt halten, mehrmals von links nach rechts wischen und rufe die Meeresbewohner";
+  else if (elapsed < 65) { status.textContent = "bereitmachen..."; document.getElementById('souvenirUI').style.display = 'flex'; document.getElementById('countdown').textContent = Math.ceil(65 - elapsed); }
+  else if (elapsed < 75) { 
     if(!isRecordingPhase) {
       isRecordingPhase = true; chunks = [];
       const stream = offscreenCanvas.captureStream(30);
@@ -526,8 +527,7 @@ function loop(ts) {
       recorder.onstop = () => uploadVideo();
       recorder.start();
     }
-    document.getElementById('souvenirUI').style.display = 'none'; 
-    document.getElementById('captureFrame').style.display = 'block'; 
+    document.getElementById('souvenirUI').style.display = 'none'; document.getElementById('captureFrame').style.display = 'block'; 
   } else if (!finalTriggered) {
     finalTriggered = true;
     document.getElementById('finalScreen').style.display = 'flex';
@@ -540,14 +540,18 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
-async function startExperience(asGuest = false) {
+async function startExperience(asGuest = false, isDefault = false) {
   document.getElementById('startScreen').style.opacity = '0';
   setTimeout(() => { document.getElementById('startScreen').style.display = 'none'; }, 2000);
   document.getElementById('sessionUI').style.display = 'block';
   initPlants();
   if (!asGuest) {
-    const file = audioInput.files[0]; if(!file) return;
-    await AudioEngine.init(file);
+    if (isDefault) {
+        await AudioEngine.init('media/Contrasts-Dryhope.mp3');
+    } else {
+        const file = audioInput.files[0]; if(!file) return;
+        await AudioEngine.init(file);
+    }
     if (conn && conn.open) conn.send({ type: 'START_EXPERIENCE' });
   }
   running = true; lastFrameTime = performance.now(); requestAnimationFrame(loop);
@@ -558,7 +562,7 @@ async function uploadVideo() {
   const publicId = `${sessionId}_${safeName}`;
   const mintURL = MINT_BASE_URL + publicId;
   const msg = document.getElementById('uploadMsg'), btn = document.getElementById('mintBtn');
-  if (!chunks.length) { msg.textContent = "fehler: keine daten"; return; }
+  if (!chunks.length) { msg.textContent = "fehler: keine aufnahme"; return; }
   try {
     msg.textContent = 'lade dein souvenir hoch...';
     const blob = new Blob(chunks, { type: 'video/webm' });
@@ -574,7 +578,8 @@ async function uploadVideo() {
 }
 
 document.getElementById('startBtn').onclick = () => audioInput.click();
-audioInput.onchange = e => { if (e.target.files.length) startExperience(false); };
+document.getElementById('startDefaultBtn').onclick = () => startExperience(false, true);
+audioInput.onchange = e => { if (e.target.files.length) startExperience(false, false); };
 document.getElementById('pauseBtn').onclick = () => { paused = !paused; if (AudioEngine.ctx) paused ? AudioEngine.ctx.suspend() : AudioEngine.ctx.resume(); };
 
 const handleInput = (x, y) => {
@@ -600,10 +605,8 @@ function checkSwirl() {
   }
   return Math.abs(rot) > Math.PI * 1.8;
 }
-
 window.addEventListener('mousemove', e => { if(isMouseDown) handleInput(e.clientX, e.clientY); });
 window.addEventListener('touchmove', e => handleInput(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-
 const onDown = (clientX, clientY) => {
   isMouseDown = true; jellyfishPending = false; whalePending = false;
   const v = getVirtualCoords(clientX, clientY);
@@ -611,7 +614,6 @@ const onDown = (clientX, clientY) => {
 };
 window.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
 window.addEventListener('touchstart', e => onDown(e.touches[0].clientX, e.touches[0].clientY));
-
 const onUp = () => {
     if (!isMouseDown) return;
     isMouseDown = false;
