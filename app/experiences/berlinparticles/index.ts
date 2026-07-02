@@ -4,9 +4,9 @@ import type { ExperienceDefinition } from '../../lib/experience-types';
 const DURATION = 300;
 
 const SCENE_LABELS: [number, string][] = [
-  [0,   'BERLIN · PARTICLES'],
-  [30,  'SKYLINE EMERGES'],
-  [60,  'CITY IN FLOW'],
+  [0, 'BERLIN · PARTICLES'],
+  [30, 'SKYLINE EMERGES'],
+  [60, 'CITY IN FLOW'],
   [120, 'LANDMARKS DISSOLVE'],
   [200, 'SKYLINE REBUILDS'],
   [260, 'FADE TO NIGHT'],
@@ -14,7 +14,7 @@ const SCENE_LABELS: [number, string][] = [
 
 export const berlinParticlesExperience: ExperienceDefinition = {
   id: 'berlinparticles',
-  title: 'BERLIN · PARTICLES',
+  title: 'BERLIN',
   description:
     'Berlin landmarks rebuilt from 25K fluid-driven particles. Siegessäule, Cathedral, TV Tower, Brandenburg Gate, and Reichstag shimmer and scatter with every beat — then spring back into shape.',
   duration: DURATION,
