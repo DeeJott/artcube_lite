@@ -6,6 +6,7 @@ import { twMerge } from 'tailwind-merge';
 import { ExperienceSwitcher } from './ExperienceSwitcher';
 import type { ExperienceDefinition } from '../lib/experience-types';
 import { LuBox } from 'react-icons/lu';
+import WalletUnavailableModal from './WalletUnavailableModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -42,6 +43,7 @@ export function StartScreen({
   const [shareUrl, setShareUrl] = useState('');
   const [showValidation, setShowValidation] = useState(false);
   const [shareEnabled, setShareEnabled] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -89,12 +91,12 @@ export function StartScreen({
       <div className="absolute inset-0 opacity-[0.04] pointer-events-none art-cube-grid" />
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_30%,rgba(255,94,0,0.24),transparent_34%),linear-gradient(to_top,var(--background)_0%,transparent_46%,var(--background)_100%)]" />
 
-      <header className="fixed top-0 left-0 right-0 z-10 h-16 border-b border-dashed backdrop-blur-md bg-header-bg border-border">
+      <header className="fixed top-0 left-0 right-0 z-10 h-12 border-b border-dashed backdrop-blur-md bg-header-bg border-border">
         <div className="grid grid-cols-12 h-full">
           <div className="hidden md:flex col-span-4 items-center h-full">
-            <div className="h-full px-8 flex items-center border-r border-dashed border-border text-xs font-medium tracking-wide text-header-text">
+            <a href="https://art-box-landing.vercel.app/" target="_blank" rel="noopener noreferrer" className="h-full px-8 flex items-center border-r border-dashed border-border text-xs font-medium tracking-wide text-header-text hover:text-header-text-hover transition-colors duration-300">
               THE EXPERIENCE
-            </div>
+            </a>
           </div>
           <div className="col-span-8 md:col-span-4 flex items-center justify-center h-full">
             <div className="font-semibold text-xl tracking-tight whitespace-nowrap flex items-center gap-2 text-foreground">
@@ -103,11 +105,14 @@ export function StartScreen({
             </div>
           </div>
           <div className="col-span-4 flex items-center justify-end h-full">
-            <div className="hidden md:flex h-full px-8 items-center justify-center gap-2 bg-accent text-accent-foreground text-xs font-medium tracking-wide cursor-pointer hover:bg-accent-hover transition-colors duration-300">
+            <div
+              onClick={() => setWalletModalOpen(true)}
+              className="hidden md:flex h-full px-8 items-center justify-center gap-2 bg-accent text-accent-foreground text-xs font-medium tracking-wide cursor-pointer hover:bg-accent-hover transition-colors duration-300"
+            >
               <span>CONNECT WALLET</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
               </svg>
             </div>
           </div>
@@ -115,7 +120,7 @@ export function StartScreen({
       </header>
 
       <div className="relative z-1 min-h-screen pt-16 flex items-center justify-center px-4 sm:px-6 py-24">
-        <div className="w-full max-w-6xl grid grid-cols-12 items-center gap-6 lg:gap-10">
+        <div className="w-full max-w-7xl grid grid-cols-12 items-center gap-6 lg:gap-10">
           <div className="col-span-12 lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md border mb-8 bg-white/5 border-white/10">
               <span className="w-2 h-2 rounded-full animate-pulse bg-accent" />
@@ -123,24 +128,20 @@ export function StartScreen({
               <span className="w-2 h-2 rounded-full animate-pulse bg-accent" />
             </div>
 
-            <h1 className="text-5xl sm:text-6xl md:text-[7vw] lg:text-[6.5vw] font-thin tracking-tighter text-white mb-6 leading-none uppercase mix-blend-overlay opacity-90">
-              Transform <span className="font-bold">motion</span><br />
-              into <span className="font-bold tracking-tight">digital art</span>
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-thin tracking-tighter text-white mb-6 leading-none uppercase mix-blend-overlay opacity-90">
+              Transform <span className="font-bold">motion</span> into<br />
+              <span className="font-bold tracking-tight">digital art</span>
             </h1>
 
-            <p className="max-w-2xl text-base sm:text-lg md:text-2xl text-white/80 font-light leading-relaxed drop-shadow-lg">
+            <p className="max-w-2xl text-base sm:text-lg md:text-2xl text-white/80 font-thin leading-relaxed drop-shadow-lg">
               A digital twin of the ART.CUBE installation. Preview the experiences that await inside the physical cube — touch, drag, and interact with the projections just as you would on the four walls. Your movements become art.
             </p>
           </div>
 
-          <div className="col-span-12 lg:col-span-5 text-left">
+          <div className="col-span-12 lg:col-span-5 text-left px-10">
             <div className="relative overflow-hidden border border-dashed border-border bg-background-secondary/50 backdrop-blur-md shadow-2xl">
               <div className="absolute inset-0 opacity-[0.04] pointer-events-none art-cube-grid" />
               <div className="relative p-5 sm:p-8 flex flex-col gap-5">
-                <div className="flex items-center justify-between gap-4 border-b border-dashed border-border pb-5">
-                  <span className="font-mono text-sm uppercase text-foreground-secondary/70">001 <span className="opacity-50 px-1">///</span> Session</span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-accent">{isHost ? 'Host' : 'Guest'}</span>
-                </div>
 
                 {experiences && selectedExperienceId && onSelectExperience && (
                   <ExperienceSwitcher
@@ -155,11 +156,11 @@ export function StartScreen({
                   type="text"
                   value={myName}
                   onChange={(e) => onNameChange(e.target.value)}
-                  placeholder="DEIN NAME"
+                  placeholder="ENTER YOUR NAME"
                   maxLength={15}
                   disabled={isJoined}
                   className={cn(
-                    "w-full bg-background-elevated border border-dashed border-border text-foreground px-4 py-4 text-sm tracking-[0.14em] text-center uppercase",
+                    "w-full bg-background/60 border border-dashed border-border text-foreground px-4 py-4 text-sm tracking-[0.14em] text-center uppercase",
                     "outline-none placeholder:text-foreground-muted hover:border-border-hover focus:border-accent",
                     "transition-colors duration-300 disabled:opacity-60",
                     showValidation && "border-red-400/70"
@@ -167,7 +168,7 @@ export function StartScreen({
                 />
 
                 {isHost && (
-                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <label className="flex items-center justify-center gap-3 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={shareEnabled}
@@ -218,6 +219,7 @@ export function StartScreen({
           </div>
         </div>
       </div>
+      <WalletUnavailableModal open={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
     </div>
   );
 }
