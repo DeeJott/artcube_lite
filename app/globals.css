@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root,
+:root.wave {
+  --background: #1a0b2e;
+  --background-secondary: #2d1b4e;
+  --background-tertiary: #432c7a;
+  --background-elevated: rgba(255, 94, 0, 0.05);
+  --background-hover: rgba(255, 94, 0, 0.08);
+  --foreground: #ffffff;
+  --foreground-secondary: #e0d4fc;
+  --foreground-muted: #9f86c0;
+  --border: rgba(255, 94, 0, 0.2);
+  --border-hover: rgba(255, 94, 0, 0.4);
+  --accent: #FF5E00;
+  --accent-hover: #FF7B00;
+  --accent-foreground: #ffffff;
+  --header-bg: rgba(26, 11, 46, 0.9);
+  --header-text: #ffffff;
+  --header-text-hover: #FF5E00;
+  --card: #2d1b4e;
+  --card-hover: #432c7a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-background-tertiary: var(--background-tertiary);
+  --color-background-elevated: var(--background-elevated);
+  --color-background-hover: var(--background-hover);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-header-bg: var(--header-bg);
+  --color-header-text: var(--header-text);
+  --color-header-text-hover: var(--header-text-hover);
+  --font-sans: "Outfit", var(--font-geist-sans), sans-serif;
+  --font-mono: "JetBrains Mono", var(--font-geist-mono), monospace;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Outfit", var(--font-geist-sans), sans-serif;
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.art-cube-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 800 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.art-cube-grid {
+  background-image: linear-gradient(to right, var(--foreground) 1px, transparent 1px), linear-gradient(to bottom, var(--foreground) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.art-cube-primary-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.125rem;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  padding: 1rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: color 0.3s ease, background-color 0.3s ease, opacity 0.3s ease;
+}
+
+.art-cube-primary-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--foreground);
+  transform: translateY(100%);
+  transition: transform 0.3s ease-out;
+}
+
+.art-cube-primary-button:hover::after {
+  transform: translateY(0);
+}
+
+.art-cube-primary-button > span {
+  position: relative;
+  z-index: 1;
+}
+
+.art-cube-primary-button:hover {
+  color: var(--background);
+}
+
+.art-cube-transition,
+header,
+main,
+section,
+div,
+a,
+button,
+input,
+span,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
