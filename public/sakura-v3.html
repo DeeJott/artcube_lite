@@ -1,0 +1,2172 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sakura: Reborn</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body,
+    html {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #08000c;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Layer 1: Metallic Magenta Background Canvas */
+    #bg-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    #bg-container canvas {
+      display: block;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+
+    /* Layer 2: 3D Artwork Canvas */
+    #webgl-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2;
+      cursor: none; /* Custom user cursor elements used */
+      overflow: hidden;
+    }
+
+    #webgl-container canvas {
+      display: block;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+
+    /* Custom Translucent User Cursors */
+    .user-cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: opacity 0.3s ease;
+    }
+
+    .cursor-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      background-color: var(--user-color-alpha, rgba(0, 240, 255, 0.35));
+      box-shadow: 0 0 16px var(--user-color-glow, rgba(0, 240, 255, 0.6));
+      position: relative;
+    }
+
+    .cursor-circle::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 8px #ffffff;
+    }
+
+    .cursor-name {
+      margin-top: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: #ffffff;
+      text-transform: uppercase;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 10px var(--user-color-glow, rgba(0, 240, 255, 0.8));
+      white-space: nowrap;
+      padding: 2px 8px;
+      background: rgba(18, 12, 28, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 10px;
+      border: 1px solid var(--user-color-glow, rgba(0, 240, 255, 0.4));
+    }
+
+    /* Modern Glassmorphic HUD Layout */
+    .hud-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 32px 36px;
+    }
+
+    /* Top Info Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .phase-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      background: rgba(18, 12, 28, 0.7);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      border-radius: 20px;
+      color: rgba(255, 180, 220, 0.95);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .phase-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #ff2a9d;
+      box-shadow: 0 0 10px #ff2a9d;
+      animation: pulsePhase 2s infinite ease-in-out;
+    }
+
+    /* Switch Active User Toggle Button Top Right */
+    .user-switch-toggle {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px;
+      background: rgba(18, 12, 28, 0.8);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(78, 226, 236, 0.4);
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .user-switch-toggle:hover {
+      background: rgba(78, 226, 236, 0.2);
+      border-color: #4ee2ec;
+      transform: translateY(-1px);
+    }
+
+    @keyframes pulsePhase {
+      0%, 100% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1.0; transform: scale(1.2); }
+    }
+
+    /* Bottom HUD Container */
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+    }
+
+    /* Bottom Left: Title & Subtitle */
+    .brand-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: #ffffff;
+      text-transform: uppercase;
+      text-shadow: 0 0 20px rgba(255, 42, 157, 0.7), 0 0 40px rgba(255, 105, 180, 0.4);
+      background: linear-gradient(135deg, #ffffff 0%, #ff80df 50%, #ff2a9d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      letter-spacing: 2.5px;
+      color: rgba(255, 200, 235, 0.75);
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* Bottom Center: Creation Action Button */
+    .center-action {
+      pointer-events: auto;
+    }
+
+    .create-btn {
+      position: relative;
+      padding: 16px 36px;
+      background: rgba(18, 12, 28, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      border-radius: 36px;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: not-allowed;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    /* Button Countdown Progress Overlay */
+    .create-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: var(--progress-width, 0%);
+      background: linear-gradient(90deg, rgba(255, 42, 157, 0.25), rgba(78, 226, 236, 0.25));
+      border-radius: 36px;
+      transition: width 0.3s linear;
+      z-index: 0;
+    }
+
+    .btn-content {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .timer-badge {
+      font-family: monospace;
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Enabled Active Button State */
+    .create-btn.active {
+      cursor: pointer;
+      color: #ffffff;
+      background: linear-gradient(135deg, rgba(255, 42, 157, 0.35) 0%, rgba(18, 12, 28, 0.9) 100%);
+      border-color: rgba(78, 226, 236, 0.8);
+      box-shadow: 0 12px 35px rgba(255, 42, 157, 0.4), 0 0 25px rgba(78, 226, 236, 0.3);
+      animation: pulseBtnGlow 2.5s infinite ease-in-out;
+    }
+
+    .create-btn.active:hover {
+      transform: translateY(-3px) scale(1.03);
+      background: linear-gradient(135deg, rgba(255, 42, 157, 0.55) 0%, rgba(78, 226, 236, 0.3) 100%);
+      border-color: #4ee2ec;
+      box-shadow: 0 16px 45px rgba(255, 42, 157, 0.6), 0 0 35px rgba(78, 226, 236, 0.5);
+    }
+
+    @keyframes pulseBtnGlow {
+      0%, 100% { box-shadow: 0 10px 30px rgba(255, 42, 157, 0.3), 0 0 20px rgba(78, 226, 236, 0.2); }
+      50% { box-shadow: 0 14px 40px rgba(255, 42, 157, 0.6), 0 0 30px rgba(78, 226, 236, 0.5); }
+    }
+
+    /* Bottom Right: 3 Mode Selection Navigation Pill Buttons (Blüten, Plexus, Wald) */
+    .mode-selector-container {
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .mode-selector-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255, 180, 220, 0.7);
+      font-weight: 600;
+    }
+
+    .mode-selector {
+      display: flex;
+      gap: 8px;
+      background: rgba(18, 12, 28, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 6px;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .mode-btn {
+      padding: 8px 18px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 18px;
+      color: rgba(255, 200, 235, 0.6);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .mode-btn:hover:not(.disabled) {
+      color: #ffffff;
+      background: rgba(255, 105, 180, 0.2);
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, rgba(255, 42, 157, 0.55) 0%, rgba(18, 12, 28, 0.9) 100%);
+      color: #ffffff;
+      border-color: rgba(255, 180, 220, 0.8);
+      box-shadow: 0 0 15px rgba(255, 42, 157, 0.5);
+    }
+
+    .mode-btn.disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .mode-btn.unlocked {
+      opacity: 1.0;
+      cursor: pointer;
+      border-color: rgba(78, 226, 236, 0.8);
+      color: #4ee2ec;
+      animation: pulseWaldUnlocked 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseWaldUnlocked {
+      0%, 100% { box-shadow: 0 0 10px rgba(78, 226, 236, 0.3); }
+      50% { box-shadow: 0 0 22px rgba(78, 226, 236, 0.8); }
+    }
+  </style>
+
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+
+  <!-- Layer 1: Metallic Magenta Background Canvas -->
+  <div id="bg-container"></div>
+
+  <!-- Layer 2: 3D Artwork Canvas -->
+  <div id="webgl-container"></div>
+
+  <!-- Custom User Cursors -->
+  <div class="user-cursor" id="userCursor1">
+    <div class="cursor-circle" id="cursorCircle1"></div>
+    <div class="cursor-name" id="cursorName1">Maya</div>
+  </div>
+
+  <div class="user-cursor" id="userCursor2" style="opacity: 0.5;">
+    <div class="cursor-circle" id="cursorCircle2"></div>
+    <div class="cursor-name" id="cursorName2">Kenji</div>
+  </div>
+
+  <!-- Glassmorphic HUD Layer -->
+  <div class="hud-layer">
+    <!-- Top Bar: Phase Indicator & User Switcher -->
+    <div class="top-bar">
+      <div class="phase-badge" id="phaseBadge">
+        <span class="phase-dot"></span>
+        <span id="phaseText">Exploration Phase</span>
+      </div>
+
+      <!-- Quick Switcher for Testing 2-Player Collaboration -->
+      <button class="user-switch-toggle" id="userSwitchBtn">
+        <span>Active User: <strong id="activeUserName">Maya (User 1)</strong></span>
+        <span style="opacity: 0.6; font-size: 9px;">[Press TAB]</span>
+      </button>
+    </div>
+
+    <!-- Bottom Bar: Title (Left), Action Button (Center), Mode Selector (Right) -->
+    <div class="bottom-bar">
+
+      <!-- Bottom Left: Artwork Title -->
+      <div class="brand-container">
+        <div class="brand-title">Sakura: Reborn</div>
+        <div class="brand-subtitle">Collaborative Artwork Experience</div>
+      </div>
+
+      <!-- Bottom Center: Creation Button (Unlocked after 30s) -->
+      <div class="center-action">
+        <button class="create-btn" id="createArtBtn" disabled>
+          <span class="btn-content">
+            <span class="timer-badge" id="timerBadge">30s</span>
+            <span id="btnLabel">Kunstwerk erstellen</span>
+          </span>
+        </button>
+      </div>
+
+      <!-- Bottom Right: 3 Mode Selection Navigation Buttons (Blüten, Plexus, Wald) -->
+      <div class="mode-selector-container">
+        <div class="mode-selector-label">Artwork Mode</div>
+        <div class="mode-selector">
+          <button class="mode-btn active" id="btnModeBluten">Blüten</button>
+          <button class="mode-btn" id="btnModePlexus">Plexus</button>
+          <button class="mode-btn disabled" id="btnModeWald" disabled title="Spiele zuerst Blüten und Plexus durch">Wald</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ==========================================
+      // 10-COLOR CURSOR PALETTE SET & ASSIGNMENT
+      // ==========================================
+      const CURSOR_PALETTE_10 = [
+        { name: 'Cyan Glow', hex: '#00f0ff', rgb: '0, 240, 255' },
+        { name: 'Electric Violet', hex: '#b026ff', rgb: '176, 38, 255' },
+        { name: 'Neon Lime', hex: '#39ff14', rgb: '57, 255, 20' },
+        { name: 'Solar Amber', hex: '#ffaa00', rgb: '255, 170, 0' },
+        { name: 'Hot Coral', hex: '#ff3366', rgb: '255, 51, 102' },
+        { name: 'Aqua Marine', hex: '#00ffa3', rgb: '0, 255, 163' },
+        { name: 'Bright Magenta', hex: '#ff007f', rgb: '255, 0, 127' },
+        { name: 'Celestial Blue', hex: '#3388ff', rgb: '51, 136, 255' },
+        { name: 'Sunburst Yellow', hex: '#ffe600', rgb: '255, 230, 0' },
+        { name: 'Luminous Pink', hex: '#ff66cc', rgb: '255, 102, 204' }
+      ];
+
+      // Randomly assign two distinct colors at session start
+      const colorIndex1 = Math.floor(Math.random() * CURSOR_PALETTE_10.length);
+      let colorIndex2 = Math.floor(Math.random() * CURSOR_PALETTE_10.length);
+      while (colorIndex2 === colorIndex1) {
+        colorIndex2 = Math.floor(Math.random() * CURSOR_PALETTE_10.length);
+      }
+
+      const user1Color = CURSOR_PALETTE_10[colorIndex1];
+      const user2Color = CURSOR_PALETTE_10[colorIndex2];
+
+      let activeUserIndex = 1; // 1 = Maya (User 1), 2 = Kenji (User 2)
+
+      // Active Artwork Mode: 'bluten', 'plexus', 'wald'
+      let activeMode = 'bluten';
+
+      // Completion Tracker Flags for Unlocking "Wald"
+      let isBlütenCompleted = false;
+      let isPlexusCompleted = false;
+
+      // ==========================================
+      // TIMELINE CONSTANTS & CONFIGURATION
+      // ==========================================
+      const UNLOCK_DURATION = 30.0; // 30 seconds countdown until creation button unlocks
+      const INITIAL_PETALS = 20;    // Reduced initial petals to 20
+      const MAX_PETALS = 600;
+      const MAX_ORBS = 60;
+
+      // 3D Sideways Whirlwind / Tornado State Variables (8 Seconds Duration)
+      const TORNADO_DURATION = 8.0;
+      let isVortexActive = false;
+      let vortexStartTime = 0.0;
+
+      // Persistent Drifting Plexus Constellations (Sakura V2 Engine Architecture)
+      let isMouseDown = false;
+      let plexusHoldTime = 0.0;
+      let plexusOriginX = 0, plexusOriginY = 0;
+      let activeHoldNodes = [];
+
+      // Dragging Existing Plexus Cluster & Hitbox Detection
+      let draggedPlexusCluster = null;
+      let dragOffset = new THREE.Vector2();
+
+      // 8 Interconnected Plexus 3D Sphere Event State
+      let isPlexusSphereActive = false;
+      let plexusSphereStartTime = 0.0;
+      let hasExplodedThisFrame = false;
+
+      const MAX_TOTAL_NODES = 450;
+      const MAX_TOTAL_LINES = 1400;
+
+      // Drifting Plexus Clusters Collection
+      const activePlexusClusters = [];
+
+      let plexusPointsMesh, plexusLinesMesh;
+
+      // High Performance Shining Star Particle Trails & Massive Explosion Burst
+      const MAX_TRAIL_PARTICLES = 4000;
+
+      let bgContainer, bgScene, bgCamera, bgRenderer, bgUniforms;
+      let mainScene, camera, mainRenderer;
+      let instancedPetalMesh, orbPointsMesh, trailPointsMesh;
+
+      let clock;
+      let createArtBtn, timerBadge, btnLabel, phaseText, userSwitchBtn, activeUserNameElement;
+      let btnModeBluten, btnModePlexus, btnModeWald;
+
+      let activePetalCount = INITIAL_PETALS;
+      const activeOrbs = [];
+
+      // Sakura Petal 3D Data
+      const petalSpawnOriginX = new Float32Array(MAX_PETALS);
+      const petalSpawnOriginY = new Float32Array(MAX_PETALS);
+      const petalSpawnTime = new Float32Array(MAX_PETALS);
+      const petalOrbitalRadiusX = new Float32Array(MAX_PETALS);
+      const petalOrbitalRadiusY = new Float32Array(MAX_PETALS);
+      const petalOrbitalSpeed = new Float32Array(MAX_PETALS);
+      const petalOrbitalAngle = new Float32Array(MAX_PETALS);
+      const petalPhaseZ = new Float32Array(MAX_PETALS);
+      const petalTiltX = new Float32Array(MAX_PETALS);
+      const petalTiltY = new Float32Array(MAX_PETALS);
+      const petalRotX = new Float32Array(MAX_PETALS);
+      const petalRotY = new Float32Array(MAX_PETALS);
+      const petalRotZ = new Float32Array(MAX_PETALS);
+      const petalRotSpeedX = new Float32Array(MAX_PETALS);
+      const petalRotSpeedY = new Float32Array(MAX_PETALS);
+      const petalRotSpeedZ = new Float32Array(MAX_PETALS);
+      const petalBaseScales = new Float32Array(MAX_PETALS);
+
+      // Petal Special Types: 0 = Standard, 1 = Dark Pink + Star Particle Trail (Same User), 2 = Bright Pink-White + Star Particle Trail (Collaborative)
+      const petalType = new Uint8Array(MAX_PETALS);
+      const petalColorsR = new Float32Array(MAX_PETALS);
+      const petalColorsG = new Float32Array(MAX_PETALS);
+      const petalColorsB = new Float32Array(MAX_PETALS);
+
+      // Shining Star Particle Trail & Supernova Explosion Data Arrays
+      const tpX = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpY = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpZ = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpVX = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpVY = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpVZ = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpLife = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpMaxLife = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpSize = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpR = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpG = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpB = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpAlpha = new Float32Array(MAX_TRAIL_PARTICLES);
+      const tpRot = new Float32Array(MAX_TRAIL_PARTICLES);
+      let tpNextFreeIndex = 0;
+
+      const dummyObject = new THREE.Object3D();
+
+      let mouseScreen = new THREE.Vector2(0.5, 0.5);
+      let mouseWorld = new THREE.Vector3(0, 0, 0);
+
+      // User 2 (Kenji) Simulated Position for Dual-User Testing
+      let user2ScreenPos = new THREE.Vector2(0.3, 0.4);
+      let user2WorldPos = new THREE.Vector3(-120, 80, 0);
+
+      // GLSL Background Fluid Shader with Dynamic Kaleidoscope AND Linear Grid Vibe Shader for Plexus Finale!
+      const bgVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `;
+
+      const bgFragmentShader = `
+        uniform vec3 iResolution;
+        uniform float iTime;
+        uniform float uKaleidoscope; // 0.0 to 1.0 kaleidoscope shimmer blend factor
+        uniform float uGridVibe;      // 0.0 to 1.0 Linear Grid Vibe Shader for 8-Plexus Finale!
+
+        float hash(vec2 p) {
+            p = fract(p * vec2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return fract(p.x * p.y);
+        }
+
+        float noise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f*f*(3.0-2.0*f);
+            return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
+                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+        }
+
+        const mat2 mtx = mat2( 0.80,  0.60, -0.60,  0.80 );
+
+        float fbm( vec2 p ) {
+            float f = 0.0;
+            f += 0.5500*noise( p ); p = mtx*p*2.02;
+            f += 0.2800*noise( p ); p = mtx*p*2.04;
+            f += 0.1400*noise( p );
+            return f;
+        }
+
+        void main() {
+            vec2 uv = gl_FragCoord.xy / iResolution.xy;
+
+            // Kaleidoscope Coordinate Symmetry Transformation
+            if (uKaleidoscope > 0.001) {
+                vec2 p = uv - vec2(0.5);
+                float r = length(p);
+                float a = atan(p.y, p.x);
+                float sides = 6.0;
+                float tau = 6.2831853;
+                a = mod(a, tau / sides);
+                a = abs(a - tau / (2.0 * sides));
+                vec2 kUV = vec2(cos(a), sin(a)) * r + vec2(0.5);
+                uv = mix(uv, kUV, uKaleidoscope);
+            }
+
+            float t = iTime * 0.06;
+            vec2 q = vec2(fbm(uv * 3.5), fbm(uv * 3.5 + vec2(5.2, 1.3)));
+            vec2 r = vec2(fbm(uv * 3.5 + 3.0 * q + vec2(t)), fbm(uv * 3.5 + 3.0 * q + vec2(4.2, 2.1)));
+            float noiseVal = fbm(uv * 3.5 + 3.5 * r + vec2(-t * 0.7));
+
+            vec3 col = mix(vec3(0.10, 0.00, 0.06), vec3(0.78, 0.00, 0.40), smoothstep(0.0, 1.0, noiseVal));
+            col = mix(col, vec3(0.30, 0.00, 0.16), dot(q, q) * 0.8);
+            col = mix(col, vec3(0.85, 0.35, 0.65), 0.25 * r.x);
+
+            if (uKaleidoscope > 0.001) {
+                vec3 colKaleido = vec3(0.95, 0.35, 0.85) * (0.8 + 0.5 * sin(iTime * 1.5 + noiseVal * 6.28));
+                col = mix(col, col * 1.35 + colKaleido * 0.4, uKaleidoscope * 0.7);
+            }
+
+            // Linear Grid Vibe Shader Layer (Replaces Kaleidoscope during 8-Plexus Finale!)
+            if (uGridVibe > 0.001) {
+                vec2 gUV = (uv - vec2(0.5)) * vec2(iResolution.x / iResolution.y, 1.0);
+
+                // Perspective Linear Grid Lines
+                vec2 gridLines = abs(fract(gUV * 18.0 - vec2(0.0, iTime * 0.5)) - 0.5);
+                float lineIntensity = smoothstep(0.46, 0.5, max(gridLines.x, gridLines.y));
+
+                // Laser Beam Scanline Effect
+                float scanline = sin(gUV.y * 70.0 - iTime * 10.0) * 0.5 + 0.5;
+
+                vec3 gridColor = vec3(1.0, 0.12, 0.70) * lineIntensity * 1.5 + vec3(0.1, 0.85, 1.0) * scanline * lineIntensity * 0.7;
+                col = mix(col, col * 0.75 + gridColor, uGridVibe * 0.85);
+            }
+
+            col *= noiseVal * 1.4 + 0.3;
+            gl_FragColor = vec4(col, 1.0);
+        }
+      `;
+
+      // Shader for Gaseous Organic Smoky Sphere Orbs
+      const orbVertexShader = `
+        attribute float size;
+        attribute vec3 color;
+        varying vec3 vColor;
+
+        void main() {
+          vColor = color;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (540.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `;
+
+      const orbFragmentShader = `
+        uniform float iTime;
+        varying vec3 vColor;
+
+        float hash(vec2 p) {
+            p = fract(p * vec2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return fract(p.x * p.y);
+        }
+
+        float noise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
+                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+        }
+
+        void main() {
+            vec2 p = gl_PointCoord - vec2(0.5);
+            float d = length(p);
+
+            // Perfectly Round Spherical Outer Mask
+            if (d > 0.49) discard;
+            float circleMask = smoothstep(0.49, 0.08, d);
+
+            // Fast 2-octave gaseous turbulence
+            float n1 = noise(p * 5.0 + vec2(iTime * 0.7, -iTime * 0.5));
+            float n2 = noise(p * 10.0 + vec2(-iTime * 0.4, iTime * 0.6));
+            float smoke = n1 * 0.65 + n2 * 0.35;
+            float coreOrb = smoothstep(0.42, 0.0, d);
+
+            vec3 colHotCore = vec3(1.0, 0.92, 0.98) * pow(smoothstep(0.24, 0.0, d), 1.6);
+            vec3 colSmokyMagenta = vColor * (0.85 + 1.25 * smoke);
+
+            vec3 finalColor = (colSmokyMagenta + colHotCore * 1.6) * circleMask * 1.85;
+            float alpha = (smoke * 0.75 + coreOrb * 0.85) * circleMask;
+
+            gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // Shader for Shining Star Particle Trails (4-Pointed Starburst Flares!)
+      const particleTrailVertexShader = `
+        attribute float size;
+        attribute vec3 color;
+        attribute float alpha;
+        attribute float rotAngle;
+        varying vec3 vColor;
+        varying float vAlpha;
+        varying float vRot;
+
+        void main() {
+          vColor = color;
+          vAlpha = alpha;
+          vRot = rotAngle;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (540.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `;
+
+      const particleTrailFragmentShader = `
+        varying vec3 vColor;
+        varying float vAlpha;
+        varying float vRot;
+
+        void main() {
+          vec2 p = gl_PointCoord - vec2(0.5);
+
+          // Rotate UV coordinates for individual twinkling star orientation
+          float c = cos(vRot);
+          float s = sin(vRot);
+          p = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+
+          float d = length(p);
+          if (d > 0.5) discard;
+
+          // 4-pointed glowing starburst cross flare
+          vec2 av = abs(p);
+          float starPattern = max(0.0, 1.0 - (av.x * av.y) * 550.0);
+          starPattern = pow(starPattern, 3.2);
+
+          // Glowing central star nucleus
+          float core = 1.0 / (1.0 + d * 12.0);
+          core = pow(core, 2.2);
+
+          vec3 finalColor = (vColor * 2.6 + vec3(1.0, 0.95, 1.0) * starPattern * 2.5) * (core + starPattern * 1.5);
+          float finalAlpha = vAlpha * (core * 0.85 + starPattern * 0.95);
+
+          gl_FragColor = vec4(finalColor, finalAlpha);
+        }
+      `;
+
+      // Custom Shader for Glowing Plexus Star Nodes (4-Pointed Starburst Cross Flares)
+      const plexusNodeVertexShader = `
+        attribute float size;
+        attribute vec3 color;
+        attribute float rotAngle;
+        varying vec3 vColor;
+        varying float vRot;
+
+        void main() {
+          vColor = color;
+          vRot = rotAngle;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (500.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `;
+
+      const plexusNodeFragmentShader = `
+        varying vec3 vColor;
+        varying float vRot;
+
+        void main() {
+          vec2 p = gl_PointCoord - vec2(0.5);
+
+          // Rotate star flare
+          float c = cos(vRot);
+          float s = sin(vRot);
+          p = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+
+          float d = length(p);
+          if (d > 0.5) discard;
+
+          // 4-Pointed Glowing Cross Star Flare
+          vec2 av = abs(p);
+          float starPattern = max(0.0, 1.0 - (av.x * av.y) * 620.0);
+          starPattern = pow(starPattern, 3.2);
+
+          // Hot central core
+          float core = 1.0 / (1.0 + d * 14.0);
+          core = pow(core, 2.2);
+
+          vec3 finalColor = (vColor * 2.2 + vec3(1.0, 0.9, 1.0) * starPattern * 2.2) * (core + starPattern * 1.5);
+          float alpha = core * 0.9 + starPattern * 0.95;
+
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      function generatePetalTexture() {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.filter = 'drop-shadow(0px 0px 8px rgba(255, 180, 235, 0.9))';
+        const grad = ctx.createLinearGradient(0, 0, 64, 64);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.3, '#ffccf2');
+        grad.addColorStop(0.7, '#ff66cc');
+        grad.addColorStop(1, '#ff1a8c');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(32, 4);
+        ctx.bezierCurveTo(50, 12, 60, 32, 50, 52);
+        ctx.bezierCurveTo(40, 62, 24, 62, 14, 52);
+        ctx.bezierCurveTo(4, 32, 14, 12, 32, 4);
+        ctx.fill();
+        const tex = new THREE.CanvasTexture(c);
+        tex.needsUpdate = true;
+        return tex;
+      }
+
+      function getVisibleBounds() {
+        if (!camera) return { maxX: 400, maxY: 220 };
+        const aspect = window.innerWidth / window.innerHeight;
+        const vHeight = 2.0 * Math.tan((camera.fov * Math.PI / 360)) * camera.position.z;
+        const vWidth = vHeight * aspect;
+        return {
+          maxX: (vWidth * 0.42),
+          maxY: (vHeight * 0.40)
+        };
+      }
+
+      function rotateConcentric3D(vec, rotX, rotY, rotZ) {
+        let x = vec.x, y = vec.y, z = vec.z;
+        let cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+        let y1 = y * cosX - z * sinX;
+        let z1 = y * sinX + z * cosX;
+        let cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+        let x2 = x * cosY + z1 * sinY;
+        let z2 = -x * sinY + z1 * cosY;
+        let cosZ = Math.cos(rotZ), sinZ = Math.sin(rotZ);
+        let x3 = x2 * cosZ - y1 * sinZ;
+        let y3 = x2 * sinZ + y1 * cosZ;
+        return { x: x3, y: y3, z: z2 };
+      }
+
+      function initApp() {
+        bgContainer = document.getElementById('bg-container');
+        createArtBtn = document.getElementById('createArtBtn');
+        timerBadge = document.getElementById('timerBadge');
+        btnLabel = document.getElementById('btnLabel');
+        phaseText = document.getElementById('phaseText');
+        userSwitchBtn = document.getElementById('userSwitchBtn');
+        activeUserNameElement = document.getElementById('activeUserName');
+
+        btnModeBluten = document.getElementById('btnModeBluten');
+        btnModePlexus = document.getElementById('btnModePlexus');
+        btnModeWald = document.getElementById('btnModeWald');
+
+        // Apply Assigned Translucent Colors to Cursor Badges
+        setupUserColors();
+
+        clock = new THREE.Clock();
+
+        // 1. Layer 1 Background Renderer - Performance Optimized Pixel Ratio 1.0
+        bgScene = new THREE.Scene();
+        bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        bgRenderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        bgRenderer.setPixelRatio(1.0);
+        bgRenderer.setSize(window.innerWidth, window.innerHeight);
+        bgContainer.appendChild(bgRenderer.domElement);
+
+        bgUniforms = {
+          iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
+          iTime: { value: 0 },
+          uKaleidoscope: { value: 0.0 },
+          uGridVibe: { value: 0.0 }
+        };
+
+        const bgMaterial = new THREE.ShaderMaterial({
+          vertexShader: bgVertexShader,
+          fragmentShader: bgFragmentShader,
+          uniforms: bgUniforms,
+          depthWrite: false,
+          depthTest: false
+        });
+
+        bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMaterial));
+
+        // 2. Layer 2 Main 3D Renderer
+        mainScene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3500);
+        updateCameraDistance();
+
+        mainRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+        mainRenderer.setSize(window.innerWidth, window.innerHeight);
+        mainRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        mainRenderer.setClearColor(0x000000, 0);
+        document.getElementById('webgl-container').appendChild(mainRenderer.domElement);
+
+        initPetalPhysics();
+        setupInstancedPetals();
+        setupOrbMesh();
+        setupParticleTrailMesh();
+        setupPlexusMesh();
+
+        window.addEventListener('resize', onWindowResize, false);
+        window.addEventListener('mousemove', onMouseMove, false);
+        window.addEventListener('mousedown', onMouseDown, false);
+        window.addEventListener('mouseup', onMouseUp, false);
+        window.addEventListener('click', onCanvasClick, false);
+
+        // Keyboard Shortcut: TAB or Key 1 / 2 to switch active user!
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'Tab' || e.key === '1' || e.key === '2') {
+            e.preventDefault();
+            toggleActiveUser();
+          }
+        });
+
+        userSwitchBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleActiveUser();
+        });
+
+        // Mode Switcher Button Listeners
+        btnModeBluten.addEventListener('click', () => switchMode('bluten'));
+        btnModePlexus.addEventListener('click', () => switchMode('plexus'));
+        btnModeWald.addEventListener('click', () => {
+          if (!btnModeWald.disabled) switchMode('wald');
+        });
+
+        createArtBtn.addEventListener('click', () => {
+          if (!createArtBtn.disabled) {
+            phaseText.textContent = "Creation Phase";
+            alert("Willkommen in der Creation Phase von 'Sakura: Reborn'!");
+          }
+        });
+
+        animate();
+      }
+
+      function setupUserColors() {
+        const circle1 = document.getElementById('cursorCircle1');
+        const name1 = document.getElementById('cursorName1');
+        const circle2 = document.getElementById('cursorCircle2');
+        const name2 = document.getElementById('cursorName2');
+
+        circle1.style.setProperty('--user-color-alpha', `rgba(${user1Color.rgb}, 0.4)`);
+        circle1.style.setProperty('--user-color-glow', `rgba(${user1Color.rgb}, 0.8)`);
+        name1.style.setProperty('--user-color-glow', `rgba(${user1Color.rgb}, 0.8)`);
+
+        circle2.style.setProperty('--user-color-alpha', `rgba(${user2Color.rgb}, 0.4)`);
+        circle2.style.setProperty('--user-color-glow', `rgba(${user2Color.rgb}, 0.8)`);
+        name2.style.setProperty('--user-color-glow', `rgba(${user2Color.rgb}, 0.8)`);
+      }
+
+      function switchMode(newMode) {
+        if (activeMode === newMode) return;
+        activeMode = newMode;
+
+        btnModeBluten.classList.remove('active');
+        btnModePlexus.classList.remove('active');
+        btnModeWald.classList.remove('active');
+
+        if (newMode === 'bluten') {
+          btnModeBluten.classList.add('active');
+          instancedPetalMesh.visible = true;
+          orbPointsMesh.visible = true;
+          trailPointsMesh.visible = true;
+          if (plexusLinesMesh) plexusLinesMesh.visible = false;
+          if (plexusPointsMesh) plexusPointsMesh.visible = false;
+        } else if (newMode === 'plexus') {
+          btnModePlexus.classList.add('active');
+          instancedPetalMesh.visible = false;
+          orbPointsMesh.visible = false;
+          trailPointsMesh.visible = true; // Trail points mesh must remain visible for Supernova explosion!
+          if (plexusLinesMesh) plexusLinesMesh.visible = true;
+          if (plexusPointsMesh) plexusPointsMesh.visible = true;
+        } else if (newMode === 'wald') {
+          btnModeWald.classList.add('active');
+          instancedPetalMesh.visible = true;
+          orbPointsMesh.visible = true;
+          trailPointsMesh.visible = true;
+          if (plexusLinesMesh) plexusLinesMesh.visible = true;
+          if (plexusPointsMesh) plexusPointsMesh.visible = true;
+          alert("Wald Modus freigeschaltet! Genieße die symphonische Kombination.");
+        }
+      }
+
+      function checkUnlockWald() {
+        if (isBlütenCompleted && isPlexusCompleted) {
+          btnModeWald.disabled = false;
+          btnModeWald.classList.remove('disabled');
+          btnModeWald.classList.add('unlocked');
+          btnModeWald.title = "Wald Modus ist bereit!";
+        }
+      }
+
+      function toggleActiveUser() {
+        if (activeUserIndex === 1) {
+          activeUserIndex = 2;
+          activeUserNameElement.textContent = "Kenji (User 2)";
+          document.getElementById('userCursor1').style.opacity = '0.5';
+          document.getElementById('userCursor2').style.opacity = '1.0';
+        } else {
+          activeUserIndex = 1;
+          activeUserNameElement.textContent = "Maya (User 1)";
+          document.getElementById('userCursor2').style.opacity = '0.5';
+          document.getElementById('userCursor1').style.opacity = '1.0';
+        }
+      }
+
+      function updateCameraDistance() {
+        const aspect = window.innerWidth / window.innerHeight;
+        const baseDist = aspect < 1.0 ? 680 : 540;
+        camera.position.set(0, 0, baseDist);
+        camera.lookAt(0, 0, 0);
+      }
+
+      function initPetalPhysics() {
+        activePetalCount = INITIAL_PETALS; // Exactly 20 petals to start
+        const bounds = getVisibleBounds();
+
+        for (let i = 0; i < MAX_PETALS; i++) {
+          petalSpawnOriginX[i] = (Math.random() - 0.5) * bounds.maxX * 0.6;
+          petalSpawnOriginY[i] = (Math.random() - 0.5) * bounds.maxY * 0.6;
+          petalSpawnTime[i] = -999.0; // Already in full motion at startup
+
+          petalOrbitalRadiusX[i] = 110 + Math.random() * (bounds.maxX * 0.65);
+          petalOrbitalRadiusY[i] = 80 + Math.random() * (bounds.maxY * 0.65);
+
+          const dir = (i % 2 === 0) ? 1 : -1;
+          petalOrbitalSpeed[i] = (0.18 + Math.random() * 0.35) * dir;
+          petalOrbitalAngle[i] = Math.random() * Math.PI * 2;
+          petalPhaseZ[i] = Math.random() * Math.PI * 2;
+
+          petalTiltX[i] = (Math.random() - 0.5) * 0.85;
+          petalTiltY[i] = (Math.random() - 0.5) * 0.85;
+
+          petalRotX[i] = Math.random() * Math.PI * 2;
+          petalRotY[i] = Math.random() * Math.PI * 2;
+          petalRotZ[i] = Math.random() * Math.PI * 2;
+          petalRotSpeedX[i] = (Math.random() - 0.5) * 0.04;
+          petalRotSpeedY[i] = (Math.random() - 0.5) * 0.04;
+          petalRotSpeedZ[i] = (Math.random() - 0.5) * 0.04;
+
+          petalBaseScales[i] = 0.45 + Math.random() * 0.45;
+          petalType[i] = 0; // Standard
+
+          petalColorsR[i] = 1.0;
+          petalColorsG[i] = 0.6;
+          petalColorsB[i] = 0.85;
+        }
+      }
+
+      function setupInstancedPetals() {
+        const petalGeo = new THREE.PlaneGeometry(15, 15);
+        const petalMat = new THREE.MeshBasicMaterial({
+          map: generatePetalTexture(),
+          color: new THREE.Color(1.5, 1.5, 1.5),
+          transparent: true,
+          depthWrite: false,
+          depthTest: true,
+          side: THREE.DoubleSide,
+          blending: THREE.NormalBlending
+        });
+        instancedPetalMesh = new THREE.InstancedMesh(petalGeo, petalMat, MAX_PETALS);
+        instancedPetalMesh.matrixAutoUpdate = false;
+        mainScene.add(instancedPetalMesh);
+      }
+
+      function setupOrbMesh() {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(MAX_ORBS * 3);
+        const colors = new Float32Array(MAX_ORBS * 3);
+        const sizes = new Float32Array(MAX_ORBS);
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const material = new THREE.ShaderMaterial({
+          uniforms: { iTime: { value: 0 } },
+          vertexShader: orbVertexShader,
+          fragmentShader: orbFragmentShader,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        orbPointsMesh = new THREE.Points(geometry, material);
+        mainScene.add(orbPointsMesh);
+      }
+
+      function setupParticleTrailMesh() {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(MAX_TRAIL_PARTICLES * 3);
+        const colors = new Float32Array(MAX_TRAIL_PARTICLES * 3);
+        const sizes = new Float32Array(MAX_TRAIL_PARTICLES);
+        const alphas = new Float32Array(MAX_TRAIL_PARTICLES);
+        const rotAngles = new Float32Array(MAX_TRAIL_PARTICLES);
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
+        geometry.setAttribute('rotAngle', new THREE.BufferAttribute(rotAngles, 1));
+
+        const material = new THREE.ShaderMaterial({
+          vertexShader: particleTrailVertexShader,
+          fragmentShader: particleTrailFragmentShader,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        trailPointsMesh = new THREE.Points(geometry, material);
+        mainScene.add(trailPointsMesh);
+      }
+
+      // Setup 3D Plexus Web & Node Mesh with Custom Glowing Star Node Shader
+      function setupPlexusMesh() {
+        // 1. Plexus Line Web
+        const linePositions = new Float32Array(MAX_TOTAL_LINES * 6);
+        const lineColors = new Float32Array(MAX_TOTAL_LINES * 6);
+
+        const lineGeo = new THREE.BufferGeometry();
+        lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+        lineGeo.setAttribute('color', new THREE.BufferAttribute(lineColors, 3));
+
+        const lineMat = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        plexusLinesMesh = new THREE.LineSegments(lineGeo, lineMat);
+        plexusLinesMesh.visible = false;
+        mainScene.add(plexusLinesMesh);
+
+        // 2. Plexus Glowing Star Nodes
+        const nodePositions = new Float32Array(MAX_TOTAL_NODES * 3);
+        const nodeColors = new Float32Array(MAX_TOTAL_NODES * 3);
+        const nodeSizes = new Float32Array(MAX_TOTAL_NODES);
+        const nodeRotations = new Float32Array(MAX_TOTAL_NODES);
+
+        const nodeGeo = new THREE.BufferGeometry();
+        nodeGeo.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
+        nodeGeo.setAttribute('color', new THREE.BufferAttribute(nodeColors, 3));
+        nodeGeo.setAttribute('size', new THREE.BufferAttribute(nodeSizes, 1));
+        nodeGeo.setAttribute('rotAngle', new THREE.BufferAttribute(nodeRotations, 1));
+
+        const nodeMat = new THREE.ShaderMaterial({
+          vertexShader: plexusNodeVertexShader,
+          fragmentShader: plexusNodeFragmentShader,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        plexusPointsMesh = new THREE.Points(nodeGeo, nodeMat);
+        plexusPointsMesh.visible = false;
+        mainScene.add(plexusPointsMesh);
+      }
+
+      // Reduced size & compact node count (14 to 17 nodes, 15 to 55px radius)
+      function generateRandomPlexusHoldNodes() {
+        const nodes = [];
+        const nodeCount = 14 + Math.floor(Math.random() * 4); // 14-17 nodes per plexus
+
+        for (let i = 0; i < nodeCount; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 15.0 + Math.random() * 45.0; // Compact size (15 to 60px)
+          const heightZ = (Math.random() - 0.5) * 35.0;
+
+          nodes.push({
+            dx: Math.cos(angle) * dist,
+            dy: Math.sin(angle) * dist,
+            dz: heightZ,
+            freq: 0.8 + Math.random() * 1.5,
+            phase: Math.random() * Math.PI * 2,
+            rot: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 3.0
+          });
+        }
+        return nodes;
+      }
+
+      function createDriftingPlexusCluster(x, y, z, customNodes) {
+        const nodes = customNodes || generateRandomPlexusHoldNodes();
+
+        const clusterId = activePlexusClusters.length + 1;
+        const dirX = (activePlexusClusters.length % 2 === 0) ? 1 : -1;
+        const dirY = (activePlexusClusters.length % 3 === 0) ? 1 : -1;
+
+        activePlexusClusters.push({
+          id: clusterId,
+          centerX: x,
+          centerY: y,
+          centerZ: z,
+          driftX: (12.0 + Math.random() * 18.0) * dirX,
+          driftY: (10.0 + Math.random() * 16.0) * dirY,
+          driftZ: (8.0 + Math.random() * 14.0) * dirX,
+          nodes: nodes,
+          r: 1.0,
+          g: 0.16 + Math.random() * 0.35,
+          b: 0.62 + Math.random() * 0.35
+        });
+      }
+
+      function emitStarParticle(x, y, z, r, g, b, scale) {
+        const idx = tpNextFreeIndex;
+        tpNextFreeIndex = (tpNextFreeIndex + 1) % MAX_TRAIL_PARTICLES;
+
+        tpX[idx] = x + (Math.random() - 0.5) * 6.0;
+        tpY[idx] = y + (Math.random() - 0.5) * 6.0;
+        tpZ[idx] = z + (Math.random() - 0.5) * 6.0;
+
+        tpVX[idx] = (Math.random() - 0.5) * 10.0;
+        tpVY[idx] = (Math.random() - 0.5) * 10.0;
+        tpVZ[idx] = (Math.random() - 0.5) * 10.0;
+
+        tpLife[idx] = 0.0;
+        tpMaxLife[idx] = 0.8 + Math.random() * 0.6;
+        tpSize[idx] = (22.0 + Math.random() * 24.0) * scale;
+
+        tpR[idx] = r;
+        tpG[idx] = g;
+        tpB[idx] = b;
+        tpAlpha[idx] = 1.0;
+        tpRot[idx] = Math.random() * Math.PI * 2;
+      }
+
+      // Massive High-Velocity Supernova Explosion Particle Emitter (Giant 4-Pointed Starburst Flares!)
+      function emitExplosionStarParticle(x, y, z, vx, vy, vz) {
+        const idx = tpNextFreeIndex;
+        tpNextFreeIndex = (tpNextFreeIndex + 1) % MAX_TRAIL_PARTICLES;
+
+        tpX[idx] = x;
+        tpY[idx] = y;
+        tpZ[idx] = z;
+
+        tpVX[idx] = vx;
+        tpVY[idx] = vy;
+        tpVZ[idx] = vz;
+
+        tpLife[idx] = 0.0;
+        tpMaxLife[idx] = 2.2 + Math.random() * 1.5; // Lingers on screen for up to 3.7s
+        tpSize[idx] = 70.0 + Math.random() * 85.0; // Giant glowing star flares!
+
+        const colorType = Math.floor(Math.random() * 4);
+        if (colorType === 0) {
+          // White Hot Core
+          tpR[idx] = 1.9; tpG[idx] = 1.8; tpB[idx] = 2.0;
+        } else if (colorType === 1) {
+          // Neon Cyan Glow
+          tpR[idx] = 0.2; tpG[idx] = 1.8; tpB[idx] = 2.0;
+        } else if (colorType === 2) {
+          // Luminous Pink-Magenta
+          tpR[idx] = 2.0; tpG[idx] = 0.2; tpB[idx] = 1.6;
+        } else {
+          // Solar Gold Glow
+          tpR[idx] = 2.0; tpG[idx] = 1.6; tpB[idx] = 0.3;
+        }
+
+        tpAlpha[idx] = 1.0;
+        tpRot[idx] = Math.random() * Math.PI * 2;
+      }
+
+      // Mouse Down: Hitbox Detection for Dragging Existing Plexus vs Creating New Plexus!
+      function onMouseDown(e) {
+        if (e.target.closest('.hud-layer') || e.target.closest('button')) return;
+        if (activeMode !== 'plexus' && activeMode !== 'wald') return;
+
+        const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
+
+        draggedPlexusCluster = null;
+
+        // Check if click point is inside the Hitbox of any existing Plexus (Includes empty space within 75px radius)
+        for (let i = 0; i < activePlexusClusters.length; i++) {
+          const cluster = activePlexusClusters[i];
+          const dx = cluster.centerX - currentPos.x;
+          const dy = cluster.centerY - currentPos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist <= 75.0) { // Hitbox radius 75px covering full plexus structure
+            draggedPlexusCluster = cluster;
+            dragOffset.set(dx, dy);
+            break;
+          }
+        }
+
+        if (draggedPlexusCluster) {
+          // SELECT & DRAG EXISTING PLEXUS
+          isMouseDown = true;
+        } else {
+          // CREATE NEW PLEXUS
+          isMouseDown = true;
+          plexusHoldTime = 0.0;
+          activeHoldNodes = generateRandomPlexusHoldNodes();
+          plexusOriginX = currentPos.x;
+          plexusOriginY = currentPos.y;
+        }
+      }
+
+      function onMouseUp() {
+        if (isMouseDown && (activeMode === 'plexus' || activeMode === 'wald')) {
+          if (!draggedPlexusCluster) {
+            // Lock in newly generated plexus cluster if held for 2 seconds
+            if (plexusHoldTime >= 2.0) {
+              createDriftingPlexusCluster(plexusOriginX, plexusOriginY, 0.0, activeHoldNodes);
+              if (!isPlexusCompleted) {
+                isPlexusCompleted = true;
+                checkUnlockWald();
+              }
+            }
+          }
+        }
+        isMouseDown = false;
+        draggedPlexusCluster = null;
+      }
+
+      // First Gesture Interaction: Spawning Magenta Orbs & Collaborative 3-Way Branching
+      function onCanvasClick(e) {
+        if (e.target === createArtBtn || e.target.closest('#createArtBtn') || e.target === userSwitchBtn || e.target.closest('#userSwitchBtn') || e.target.closest('.mode-selector-container')) return;
+
+        if (activeMode !== 'bluten' && activeMode !== 'wald') return;
+
+        const totalTime = clock.getElapsedTime();
+        const currentClickUser = activeUserIndex === 1 ? 'User 1' : 'User 2';
+
+        const clickPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
+
+        // 1. Check if an existing orb was clicked within 2 seconds!
+        let clickedOrb = null;
+        for (let i = 0; i < activeOrbs.length; i++) {
+          const orb = activeOrbs[i];
+          if (totalTime - orb.spawnTime <= 2.0) {
+            const dx = orb.x - clickPos.x;
+            const dy = orb.y - clickPos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 110.0) {
+              clickedOrb = orb;
+              break;
+            }
+          }
+        }
+
+        if (clickedOrb) {
+          // SECOND CLICK WITHIN 2 SECONDS: Record boost type, orb stays at exact position until 2.0s timer completes!
+          if (clickedOrb.clickCount < 2) {
+            clickedOrb.clickCount = 2;
+            clickedOrb.secondClickUser = currentClickUser;
+          }
+        } else {
+          // FIRST CLICK: CREATE SMOKY SPHERE ORB!
+          activeOrbs.push({
+            id: Math.random(),
+            x: clickPos.x,
+            y: clickPos.y,
+            z: 0.0,
+            spawnTime: totalTime,
+            owner: currentClickUser,
+            clickCount: 1,
+            secondClickUser: null
+          });
+        }
+      }
+
+      function triggerOrbBurst(orb) {
+        const totalTime = clock.getElapsedTime();
+        const startPetalIndex = activePetalCount;
+        const newPetalCount = Math.min(MAX_PETALS, activePetalCount + 5);
+
+        let burstType = 0; // 0 = Standard, 1 = Dark Pink + Trail (Same User), 2 = Bright Pink-White + Trail (Collaborative)
+
+        if (orb.clickCount === 2) {
+          if (orb.secondClickUser === orb.owner) {
+            burstType = 1; // Same User second click -> Dark Pink with Trail
+          } else {
+            burstType = 2; // Other User second click -> Bright Pink-White with Trail (Collaborative Boost!)
+          }
+        }
+
+        for (let i = startPetalIndex; i < newPetalCount; i++) {
+          // Spawns EXACTLY AT THE ORB'S CENTER (orb.x, orb.y)!
+          petalSpawnOriginX[i] = orb.x;
+          petalSpawnOriginY[i] = orb.y;
+          petalSpawnTime[i] = totalTime;
+
+          petalOrbitalRadiusX[i] = 60 + Math.random() * 140;
+          petalOrbitalRadiusY[i] = 45 + Math.random() * 105;
+
+          const dir = (i % 2 === 0) ? 1 : -1;
+          petalOrbitalSpeed[i] = (0.2 + Math.random() * 0.4) * dir;
+          petalOrbitalAngle[i] = Math.random() * Math.PI * 2;
+          petalPhaseZ[i] = Math.random() * Math.PI * 2;
+
+          petalTiltX[i] = (Math.random() - 0.5) * 0.9;
+          petalTiltY[i] = (Math.random() - 0.5) * 0.9;
+          petalType[i] = burstType;
+
+          petalBaseScales[i] = 0.45 + Math.random() * 0.45;
+
+          if (burstType === 1) {
+            // Dark Pink
+            petalColorsR[i] = 0.90;
+            petalColorsG[i] = 0.05;
+            petalColorsB[i] = 0.45;
+          } else if (burstType === 2) {
+            // Bright Pink-White
+            petalColorsR[i] = 1.00;
+            petalColorsG[i] = 0.85;
+            petalColorsB[i] = 0.95;
+          } else {
+            // Standard Pink
+            petalColorsR[i] = 1.00;
+            petalColorsG[i] = 0.55;
+            petalColorsB[i] = 0.85;
+          }
+        }
+
+        activePetalCount = newPetalCount;
+      }
+
+      function onMouseMove(event) {
+        mouseScreen.x = event.clientX / window.innerWidth;
+        mouseScreen.y = 1.0 - (event.clientY / window.innerHeight);
+
+        // Update User 1 Cursor Element
+        const cursor1 = document.getElementById('userCursor1');
+        cursor1.style.left = `${event.clientX}px`;
+        cursor1.style.top = `${event.clientY}px`;
+
+        if (camera) {
+          const vector = new THREE.Vector3(
+            (event.clientX / window.innerWidth) * 2 - 1,
+            -(event.clientY / window.innerHeight) * 2 + 1,
+            0.5
+          );
+          vector.unproject(camera);
+          const dir = vector.sub(camera.position).normalize();
+          const distance = -camera.position.z / dir.z;
+          mouseWorld.copy(camera.position).add(dir.multiplyScalar(distance));
+        }
+
+        // Simulate User 2 (Kenji) position smoothly drifting near User 1
+        const u2X = (window.innerWidth * 0.5) + Math.sin(performance.now() * 0.001) * 220;
+        const u2Y = (window.innerHeight * 0.5) + Math.cos(performance.now() * 0.0012) * 140;
+
+        const cursor2 = document.getElementById('userCursor2');
+        cursor2.style.left = `${u2X}px`;
+        cursor2.style.top = `${u2Y}px`;
+
+        if (camera) {
+          const vector2 = new THREE.Vector3(
+            (u2X / window.innerWidth) * 2 - 1,
+            -(u2Y / window.innerHeight) * 2 + 1,
+            0.5
+          );
+          vector2.unproject(camera);
+          const dir2 = vector2.sub(camera.position).normalize();
+          const dist2 = -camera.position.z / dir2.z;
+          user2WorldPos.copy(camera.position).add(dir2.multiplyScalar(dist2));
+        }
+      }
+
+      function onWindowResize() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        bgRenderer.setPixelRatio(1.0);
+        bgRenderer.setSize(w, h);
+        bgUniforms.iResolution.value.set(w, h, 1);
+
+        if (camera && mainRenderer) {
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          mainRenderer.setSize(w, h);
+          updateCameraDistance();
+        }
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+        const totalTime = clock.getElapsedTime();
+
+        // 1. Background Metallic Shibuya Magenta Shader + Linear Grid Vibe Shader for Plexus Finale!
+        bgUniforms.iTime.value = totalTime;
+
+        let targetKaleido = 0.0;
+        if (activePetalCount >= 50 || isVortexActive) {
+          targetKaleido = Math.min(1.0, (activePetalCount - 50) / 25.0 + 0.5);
+          if (isVortexActive) targetKaleido = 1.0;
+        }
+        bgUniforms.uKaleidoscope.value += (targetKaleido - bgUniforms.uKaleidoscope.value) * 0.05;
+
+        // Linear Grid Vibe Shader Layer (Replaces Kaleidoscope during 8-Plexus Finale!)
+        let targetGridVibe = isPlexusSphereActive ? 1.0 : 0.0;
+        bgUniforms.uGridVibe.value += (targetGridVibe - bgUniforms.uGridVibe.value) * 0.05;
+
+        bgRenderer.render(bgScene, bgCamera);
+
+        // 2. 30-Second Countdown & Creation Button Unlock Mechanics
+        if (totalTime < UNLOCK_DURATION) {
+          const remainingSeconds = Math.ceil(UNLOCK_DURATION - totalTime);
+          timerBadge.textContent = `${remainingSeconds}s`;
+          const progressPercent = ((totalTime / UNLOCK_DURATION) * 100).toFixed(1);
+          createArtBtn.style.setProperty('--progress-width', `${progressPercent}%`);
+        } else if (createArtBtn.disabled) {
+          createArtBtn.disabled = false;
+          createArtBtn.classList.add('active');
+          timerBadge.textContent = 'Bereit';
+          createArtBtn.style.setProperty('--progress-width', '100%');
+        }
+
+        // 3. Trigger 8-Second Wide 3D Sideways Whirlwind / Tornado Event when Active Petals Reach >= 50
+        if (activePetalCount >= 50 && !isVortexActive && (activeMode === 'bluten' || activeMode === 'wald')) {
+          isVortexActive = true;
+          vortexStartTime = totalTime;
+        }
+
+        // 4. Update Orbs (Exact 2-Second Timer Check: Dissolves at exact location into 5 Petals)
+        for (let i = activeOrbs.length - 1; i >= 0; i--) {
+          const orb = activeOrbs[i];
+          const age = totalTime - orb.spawnTime;
+
+          if (age >= 2.0) {
+            triggerOrbBurst(orb);
+            activeOrbs.splice(i, 1);
+          }
+        }
+
+        // Update Orb Mesh Positions & Gaseous Smoky Sphere Shaders
+        const orbPosAttr = orbPointsMesh.geometry.attributes.position;
+        const orbColAttr = orbPointsMesh.geometry.attributes.color;
+        const orbSizeAttr = orbPointsMesh.geometry.attributes.size;
+
+        const orbPositions = orbPosAttr.array;
+        const orbColors = orbColAttr.array;
+        const orbSizes = orbSizeAttr.array;
+
+        for (let i = 0; i < MAX_ORBS; i++) {
+          if (i < activeOrbs.length && (activeMode === 'bluten' || activeMode === 'wald')) {
+            const orb = activeOrbs[i];
+            orbPositions[i * 3] = orb.x;
+            orbPositions[i * 3 + 1] = orb.y;
+            orbPositions[i * 3 + 2] = orb.z;
+
+            if (orb.clickCount === 2) {
+              if (orb.secondClickUser === orb.owner) {
+                orbColors[i * 3] = 0.95;
+                orbColors[i * 3 + 1] = 0.05;
+                orbColors[i * 3 + 2] = 0.45;
+              } else {
+                orbColors[i * 3] = 1.0;
+                orbColors[i * 3 + 1] = 0.85;
+                orbColors[i * 3 + 2] = 0.95;
+              }
+            } else {
+              orbColors[i * 3] = 1.0;
+              orbColors[i * 3 + 1] = 0.15;
+              orbColors[i * 3 + 2] = 0.65;
+            }
+
+            const age = totalTime - orb.spawnTime;
+            const dissolveFactor = age > 1.7 ? Math.max(0.0, (2.0 - age) / 0.3) : 1.0;
+            orbSizes[i] = (120.0 + 20.0 * Math.sin(totalTime * 6.0)) * Math.min(1.0, age * 5.0) * dissolveFactor;
+          } else {
+            orbSizes[i] = 0;
+          }
+        }
+
+        orbPosAttr.needsUpdate = true;
+        orbColAttr.needsUpdate = true;
+        orbSizeAttr.needsUpdate = true;
+        if (orbPointsMesh.material.uniforms) {
+          orbPointsMesh.material.uniforms.iTime.value = totalTime;
+        }
+
+        // 5. 3D Concentric Petal Motion OR Unified 8-Second Wide Sideways 3D Tornado Whirlwind Storm!
+        const bounds = getVisibleBounds();
+
+        let vortexProgress = 0.0;
+        let vortexDissolveFactor = 1.0;
+
+        if (isVortexActive) {
+          const vortexAge = totalTime - vortexStartTime;
+          vortexProgress = Math.min(1.0, vortexAge / TORNADO_DURATION);
+
+          if (vortexAge >= TORNADO_DURATION) {
+            // EXACTLY 8 SECONDS REACHED: TORNADO DISSOLVES, PETALS DISAPPEAR, AND BLÜTEN MODE MARKS COMPLETED!
+            isVortexActive = false;
+            activePetalCount = INITIAL_PETALS;
+            initPetalPhysics();
+
+            isBlütenCompleted = true;
+            checkUnlockWald();
+          } else if (vortexAge > 6.2) {
+            vortexDissolveFactor = Math.max(0.0, (TORNADO_DURATION - vortexAge) / 1.8);
+          }
+        }
+
+        for (let i = 0; i < MAX_PETALS; i++) {
+          if (i >= activePetalCount || activeMode === 'plexus') {
+            dummyObject.scale.set(0, 0, 0);
+            dummyObject.updateMatrix();
+            instancedPetalMesh.setMatrixAt(i, dummyObject.matrix);
+            continue;
+          }
+
+          petalOrbitalAngle[i] += (isVortexActive ? petalOrbitalSpeed[i] * 1.8 : petalOrbitalSpeed[i]) * delta;
+          const ang = petalOrbitalAngle[i];
+
+          const rx = petalOrbitalRadiusX[i];
+          const ry = petalOrbitalRadiusY[i];
+
+          let bx = Math.cos(ang) * rx;
+          let by = Math.sin(ang) * ry;
+          let bz = Math.sin(ang * 1.4 + petalPhaseZ[i]) * 160.0;
+
+          let rotated = rotateConcentric3D({ x: bx, y: by, z: bz }, petalTiltX[i], petalTiltY[i], 0);
+
+          let currentX = petalSpawnOriginX[i];
+          let currentY = petalSpawnOriginY[i];
+          let currentZ = 0;
+
+          if (petalSpawnTime[i] > 0) {
+            const tSpawn = Math.max(0.0, totalTime - petalSpawnTime[i]);
+            const blowAwayProgress = Math.min(1.0, tSpawn / 1.4);
+            const smoothBlow = Math.pow(blowAwayProgress, 0.7);
+
+            currentX += rotated.x * smoothBlow;
+            currentY += rotated.y * smoothBlow;
+            currentZ = rotated.z * smoothBlow;
+
+            const maxPX = bounds.maxX * 0.88;
+            const maxPY = bounds.maxY * 0.88;
+
+            if (Math.abs(currentX) > maxPX) {
+              petalSpawnOriginX[i] *= 0.94;
+              currentX = Math.sign(currentX) * maxPX;
+            }
+            if (Math.abs(currentY) > maxPY) {
+              petalSpawnOriginY[i] *= 0.94;
+              currentY = Math.sign(currentY) * maxPY;
+            }
+
+            var spawnScaleFactor = Math.min(1.0, Math.max(0.18, blowAwayProgress * 1.1));
+          } else {
+            currentX += rotated.x;
+            currentY += rotated.y;
+            currentZ = rotated.z;
+
+            const maxPX = bounds.maxX * 0.88;
+            const maxPY = bounds.maxY * 0.88;
+
+            if (Math.abs(currentX) > maxPX) {
+              petalSpawnOriginX[i] *= 0.94;
+              currentX = Math.sign(currentX) * maxPX;
+            }
+            if (Math.abs(currentY) > maxPY) {
+              petalSpawnOriginY[i] *= 0.94;
+              currentY = Math.sign(currentY) * maxPY;
+            }
+
+            var spawnScaleFactor = 1.0;
+          }
+
+          // Unified Wide 3D Sideways Whirlwind / Tornado Physics
+          if (isVortexActive) {
+            const swirlPower = Math.pow(vortexProgress, 1.1);
+
+            const normH = i / activePetalCount;
+            const rawY = (normH - 0.5) * 480.0;
+
+            const coneRadius = 90.0 + Math.pow(normH, 1.25) * 390.0;
+
+            const spiralAngle = ang + totalTime * (7.5 + (1.0 - normH) * 5.5);
+
+            const rawX = Math.cos(spiralAngle) * coneRadius;
+            const rawZ = Math.sin(spiralAngle) * coneRadius;
+
+            const sideTilt = 0.38;
+            const tornadoX = rawX;
+            const tornadoY_tilted = rawY * Math.cos(sideTilt) - rawZ * Math.sin(sideTilt);
+            const tornadoZ_tilted = rawY * Math.sin(sideTilt) + rawZ * Math.cos(sideTilt);
+
+            currentX = currentX * (1.0 - swirlPower) + tornadoX * swirlPower;
+            currentY = currentY * (1.0 - swirlPower) + tornadoY_tilted * swirlPower;
+            currentZ = currentZ * (1.0 - swirlPower) + tornadoZ_tilted * swirlPower;
+
+            petalRotZ[i] += delta * 7.5;
+            spawnScaleFactor *= vortexDissolveFactor;
+          }
+
+          petalRotX[i] += petalRotSpeedX[i];
+          petalRotY[i] += petalRotSpeedY[i];
+          petalRotZ[i] += petalRotSpeedZ[i];
+
+          const depthScale = (currentZ + 800) / 800;
+          const finalScale = Math.min(1.15, Math.max(0.001, petalBaseScales[i] * depthScale * spawnScaleFactor));
+
+          dummyObject.position.set(currentX, currentY, currentZ);
+          dummyObject.rotation.set(petalRotX[i], petalRotY[i], petalRotZ[i]);
+          dummyObject.scale.set(finalScale, finalScale, finalScale);
+          dummyObject.updateMatrix();
+
+          instancedPetalMesh.setMatrixAt(i, dummyObject.matrix);
+
+          // Emit Shining Star Trail Particles for Special Petals
+          if (petalType[i] > 0 && finalScale > 0.05 && (activeMode === 'bluten' || activeMode === 'wald')) {
+            emitStarParticle(
+              currentX, currentY, currentZ,
+              petalColorsR[i], petalColorsG[i], petalColorsB[i],
+              finalScale
+            );
+          }
+        }
+
+        instancedPetalMesh.instanceMatrix.needsUpdate = true;
+
+        // 6. Persistent Drifting Glowing Star Plexus Constellations (Implosion & Supernova Explosion Event!)
+        if (activeMode === 'plexus' || activeMode === 'wald') {
+          const linePosAttr = plexusLinesMesh.geometry.attributes.position;
+          const lineColAttr = plexusLinesMesh.geometry.attributes.color;
+          const linePositions = linePosAttr.array;
+          const lineColors = lineColAttr.array;
+
+          const nodePosAttr = plexusPointsMesh.geometry.attributes.position;
+          const nodeColAttr = plexusPointsMesh.geometry.attributes.color;
+          const nodeSizeAttr = plexusPointsMesh.geometry.attributes.size;
+          const nodeRotAttr = plexusPointsMesh.geometry.attributes.rotAngle;
+
+          const nodePositions = nodePosAttr.array;
+          const nodeColors = nodeColAttr.array;
+          const nodeSizes = nodeSizeAttr.array;
+          const nodeRotations = nodeRotAttr.array;
+
+          const currentPos = (activeUserIndex === 1) ? mouseWorld : user2WorldPos;
+
+          // Dragging vs Growing Mode Handling
+          if (isMouseDown) {
+            if (draggedPlexusCluster) {
+              // DRAG EXISTING PLEXUS CLUSTER TO CURSOR
+              draggedPlexusCluster.centerX = currentPos.x + dragOffset.x;
+              draggedPlexusCluster.centerY = currentPos.y + dragOffset.y;
+            } else {
+              // GROW NEW PLEXUS CLUSTER AT CURSOR
+              plexusHoldTime += delta;
+              plexusOriginX = currentPos.x;
+              plexusOriginY = currentPos.y;
+
+              if (plexusHoldTime >= 2.0 && !isPlexusCompleted) {
+                isPlexusCompleted = true;
+                checkUnlockWald();
+              }
+            }
+          }
+
+          const allWorldNodes = [];
+
+          // Include the currently growing randomized plexus around cursor if holding down (and not dragging)!
+          if (isMouseDown && !draggedPlexusCluster && activeHoldNodes.length > 0) {
+            const progress = Math.min(1.0, plexusHoldTime / 2.0);
+            const activeCount = Math.floor(progress * activeHoldNodes.length);
+
+            for (let n = 0; n < activeCount; n++) {
+              const node = activeHoldNodes[n];
+              node.rot += delta * node.rotSpeed;
+
+              const wx = plexusOriginX + node.dx * progress + Math.sin(totalTime * node.freq + node.phase) * 10.0;
+              const wy = plexusOriginY + node.dy * progress + Math.cos(totalTime * node.freq + node.phase) * 10.0;
+              const wz = node.dz * progress;
+
+              allWorldNodes.push({
+                x: wx, y: wy, z: wz,
+                r: 1.0, g: 0.18, b: 0.65,
+                size: 15.0 * progress,
+                rot: node.rot,
+                clusterId: 0
+              });
+            }
+          }
+
+          // Update & drift active persistent Plexus clusters across screen
+          const safeMarginX = bounds.maxX * 0.70;
+          const safeMarginY = bounds.maxY * 0.70;
+
+          for (let c = 0; c < activePlexusClusters.length; c++) {
+            const cluster = activePlexusClusters[c];
+
+            if (cluster !== draggedPlexusCluster && !isPlexusSphereActive) {
+              cluster.centerX += cluster.driftX * delta;
+              cluster.centerY += cluster.driftY * delta;
+              cluster.centerZ += cluster.driftZ * delta;
+
+              if (cluster.centerX > safeMarginX) {
+                cluster.driftX = -Math.abs(cluster.driftX);
+                cluster.centerX = safeMarginX;
+              } else if (cluster.centerX < -safeMarginX) {
+                cluster.driftX = Math.abs(cluster.driftX);
+                cluster.centerX = -safeMarginX;
+              }
+
+              if (cluster.centerY > safeMarginY) {
+                cluster.driftY = -Math.abs(cluster.driftY);
+                cluster.centerY = safeMarginY;
+              } else if (cluster.centerY < -safeMarginY) {
+                cluster.driftY = Math.abs(cluster.driftY);
+                cluster.centerY = -safeMarginY;
+              }
+
+              if (Math.abs(cluster.centerZ) > 100.0) {
+                cluster.driftZ *= -1.0;
+                cluster.centerZ = Math.sign(cluster.centerZ) * 100.0;
+              }
+            }
+
+            for (let i = 0; i < cluster.nodes.length; i++) {
+              const node = cluster.nodes[i];
+              node.rot += delta * node.rotSpeed;
+
+              const wx = cluster.centerX + node.dx + Math.sin(totalTime * node.freq + node.phase) * 12.0;
+              const wy = cluster.centerY + node.dy + Math.cos(totalTime * node.freq + node.phase) * 12.0;
+              const wz = cluster.centerZ + node.dz + Math.sin(totalTime * 0.9 + node.phase * 1.5) * 18.0;
+
+              allWorldNodes.push({
+                x: wx, y: wy, z: wz,
+                r: cluster.r, g: cluster.g, b: cluster.b,
+                size: 15.0,
+                rot: node.rot,
+                clusterId: cluster.id
+              });
+            }
+          }
+
+          // Step 1: Build Adjacency Graph to measure Connected Graph Component sizes via BFS
+          const maxConnectDist = 95.0;
+          const clusterMap = new Map();
+
+          for (let c = 0; c < activePlexusClusters.length; c++) {
+            clusterMap.set(activePlexusClusters[c].id, new Set());
+          }
+
+          for (let i = 0; i < allWorldNodes.length; i++) {
+            for (let j = i + 1; j < allWorldNodes.length; j++) {
+              const nodeA = allWorldNodes[i];
+              const nodeB = allWorldNodes[j];
+
+              if (nodeA.clusterId > 0 && nodeB.clusterId > 0 && nodeA.clusterId !== nodeB.clusterId) {
+                const dx = nodeA.x - nodeB.x;
+                const dy = nodeA.y - nodeB.y;
+                const dz = nodeA.z - nodeB.z;
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                if (dist < maxConnectDist) {
+                  if (clusterMap.has(nodeA.clusterId)) clusterMap.get(nodeA.clusterId).add(nodeB.clusterId);
+                  if (clusterMap.has(nodeB.clusterId)) clusterMap.get(nodeB.clusterId).add(nodeA.clusterId);
+                }
+              }
+            }
+          }
+
+          // BFS Graph Search: Find the maximum connected component size and set of interconnected clusters
+          let maxConnectedComponentSize = 0;
+          const interconnectedClusters = new Set();
+          const globalVisited = new Set();
+
+          for (const [startClusterId] of clusterMap) {
+            if (!globalVisited.has(startClusterId)) {
+              const componentVisited = new Set();
+              const queue = [startClusterId];
+              componentVisited.add(startClusterId);
+              globalVisited.add(startClusterId);
+
+              while (queue.length > 0) {
+                const curr = queue.shift();
+                const neighbors = clusterMap.get(curr) || [];
+                for (const neighborId of neighbors) {
+                  if (!componentVisited.has(neighborId)) {
+                    componentVisited.add(neighborId);
+                    globalVisited.add(neighborId);
+                    queue.push(neighborId);
+                  }
+                }
+              }
+
+              if (componentVisited.size >= 2) {
+                for (const id of componentVisited) {
+                  interconnectedClusters.add(id);
+                }
+              }
+
+              if (componentVisited.size > maxConnectedComponentSize) {
+                maxConnectedComponentSize = componentVisited.size;
+              }
+            }
+          }
+
+          // TRIGGER CONDITION: Only trigger sphere formation when ALL 8 plexus clusters are in ONE SINGLE connected graph!
+          if (maxConnectedComponentSize >= 8 && !isPlexusSphereActive && (activeMode === 'plexus' || activeMode === 'wald')) {
+            isPlexusSphereActive = true;
+            plexusSphereStartTime = totalTime;
+            hasExplodedThisFrame = false;
+          }
+
+          // Execute 3D Sphere Transformation -> IMPLOSION -> GIANT SUPERNOVA EXPLOSION!
+          if (isPlexusSphereActive) {
+            const sphereAge = totalTime - plexusSphereStartTime;
+
+            if (sphereAge >= 5.0) {
+              // EXACTLY 5 SECONDS REACHED: RESET SCENE & UNLOCK WALD!
+              isPlexusSphereActive = false;
+              activePlexusClusters.length = 0;
+              isPlexusCompleted = true;
+              checkUnlockWald();
+            } else {
+              let sphereRadius = 145.0;
+
+              if (sphereAge > 3.6 && sphereAge <= 4.3) {
+                // IMPLOSION PHASE (3.6s to 4.3s): Rapidly shrink sphere down to ultra-dense core point!
+                const implosionProgress = (sphereAge - 3.6) / 0.7;
+                sphereRadius = THREE.MathUtils.lerp(145.0, 2.0, Math.pow(implosionProgress, 3.0));
+              } else if (sphereAge > 4.3) {
+                // EXPLOSION PHASE (4.3s to 5.0s): Core explodes outward into giant supernova particle shockwave!
+                sphereRadius = 0.0;
+
+                if (!hasExplodedThisFrame) {
+                  hasExplodedThisFrame = true;
+                  // Trigger massive 360-degree star particle burst explosion (450 giant glowing stars)!
+                  for (let p = 0; p < 450; p++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const elevation = (Math.random() - 0.5) * Math.PI;
+                    const speed = 250.0 + Math.random() * 650.0;
+
+                    const vx = Math.cos(angle) * Math.cos(elevation) * speed;
+                    const vy = Math.sin(angle) * Math.cos(elevation) * speed;
+                    const vz = Math.sin(elevation) * speed;
+
+                    emitExplosionStarParticle(0, 0, 0, vx, vy, vz);
+                  }
+                }
+              }
+
+              const spin = totalTime * (3.5 + (sphereAge > 3.6 ? (sphereAge - 3.6) * 16.0 : 0.0));
+              const totalSphereNodes = allWorldNodes.length;
+
+              for (let k = 0; k < totalSphereNodes; k++) {
+                const theta = k * 2.39996 + spin;
+                const yNorm = 1.0 - (k / Math.max(1, totalSphereNodes - 1)) * 2.0;
+                const radiusAtY = Math.sqrt(Math.max(0.0, 1.0 - yNorm * yNorm)) * sphereRadius;
+
+                const targetX = Math.cos(theta) * radiusAtY;
+                const targetY = yNorm * sphereRadius;
+                const targetZ = Math.sin(theta) * radiusAtY;
+
+                const lerpPower = Math.pow(Math.min(1.0, sphereAge / 3.6), 1.2);
+                allWorldNodes[k].x = THREE.MathUtils.lerp(allWorldNodes[k].x, targetX, lerpPower);
+                allWorldNodes[k].y = THREE.MathUtils.lerp(allWorldNodes[k].y, targetY, lerpPower);
+                allWorldNodes[k].z = THREE.MathUtils.lerp(allWorldNodes[k].z, targetZ, lerpPower);
+              }
+            }
+          }
+
+          // Populate Node Buffers
+          for (let k = 0; k < MAX_TOTAL_NODES; k++) {
+            if (k < allWorldNodes.length) {
+              nodePositions[k * 3] = allWorldNodes[k].x;
+              nodePositions[k * 3 + 1] = allWorldNodes[k].y;
+              nodePositions[k * 3 + 2] = allWorldNodes[k].z;
+
+              nodeColors[k * 3] = allWorldNodes[k].r;
+              nodeColors[k * 3 + 1] = allWorldNodes[k].g;
+              nodeColors[k * 3 + 2] = allWorldNodes[k].b;
+
+              nodeSizes[k] = allWorldNodes[k].size;
+              nodeRotations[k] = allWorldNodes[k].rot;
+            } else {
+              nodePositions[k * 3] = 0;
+              nodePositions[k * 3 + 1] = 0;
+              nodePositions[k * 3 + 2] = 0;
+              nodeColors[k * 3] = 0;
+              nodeColors[k * 3 + 1] = 0;
+              nodeColors[k * 3 + 2] = 0;
+              nodeSizes[k] = 0;
+              nodeRotations[k] = 0;
+            }
+          }
+
+          // Render Lines
+          let lineVertexIdx = 0;
+          let lineColorIdx = 0;
+
+          for (let i = 0; i < allWorldNodes.length; i++) {
+            for (let j = i + 1; j < allWorldNodes.length; j++) {
+              if (lineVertexIdx >= linePositions.length - 6) break;
+
+              const nodeA = allWorldNodes[i];
+              const nodeB = allWorldNodes[j];
+
+              const dx = nodeA.x - nodeB.x;
+              const dy = nodeA.y - nodeB.y;
+              const dz = nodeA.z - nodeB.z;
+              const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+              if (dist < maxConnectDist) {
+                const alpha = (1.0 - dist / maxConnectDist) * 0.95;
+
+                linePositions[lineVertexIdx++] = nodeA.x;
+                linePositions[lineVertexIdx++] = nodeA.y;
+                linePositions[lineVertexIdx++] = nodeA.z;
+
+                linePositions[lineVertexIdx++] = nodeB.x;
+                linePositions[lineVertexIdx++] = nodeB.y;
+                linePositions[lineVertexIdx++] = nodeB.z;
+
+                const isInterconnected = interconnectedClusters.has(nodeA.clusterId) || interconnectedClusters.has(nodeB.clusterId) || isPlexusSphereActive;
+
+                let lineR, lineG, lineB;
+
+                if (isInterconnected) {
+                  // Vibrant Shifting Rainbow Colors when 2+ Plexus clusters connect!
+                  const hueA = (totalTime * 2.5 + nodeA.clusterId * 1.2) % (Math.PI * 2);
+                  const hueB = (totalTime * 2.5 + nodeB.clusterId * 1.2 + 1.5) % (Math.PI * 2);
+
+                  lineR = (0.5 + 0.5 * Math.sin(hueA)) * 1.3;
+                  lineG = (0.5 + 0.5 * Math.sin(hueA + 2.094)) * 1.3;
+                  lineB = (0.5 + 0.5 * Math.sin(hueA + 4.188)) * 1.3;
+
+                  var lineR2 = (0.5 + 0.5 * Math.sin(hueB)) * 1.3;
+                  var lineG2 = (0.5 + 0.5 * Math.sin(hueB + 2.094)) * 1.3;
+                  var lineB2 = (0.5 + 0.5 * Math.sin(hueB + 4.188)) * 1.3;
+                } else {
+                  // Standard Elegant Dark Magenta
+                  lineR = 0.88; lineG = 0.08; lineB = 0.58;
+                  var lineR2 = 0.88; var lineG2 = 0.08; var lineB2 = 0.58;
+                }
+
+                lineColors[lineColorIdx++] = lineR * alpha;
+                lineColors[lineColorIdx++] = lineG * alpha;
+                lineColors[lineColorIdx++] = lineB * alpha;
+
+                lineColors[lineColorIdx++] = lineR2 * alpha;
+                lineColors[lineColorIdx++] = lineG2 * alpha;
+                lineColors[lineColorIdx++] = lineB2 * alpha;
+              }
+            }
+          }
+
+          // Clear remaining line buffers
+          for (let k = lineVertexIdx; k < linePositions.length; k++) {
+            linePositions[k] = 0;
+            lineColors[k] = 0;
+          }
+
+          linePosAttr.needsUpdate = true;
+          lineColAttr.needsUpdate = true;
+          nodePosAttr.needsUpdate = true;
+          nodeColAttr.needsUpdate = true;
+          nodeSizeAttr.needsUpdate = true;
+          nodeRotAttr.needsUpdate = true;
+        }
+
+        // Update Shining Star Trail Particles & Massive Supernova Explosion Particle Physics (Active in ALL Modes!)
+        const tpPosAttr = trailPointsMesh.geometry.attributes.position;
+        const tpColAttr = trailPointsMesh.geometry.attributes.color;
+        const tpSizeAttr = trailPointsMesh.geometry.attributes.size;
+        const tpAlphaAttr = trailPointsMesh.geometry.attributes.alpha;
+        const tpRotAttr = trailPointsMesh.geometry.attributes.rotAngle;
+
+        const tpPositions = tpPosAttr.array;
+        const tpColors = tpColAttr.array;
+        const tpSizes = tpSizeAttr.array;
+        const tpAlphas = tpAlphaAttr.array;
+        const tpRotAngles = tpRotAttr.array;
+
+        for (let k = 0; k < MAX_TRAIL_PARTICLES; k++) {
+          if (tpLife[k] < tpMaxLife[k]) {
+            tpLife[k] += delta;
+            const progress = tpLife[k] / tpMaxLife[k];
+
+            // Velocity Drag / Air Resistance for Explosion Shockwave
+            tpVX[k] *= 0.965;
+            tpVY[k] *= 0.965;
+            tpVZ[k] *= 0.965;
+
+            tpX[k] += tpVX[k] * delta;
+            tpY[k] += tpVY[k] * delta;
+            tpZ[k] += tpVZ[k] * delta;
+
+            tpRot[k] += delta * 3.0;
+
+            tpPositions[k * 3] = tpX[k];
+            tpPositions[k * 3 + 1] = tpY[k];
+            tpPositions[k * 3 + 2] = tpZ[k];
+
+            tpColors[k * 3] = tpR[k];
+            tpColors[k * 3 + 1] = tpG[k];
+            tpColors[k * 3 + 2] = tpB[k];
+
+            tpAlphas[k] = Math.max(0.0, (1.0 - Math.pow(progress, 1.8)));
+            tpSizes[k] = tpSize[k] * (1.0 - progress * 0.35);
+            tpRotAngles[k] = tpRot[k];
+          } else {
+            tpSizes[k] = 0;
+            tpAlphas[k] = 0;
+          }
+        }
+
+        tpPosAttr.needsUpdate = true;
+        tpColAttr.needsUpdate = true;
+        tpSizeAttr.needsUpdate = true;
+        tpAlphaAttr.needsUpdate = true;
+        tpRotAttr.needsUpdate = true;
+
+        mainRenderer.render(mainScene, camera);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+      } else {
+        initApp();
+      }
+    })();
+  </script>
+</body>
+
+</html>
