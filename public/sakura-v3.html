@@ -50,6 +50,14 @@
       z-index: 2;
       cursor: none; /* Custom user cursor elements used */
       overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s ease-in-out;
+    }
+
+    #webgl-container.active {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     #webgl-container canvas {
@@ -70,6 +78,11 @@
       flex-direction: column;
       align-items: center;
       transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+
+    .user-cursor.active {
+      opacity: 1;
     }
 
     .cursor-circle {
@@ -111,6 +124,253 @@
       border: 1px solid var(--user-color-glow, rgba(0, 240, 255, 0.4));
     }
 
+    /* Start Overlay Lobby Card */
+    .lobby-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      background: rgba(8, 0, 12, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+
+    .lobby-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .lobby-card {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(18, 12, 28, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 105, 180, 0.4);
+      border-radius: 32px;
+      padding: 40px 36px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 42, 157, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      animation: lobbyPulseGlow 3s infinite ease-in-out;
+    }
+
+    @keyframes lobbyPulseGlow {
+      0%, 100% { box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(255, 42, 157, 0.25); }
+      50% { box-shadow: 0 25px 70px rgba(0, 0, 0, 0.7), 0 0 50px rgba(255, 42, 157, 0.45); }
+    }
+
+    .lobby-brand {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .lobby-title {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ffffff 0%, #ff80df 50%, #ff2a9d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 25px rgba(255, 42, 157, 0.6);
+    }
+
+    .lobby-subtitle {
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: rgba(255, 200, 235, 0.75);
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .lobby-form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-group label,
+    .invite-group label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255, 180, 220, 0.85);
+      font-weight: 600;
+    }
+
+    .name-input {
+      width: 100%;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 105, 180, 0.35);
+      border-radius: 16px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .name-input:focus {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: #ff2a9d;
+      box-shadow: 0 0 15px rgba(255, 42, 157, 0.4);
+    }
+
+    .invite-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .invite-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .invite-btn, .guest-toggle-btn {
+      flex: 1;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(78, 226, 236, 0.4);
+      border-radius: 16px;
+      color: rgba(255, 255, 255, 0.9);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .invite-btn:hover, .guest-toggle-btn:hover {
+      background: rgba(78, 226, 236, 0.2);
+      border-color: #4ee2ec;
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+
+    .guest-toggle-btn.active {
+      background: rgba(255, 42, 157, 0.25);
+      border-color: #ff2a9d;
+      color: #ffffff;
+    }
+
+    .participants-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 12px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .participant-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #ffffff;
+      transition: opacity 0.3s ease;
+    }
+
+    .participant-item.disabled {
+      opacity: 0.4;
+    }
+
+    .p-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .p-name {
+      flex: 1;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .p-status {
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .start-artwork-btn {
+      width: 100%;
+      padding: 16px 28px;
+      background: linear-gradient(135deg, rgba(255, 42, 157, 0.8) 0%, rgba(18, 12, 28, 0.9) 100%);
+      border: 1px solid rgba(78, 226, 236, 0.8);
+      border-radius: 24px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(255, 42, 157, 0.4), 0 0 20px rgba(78, 226, 236, 0.3);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .start-artwork-btn:hover {
+      transform: translateY(-3px) scale(1.02);
+      background: linear-gradient(135deg, rgba(255, 42, 157, 0.95) 0%, rgba(78, 226, 236, 0.4) 100%);
+      border-color: #4ee2ec;
+      box-shadow: 0 15px 40px rgba(255, 42, 157, 0.6), 0 0 30px rgba(78, 226, 236, 0.5);
+    }
+
+    /* Toast Notification */
+    .toast-msg {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(18, 12, 28, 0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(78, 226, 236, 0.6);
+      padding: 10px 22px;
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      z-index: 200;
+    }
+
+    .toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
     /* Modern Glassmorphic HUD Layout */
     .hud-layer {
       position: fixed;
@@ -121,6 +381,12 @@
       flex-direction: column;
       justify-content: space-between;
       padding: 32px 36px;
+      opacity: 0;
+      transition: opacity 0.8s ease-in-out;
+    }
+
+    .hud-layer.active {
+      opacity: 1;
     }
 
     /* Top Info Bar */
@@ -392,19 +658,68 @@
   <!-- Layer 2: 3D Artwork Canvas -->
   <div id="webgl-container"></div>
 
+  <!-- Start Overlay Lobby Card -->
+  <div class="lobby-overlay" id="lobbyOverlay">
+    <div class="lobby-card">
+      <div class="lobby-brand">
+        <div class="lobby-title">Sakura: Reborn</div>
+        <div class="lobby-subtitle">Collaborative Artwork Experience</div>
+      </div>
+
+      <div class="lobby-form">
+        <div class="input-group">
+          <label for="userNameInput">Dein Name</label>
+          <input type="text" class="name-input" id="userNameInput" value="Maya" placeholder="Gib deinen Namen ein..." maxlength="18" />
+        </div>
+
+        <div class="invite-group">
+          <label>Session & Mitspieler</label>
+          <div class="invite-actions">
+            <button type="button" class="invite-btn" id="copyInviteBtn">
+              <span>🔗 Link kopieren</span>
+            </button>
+            <button type="button" class="guest-toggle-btn" id="toggleGuestBtn">
+              <span id="guestBtnText">+ Gast zuschalten</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="participants-list">
+          <div class="participant-item" id="pItem1">
+            <span class="p-dot" id="pDot1"></span>
+            <span class="p-name" id="pName1">Maya (Host)</span>
+            <span class="p-status">Bereit</span>
+          </div>
+          <div class="participant-item disabled" id="pItem2">
+            <span class="p-dot" id="pDot2"></span>
+            <span class="p-name" id="pName2">Kenji (Gast)</span>
+            <span class="p-status" id="pStatus2">Nicht beigetreten</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="start-artwork-btn" id="startArtworkBtn">
+        <span>✨ Kunstwerk starten</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Message -->
+  <div class="toast-msg" id="toastMsg">Einladungslink in Zwischenablage kopiert!</div>
+
   <!-- Custom User Cursors -->
   <div class="user-cursor" id="userCursor1">
     <div class="cursor-circle" id="cursorCircle1"></div>
     <div class="cursor-name" id="cursorName1">Maya</div>
   </div>
 
-  <div class="user-cursor" id="userCursor2" style="opacity: 0.5;">
+  <div class="user-cursor" id="userCursor2">
     <div class="cursor-circle" id="cursorCircle2"></div>
     <div class="cursor-name" id="cursorName2">Kenji</div>
   </div>
 
   <!-- Glassmorphic HUD Layer -->
-  <div class="hud-layer">
+  <div class="hud-layer" id="hudLayer">
     <!-- Top Bar: Phase Indicator & User Switcher -->
     <div class="top-bar">
       <div class="phase-badge" id="phaseBadge">
@@ -482,6 +797,10 @@
       const user2Color = CURSOR_PALETTE_10[colorIndex2];
 
       let activeUserIndex = 1; // 1 = Maya (User 1), 2 = Kenji (User 2)
+      let user1Name = "Maya";
+      let user2Name = "Kenji";
+      let isGuestJoined = false;
+      let isArtworkStarted = false;
 
       // Active Artwork Mode: 'bluten', 'plexus', 'wald'
       let activeMode = 'bluten';
@@ -536,6 +855,8 @@
       let clock;
       let createArtBtn, timerBadge, btnLabel, phaseText, userSwitchBtn, activeUserNameElement;
       let btnModeBluten, btnModePlexus, btnModeWald;
+      let lobbyOverlay, userNameInput, copyInviteBtn, toggleGuestBtn, startArtworkBtn, toastMsg;
+      let pItem2, pStatus2, pName1, pName2, guestBtnText;
 
       let activePetalCount = INITIAL_PETALS;
       const activeOrbs = [];
@@ -883,6 +1204,15 @@
         return { x: x3, y: y3, z: z2 };
       }
 
+      function showToast(message) {
+        if (!toastMsg) return;
+        toastMsg.textContent = message;
+        toastMsg.classList.add('show');
+        setTimeout(() => {
+          toastMsg.classList.remove('show');
+        }, 2600);
+      }
+
       function initApp() {
         bgContainer = document.getElementById('bg-container');
         createArtBtn = document.getElementById('createArtBtn');
@@ -896,7 +1226,19 @@
         btnModePlexus = document.getElementById('btnModePlexus');
         btnModeWald = document.getElementById('btnModeWald');
 
-        // Apply Assigned Translucent Colors to Cursor Badges
+        lobbyOverlay = document.getElementById('lobbyOverlay');
+        userNameInput = document.getElementById('userNameInput');
+        copyInviteBtn = document.getElementById('copyInviteBtn');
+        toggleGuestBtn = document.getElementById('toggleGuestBtn');
+        startArtworkBtn = document.getElementById('startArtworkBtn');
+        toastMsg = document.getElementById('toastMsg');
+        pItem2 = document.getElementById('pItem2');
+        pStatus2 = document.getElementById('pStatus2');
+        pName1 = document.getElementById('pName1');
+        pName2 = document.getElementById('pName2');
+        guestBtnText = document.getElementById('guestBtnText');
+
+        // Apply Assigned Translucent Colors to Cursor Badges & Lobby Badges
         setupUserColors();
 
         clock = new THREE.Clock();
@@ -944,6 +1286,50 @@
         setupParticleTrailMesh();
         setupPlexusMesh();
 
+        // Lobby Form & User Setup Listeners
+        userNameInput.addEventListener('input', (e) => {
+          user1Name = e.target.value.trim() || "Maya";
+          pName1.textContent = `${user1Name} (Host)`;
+          document.getElementById('cursorName1').textContent = user1Name;
+          activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+        });
+
+        copyInviteBtn.addEventListener('click', () => {
+          const inviteUrl = window.location.href.split('?')[0] + `?room=sakura-${Math.floor(1000 + Math.random() * 9000)}`;
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(inviteUrl).then(() => {
+              showToast("Einladungslink in Zwischenablage kopiert!");
+            }).catch(() => {
+              showToast("Link: " + inviteUrl);
+            });
+          } else {
+            showToast("Einladungslink generiert!");
+          }
+        });
+
+        toggleGuestBtn.addEventListener('click', () => {
+          isGuestJoined = !isGuestJoined;
+          if (isGuestJoined) {
+            toggleGuestBtn.classList.add('active');
+            guestBtnText.textContent = "Gast entfernen";
+            pItem2.classList.remove('disabled');
+            pStatus2.textContent = "Bereit";
+            document.getElementById('userCursor2').classList.add('active');
+            showToast("Gast Kenji zugeschaltet!");
+          } else {
+            toggleGuestBtn.classList.remove('active');
+            guestBtnText.textContent = "+ Gast zuschalten";
+            pItem2.classList.add('disabled');
+            pStatus2.textContent = "Nicht beigetreten";
+            document.getElementById('userCursor2').classList.remove('active');
+            showToast("Gast entfernt");
+          }
+        });
+
+        startArtworkBtn.addEventListener('click', () => {
+          launchArtworkExperience();
+        });
+
         window.addEventListener('resize', onWindowResize, false);
         window.addEventListener('mousemove', onMouseMove, false);
         window.addEventListener('mousedown', onMouseDown, false);
@@ -952,6 +1338,7 @@
 
         // Keyboard Shortcut: TAB or Key 1 / 2 to switch active user!
         window.addEventListener('keydown', (e) => {
+          if (!isArtworkStarted) return;
           if (e.key === 'Tab' || e.key === '1' || e.key === '2') {
             e.preventDefault();
             toggleActiveUser();
@@ -980,11 +1367,29 @@
         animate();
       }
 
+      function launchArtworkExperience() {
+        isArtworkStarted = true;
+        clock.start(); // Start time countdown at artwork launch!
+
+        lobbyOverlay.classList.add('hidden');
+        document.getElementById('webgl-container').classList.add('active');
+        document.getElementById('hudLayer').classList.add('active');
+        document.getElementById('userCursor1').classList.add('active');
+
+        if (isGuestJoined) {
+          document.getElementById('userCursor2').classList.add('active');
+        } else {
+          document.getElementById('userCursor2').classList.remove('active');
+        }
+      }
+
       function setupUserColors() {
         const circle1 = document.getElementById('cursorCircle1');
         const name1 = document.getElementById('cursorName1');
         const circle2 = document.getElementById('cursorCircle2');
         const name2 = document.getElementById('cursorName2');
+        const pDot1 = document.getElementById('pDot1');
+        const pDot2 = document.getElementById('pDot2');
 
         circle1.style.setProperty('--user-color-alpha', `rgba(${user1Color.rgb}, 0.4)`);
         circle1.style.setProperty('--user-color-glow', `rgba(${user1Color.rgb}, 0.8)`);
@@ -993,6 +1398,11 @@
         circle2.style.setProperty('--user-color-alpha', `rgba(${user2Color.rgb}, 0.4)`);
         circle2.style.setProperty('--user-color-glow', `rgba(${user2Color.rgb}, 0.8)`);
         name2.style.setProperty('--user-color-glow', `rgba(${user2Color.rgb}, 0.8)`);
+
+        pDot1.style.backgroundColor = user1Color.hex;
+        pDot1.style.boxShadow = `0 0 10px ${user1Color.hex}`;
+        pDot2.style.backgroundColor = user2Color.hex;
+        pDot2.style.boxShadow = `0 0 10px ${user2Color.hex}`;
       }
 
       function switchMode(newMode) {
@@ -1014,7 +1424,7 @@
           btnModePlexus.classList.add('active');
           instancedPetalMesh.visible = false;
           orbPointsMesh.visible = false;
-          trailPointsMesh.visible = true; // Trail points mesh must remain visible for Supernova explosion!
+          trailPointsMesh.visible = true;
           if (plexusLinesMesh) plexusLinesMesh.visible = true;
           if (plexusPointsMesh) plexusPointsMesh.visible = true;
         } else if (newMode === 'wald') {
@@ -1040,12 +1450,12 @@
       function toggleActiveUser() {
         if (activeUserIndex === 1) {
           activeUserIndex = 2;
-          activeUserNameElement.textContent = "Kenji (User 2)";
+          activeUserNameElement.textContent = `${user2Name} (User 2)`;
           document.getElementById('userCursor1').style.opacity = '0.5';
           document.getElementById('userCursor2').style.opacity = '1.0';
         } else {
           activeUserIndex = 1;
-          activeUserNameElement.textContent = "Maya (User 1)";
+          activeUserNameElement.textContent = `${user1Name} (User 1)`;
           document.getElementById('userCursor2').style.opacity = '0.5';
           document.getElementById('userCursor1').style.opacity = '1.0';
         }
@@ -1311,6 +1721,7 @@
 
       // Mouse Down: Hitbox Detection for Dragging Existing Plexus vs Creating New Plexus!
       function onMouseDown(e) {
+        if (!isArtworkStarted) return;
         if (e.target.closest('.hud-layer') || e.target.closest('button')) return;
         if (activeMode !== 'plexus' && activeMode !== 'wald') return;
 
@@ -1346,6 +1757,7 @@
       }
 
       function onMouseUp() {
+        if (!isArtworkStarted) return;
         if (isMouseDown && (activeMode === 'plexus' || activeMode === 'wald')) {
           if (!draggedPlexusCluster) {
             // Lock in newly generated plexus cluster if held for 2 seconds
@@ -1364,6 +1776,7 @@
 
       // First Gesture Interaction: Spawning Magenta Orbs & Collaborative 3-Way Branching
       function onCanvasClick(e) {
+        if (!isArtworkStarted) return;
         if (e.target === createArtBtn || e.target.closest('#createArtBtn') || e.target === userSwitchBtn || e.target.closest('#userSwitchBtn') || e.target.closest('.mode-selector-container')) return;
 
         if (activeMode !== 'bluten' && activeMode !== 'wald') return;
@@ -1528,7 +1941,7 @@
         const delta = clock.getDelta();
         const totalTime = clock.getElapsedTime();
 
-        // 1. Background Metallic Shibuya Magenta Shader + Linear Grid Vibe Shader for Plexus Finale!
+        // 1. Background Metallic Shibuya Magenta Shader
         bgUniforms.iTime.value = totalTime;
 
         let targetKaleido = 0.0;
@@ -1538,11 +1951,13 @@
         }
         bgUniforms.uKaleidoscope.value += (targetKaleido - bgUniforms.uKaleidoscope.value) * 0.05;
 
-        // Linear Grid Vibe Shader Layer (Replaces Kaleidoscope during 8-Plexus Finale!)
         let targetGridVibe = isPlexusSphereActive ? 1.0 : 0.0;
         bgUniforms.uGridVibe.value += (targetGridVibe - bgUniforms.uGridVibe.value) * 0.05;
 
         bgRenderer.render(bgScene, bgCamera);
+
+        // If artwork has not been started from lobby overlay, do not update 3D physics!
+        if (!isArtworkStarted) return;
 
         // 2. 30-Second Countdown & Creation Button Unlock Mechanics
         if (totalTime < UNLOCK_DURATION) {
