@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Art Cube - Gaseous Pink Orb</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #030006;
+      font-family: 'Outfit', sans-serif;
+      color: #ffffff;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    /* UI Header Overlay */
+    .ui-header {
+      position: absolute;
+      top: 24px;
+      left: 28px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .ui-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #ff65bd;
+      background: rgba(255, 20, 147, 0.12);
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 15px rgba(255, 20, 147, 0.2);
+    }
+
+    .ui-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 30%, #ff80bf 70%, #ff1493 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .ui-subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.65);
+      margin-top: 4px;
+      font-weight: 300;
+    }
+
+    /* Minimal Reset Button */
+    .btn-reset {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 10;
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      background: rgba(12, 4, 18, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5),
+                  0 0 15px rgba(255, 20, 147, 0.15);
+    }
+
+    .btn-reset:hover {
+      background: rgba(255, 20, 147, 0.25);
+      border-color: #ff69b4;
+      box-shadow: 0 0 20px rgba(255, 20, 147, 0.4);
+    }
+
+    /* Hint Overlay */
+    .hint-overlay {
+      position: absolute;
+      bottom: 24px;
+      left: 28px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hint-dot {
+      width: 6px;
+      height: 6px;
+      background: #ff1493;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #ff1493;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.3); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="ui-header">
+    <div class="ui-badge">ART.CUBE // GASEOUS</div>
+    <h1 class="ui-title">Gaseous Pink Orb</h1>
+    <p class="ui-subtitle">Gasförmige Nebel-Kugel mit volumetrischem Smoke-Effekt</p>
+  </div>
+
+  <!-- Reset Button -->
+  <button class="btn-reset" id="btn-reset">Reset Swarm</button>
+
+  <canvas id="orb-canvas"></canvas>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const canvas = document.getElementById('orb-canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Configuration (fixed values)
+      const config = {
+        particleCount: 1500,
+        gravity: 3.0,
+        orbStartRadius: 65,    // Starting radius (50% of max)
+        orbMaxRadius: 130,     // Full size after absorbing all particles
+        orbRadius: 65,         // Current dynamic radius
+        smokeDensity: 1.0,
+        baseHue: 330,
+        fov: 480
+      };
+
+      // Orb state
+      const orb = {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        alpha: 0.0,
+        fadeSpeed: 0.007,
+        pulse: 0,
+        particleAlpha: 0.0,
+        absorbedCount: 0,     // Tracks how many particles have been absorbed
+        shockwaves: []
+      };
+
+      let startTime = performance.now();
+      let pulse15sTriggered = false;
+
+      // Smoke wisp internal particles for the gaseous orb surface
+      const NUM_SMOKE_WISPS = 80;
+      let smokeWisps = [];
+
+      let particles = [];
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let lastTime = performance.now();
+      let frameCount = 0;
+      let fps = 60;
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+      }
+
+      window.addEventListener('resize', resize);
+      resize();
+
+      // ─── Smoke Wisp: Internal gaseous blob that drifts inside the orb ───
+      class SmokeWisp {
+        constructor() {
+          this.reset();
+        }
+
+        reset() {
+          // Place within the orb sphere volume using spherical coordinates
+          const u = Math.random();
+          const v = Math.random();
+          const theta = u * Math.PI * 2;
+          const phi = Math.acos(2 * v - 1);
+          const r = Math.pow(Math.random(), 0.33) * 0.95; // Cube-root for uniform volume distribution
+
+          this.rx = Math.sin(phi) * Math.cos(theta) * r; // Normalized [-1, 1] relative to orb radius
+          this.ry = Math.sin(phi) * Math.sin(theta) * r;
+          this.rz = Math.cos(phi) * r;
+
+          // Drift velocities — very slow, organic floating
+          this.dvx = (Math.random() - 0.5) * 0.003;
+          this.dvy = (Math.random() - 0.5) * 0.003;
+          this.dvz = (Math.random() - 0.5) * 0.003;
+
+          // Individual size & opacity
+          this.sizeRatio = 0.15 + Math.random() * 0.35; // Fraction of orb radius
+          this.alpha = 0.08 + Math.random() * 0.18;
+          this.hueShift = (Math.random() - 0.5) * 25;
+          this.lightness = 50 + Math.random() * 30;
+
+          // Phase offset for organic breathing
+          this.phase = Math.random() * Math.PI * 2;
+          this.breathSpeed = 0.001 + Math.random() * 0.002;
+        }
+
+        update(time) {
+          // Slow organic drift
+          this.rx += this.dvx;
+          this.ry += this.dvy;
+          this.rz += this.dvz;
+
+          // Breathing pulsation
+          const breath = Math.sin(time * this.breathSpeed + this.phase) * 0.04;
+          this.rx += breath * 0.3;
+
+          // Contain within orb volume — soft elastic boundary
+          const dist = Math.sqrt(this.rx * this.rx + this.ry * this.ry + this.rz * this.rz);
+          if (dist > 0.92) {
+            const pushBack = (dist - 0.92) * 0.05;
+            this.rx -= (this.rx / dist) * pushBack;
+            this.ry -= (this.ry / dist) * pushBack;
+            this.rz -= (this.rz / dist) * pushBack;
+
+            // Reverse drift direction gently
+            this.dvx *= -0.6;
+            this.dvy *= -0.6;
+            this.dvz *= -0.6;
+          }
+
+          // Add tiny turbulence
+          this.dvx += (Math.random() - 0.5) * 0.0004;
+          this.dvy += (Math.random() - 0.5) * 0.0004;
+          this.dvz += (Math.random() - 0.5) * 0.0004;
+
+          // Dampen drift
+          this.dvx *= 0.995;
+          this.dvy *= 0.995;
+          this.dvz *= 0.995;
+        }
+
+        draw(orbX, orbY, R, orbAlpha) {
+          // 3D perspective projection
+          const worldZ = this.rz * R;
+          const scale = config.fov / (config.fov + worldZ + 200);
+          if (scale <= 0.05) return;
+
+          const sx = orbX + this.rx * R * scale;
+          const sy = orbY + this.ry * R * scale;
+          const blobR = this.sizeRatio * R * scale;
+
+          // Depth-based alpha modulation
+          const depthFade = 0.4 + 0.6 * ((this.rz + 1) / 2); // Closer = brighter
+          const finalAlpha = this.alpha * depthFade * orbAlpha * config.smokeDensity;
+
+          // Draw soft radial blob
+          const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, blobR);
+          const hue = config.baseHue + this.hueShift;
+          grad.addColorStop(0, `hsla(${hue}, 100%, ${this.lightness + 15}%, ${finalAlpha * 1.4})`);
+          grad.addColorStop(0.3, `hsla(${hue}, 90%, ${this.lightness}%, ${finalAlpha * 0.9})`);
+          grad.addColorStop(0.7, `hsla(${hue - 10}, 80%, ${this.lightness - 10}%, ${finalAlpha * 0.3})`);
+          grad.addColorStop(1, `hsla(${hue}, 60%, 20%, 0)`);
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(sx, sy, blobR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function initSmokeWisps() {
+        smokeWisps = [];
+        for (let i = 0; i < NUM_SMOKE_WISPS; i++) {
+          smokeWisps.push(new SmokeWisp());
+        }
+      }
+
+      // ─── Attraction Particle: Clean dot pulled straight toward orb center ───
+      class Particle3D {
+        constructor(isInitial = false) {
+          this.reset(isInitial);
+        }
+
+        reset(isInitial = false) {
+          // Always spawn on a concentric spherical shell around the orb center
+          const u = Math.random();
+          const v = Math.random();
+          const theta = u * 2.0 * Math.PI;
+          const phi = Math.acos(2.0 * v - 1.0);
+
+          // Distribute across a shell band (not all at exact same distance)
+          const shellRadius = 350 + Math.random() * 300;
+
+          this.x = Math.sin(phi) * Math.cos(theta) * shellRadius;
+          this.y = Math.sin(phi) * Math.sin(theta) * shellRadius;
+          this.z = Math.cos(phi) * shellRadius;
+
+          this.vx = (Math.random() - 0.5) * 0.8;
+          this.vy = (Math.random() - 0.5) * 0.8;
+          this.vz = (Math.random() - 0.5) * 0.8;
+
+          this.size = Math.random() * 2.5 + 1.0;
+          this.hue = config.baseHue + (Math.random() * 30 - 15);
+          this.lightness = 60 + Math.random() * 35;
+          this.alpha = 0.4 + Math.random() * 0.6;
+          this.friction = 0.95 + Math.random() * 0.025;
+        }
+
+        update() {
+          // Pure straight-line gravitational pull toward center — no spin/vortex
+          const dx = -this.x;
+          const dy = -this.y;
+          const dz = -this.z;
+          const distSq = dx * dx + dy * dy + dz * dz;
+          const dist = Math.sqrt(distSq) || 1;
+
+          // Inverse-square attraction
+          const force = (config.gravity * 1200) / (distSq + 3000);
+
+          this.vx += (dx / dist) * force * 40 * 0.1;
+          this.vy += (dy / dist) * force * 40 * 0.1;
+          this.vz += (dz / dist) * force * 40 * 0.1;
+
+          // Process shockwaves
+          for (let i = 0; i < orb.shockwaves.length; i++) {
+            const sw = orb.shockwaves[i];
+            const swDx = (this.x + orb.x) - sw.x;
+            const swDy = (this.y + orb.y) - sw.y;
+            const swDz = this.z;
+            const swDist = Math.sqrt(swDx * swDx + swDy * swDy + swDz * swDz) || 1;
+            const waveWidth = 100;
+
+            if (Math.abs(swDist - sw.radius) < waveWidth) {
+              const push = (1 - Math.abs(swDist - sw.radius) / waveWidth) * sw.power;
+              this.vx += (swDx / swDist) * push;
+              this.vy += (swDy / swDist) * push;
+              this.vz += (swDz / swDist) * push;
+            }
+          }
+
+          // Drag
+          this.vx *= this.friction;
+          this.vy *= this.friction;
+          this.vz *= this.friction;
+
+          this.x += this.vx;
+          this.y += this.vy;
+          this.z += this.vz;
+
+          // Absorbed by orb core — particle disappears, orb grows
+          if (dist < config.orbRadius * 0.5) {
+            orb.pulse = Math.min(orb.pulse + 0.08, 15);
+            orb.absorbedCount++;
+            // Grow orb radius proportionally to absorbed particles
+            const growthProgress = orb.absorbedCount / config.particleCount;
+            config.orbRadius = config.orbStartRadius + (config.orbMaxRadius - config.orbStartRadius) * growthProgress;
+            this.absorbed = true;
+          }
+        }
+
+        draw() {
+          if (this.absorbed) return;
+
+          const scale = config.fov / (config.fov + this.z + 400);
+          if (scale <= 0) return;
+
+          const screenX = orb.x + this.x * scale;
+          const screenY = orb.y + this.y * scale;
+          const renderSize = Math.max(0.6, this.size * scale);
+          const depthAlpha = Math.min(1.0, Math.max(0.1, (this.z + 500) / 900)) * this.alpha * orb.particleAlpha;
+
+          // Clean crisp micro-dot
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, renderSize, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${this.hue}, 100%, ${this.lightness}%, ${depthAlpha})`;
+          ctx.fill();
+
+          // Tiny highlight on bigger dots
+          if (renderSize > 1.8) {
+            ctx.beginPath();
+            ctx.arc(screenX - renderSize * 0.2, screenY - renderSize * 0.2, renderSize * 0.35, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${depthAlpha * 0.85})`;
+            ctx.fill();
+          }
+        }
+      }
+
+      function initParticles() {
+        particles = [];
+        for (let i = 0; i < config.particleCount; i++) {
+          particles.push(new Particle3D(true));
+        }
+      }
+
+      // ─── Render Gaseous / Smoky 3D Orb ───
+      function drawGaseousOrb(time) {
+        // Fade in
+        if (orb.alpha < 1.0) {
+          orb.alpha += orb.fadeSpeed;
+          if (orb.alpha > 1.0) orb.alpha = 1.0;
+        }
+
+        orb.pulse *= 0.92;
+        const R = config.orbRadius + Math.sin(time * 0.0025) * 3 + orb.pulse;
+
+        // Fixed center position
+        orb.x = width / 2;
+        orb.y = height / 2;
+
+        // ── Layer 1: Wide diffuse atmospheric halo ──
+        const haloGrad = ctx.createRadialGradient(
+          orb.x, orb.y, R * 0.3,
+          orb.x, orb.y, R * 5.0
+        );
+        haloGrad.addColorStop(0, `rgba(255, 20, 147, ${0.22 * orb.alpha})`);
+        haloGrad.addColorStop(0.25, `rgba(255, 60, 160, ${0.12 * orb.alpha})`);
+        haloGrad.addColorStop(0.6, `rgba(180, 0, 100, ${0.04 * orb.alpha})`);
+        haloGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = haloGrad;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, R * 5.0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // ── Layer 2: Gaseous volumetric core — soft smoky mass ──
+        const smokeGrad = ctx.createRadialGradient(
+          orb.x, orb.y, 0,
+          orb.x, orb.y, R * 1.3
+        );
+        const sd = config.smokeDensity;
+        smokeGrad.addColorStop(0, `rgba(255, 180, 220, ${0.35 * sd * orb.alpha})`);
+        smokeGrad.addColorStop(0.3, `rgba(255, 60, 160, ${0.30 * sd * orb.alpha})`);
+        smokeGrad.addColorStop(0.65, `rgba(200, 20, 120, ${0.20 * sd * orb.alpha})`);
+        smokeGrad.addColorStop(0.9, `rgba(140, 0, 80, ${0.08 * sd * orb.alpha})`);
+        smokeGrad.addColorStop(1, 'rgba(80, 0, 50, 0)');
+
+        ctx.fillStyle = smokeGrad;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, R * 1.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // ── Layer 3: Internal smoke wisps — drifting gaseous blobs ──
+        // Sort wisps by z for depth
+        smokeWisps.sort((a, b) => a.rz - b.rz);
+
+        for (let i = 0; i < smokeWisps.length; i++) {
+          smokeWisps[i].update(time);
+          smokeWisps[i].draw(orb.x, orb.y, R, orb.alpha);
+        }
+
+        // ── Layer 4: Subtle bright inner core — hot center of the gas cloud ──
+        const coreGrad = ctx.createRadialGradient(
+          orb.x, orb.y, 0,
+          orb.x, orb.y, R * 0.45
+        );
+        coreGrad.addColorStop(0, `rgba(255, 255, 255, ${0.55 * orb.alpha * sd})`);
+        coreGrad.addColorStop(0.3, `rgba(255, 200, 230, ${0.35 * orb.alpha * sd})`);
+        coreGrad.addColorStop(0.7, `rgba(255, 80, 170, ${0.15 * orb.alpha * sd})`);
+        coreGrad.addColorStop(1, 'rgba(255, 20, 147, 0)');
+
+        ctx.fillStyle = coreGrad;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, R * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+
+
+
+        // ── Shockwaves ──
+        const maxScreenDim = Math.hypot(width, height);
+        for (let i = orb.shockwaves.length - 1; i >= 0; i--) {
+          const sw = orb.shockwaves[i];
+          sw.radius += sw.speed;
+          sw.power *= (sw.isScreenPulse ? 0.98 : 0.94);
+          sw.alpha *= (sw.isScreenPulse ? 0.985 : 0.94);
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+
+          if (sw.isScreenPulse) {
+            // Intense glowing pink wave sweeping over full screen
+            ctx.strokeStyle = `rgba(255, 20, 147, ${sw.alpha * orb.alpha * 0.95})`;
+            ctx.lineWidth = 14;
+            ctx.shadowColor = '#ff1493';
+            ctx.shadowBlur = 35;
+            ctx.stroke();
+
+            // Inner bright core line
+            ctx.beginPath();
+            ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 220, 245, ${sw.alpha * orb.alpha * 0.9})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          } else {
+            ctx.strokeStyle = `rgba(255, 105, 180, ${sw.alpha * orb.alpha})`;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          if (sw.alpha < 0.01 || sw.radius > maxScreenDim * 1.3) {
+            orb.shockwaves.splice(i, 1);
+          }
+        }
+      }
+
+      // ─── Main Animation Loop ───
+      function animate(now) {
+        requestAnimationFrame(animate);
+
+        frameCount++;
+        if (now - lastTime >= 1000) {
+          fps = Math.round((frameCount * 1000) / (now - lastTime));
+          frameCount = 0;
+          lastTime = now;
+        }
+
+        // Clear frame
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#030006';
+        ctx.fillRect(0, 0, width, height);
+
+        // Elapsed time since start/reset
+        const elapsed = now - startTime;
+
+        // 15-Second Pink Screen Impulse Trigger
+        if (elapsed >= 15000 && !pulse15sTriggered) {
+          pulse15sTriggered = true;
+          orb.shockwaves.push({
+            x: orb.x,
+            y: orb.y,
+            radius: config.orbRadius,
+            speed: 18,
+            power: 80,
+            alpha: 1.0,
+            isScreenPulse: true
+          });
+          orb.pulse = 50;
+        }
+
+        // Particle fade-in: starts after 3 seconds, takes ~2 seconds to fully appear
+        const particleDelay = 3000;
+        if (elapsed > particleDelay) {
+          orb.particleAlpha = Math.min(1.0, (elapsed - particleDelay) / 2000);
+        } else {
+          orb.particleAlpha = 0.0;
+        }
+
+        // Update particles only after they start appearing
+        if (orb.particleAlpha > 0) {
+          for (let i = 0; i < particles.length; i++) {
+            if (!particles[i].absorbed) particles[i].update();
+          }
+        }
+
+        // Depth sort
+        particles.sort((a, b) => a.z - b.z);
+
+        // Additive glow blending
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Draw back particles → gaseous orb → front particles
+        let orbDrawn = false;
+
+        for (let i = 0; i < particles.length; i++) {
+          if (!orbDrawn && particles[i].z >= 0) {
+            drawGaseousOrb(now);
+            orbDrawn = true;
+          }
+          if (orb.particleAlpha > 0) particles[i].draw();
+        }
+
+        if (!orbDrawn) {
+          drawGaseousOrb(now);
+        }
+      }
+
+      // ─── Events ───
+      window.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-reset')) return;
+
+        orb.shockwaves.push({
+          x: e.clientX,
+          y: e.clientY,
+          radius: 10,
+          speed: 14,
+          power: 24,
+          alpha: 1.0
+        });
+
+        orb.pulse = 25;
+      });
+
+      // ─── Reset Button ───
+      const btnReset = document.getElementById('btn-reset');
+      btnReset.addEventListener('click', () => {
+        orb.alpha = 0.0;
+        orb.particleAlpha = 0.0;
+        orb.absorbedCount = 0;
+        pulse15sTriggered = false;
+        config.orbRadius = config.orbStartRadius;
+        startTime = performance.now();
+        initParticles();
+        initSmokeWisps();
+      });
+
+      // ─── Launch ───
+      initParticles();
+      initSmokeWisps();
+      requestAnimationFrame(animate);
+
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sakura V2 - Cosmic Experience</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body,
+    html {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #08000c;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Layer 1: Background Canvas Container */
+    #bg-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    #bg-container canvas {
+      display: block;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+
+    /* Layer 2: 3D Scene Canvas */
+    #webgl-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2;
+      cursor: default;
+      overflow: hidden;
+      transition: opacity 0.5s ease;
+    }
+
+    #webgl-container canvas {
+      display: block;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+
+    /* Minimalist HUD overlay */
+    .hud-overlay {
+      position: fixed;
+      top: 24px;
+      left: 28px;
+      z-index: 10;
+      pointer-events: none;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: opacity 0.5s ease;
+    }
+
+    .hud-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: rgba(255, 105, 180, 0.95);
+      text-shadow: 0 0 14px rgba(255, 42, 157, 0.8);
+    }
+
+    .hud-stats {
+      font-size: 10px;
+      color: rgba(78, 226, 236, 0.95);
+      font-family: monospace;
+    }
+
+    /* Modern Control Button (Reset / Start) Bottom Right */
+    .control-btn {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 100;
+      padding: 12px 26px;
+      background: rgba(18, 12, 28, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 105, 180, 0.4);
+      border-radius: 30px;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 42, 157, 0.2);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 42, 157, 0.25);
+      border-color: rgba(78, 226, 236, 0.8);
+      color: #4ee2ec;
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 25px rgba(78, 226, 236, 0.4);
+    }
+  </style>
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+
+  <!-- Layer 1: Background Canvas Container -->
+  <div id="bg-container"></div>
+
+  <!-- Layer 2: Interactive 3D WebGL Canvas -->
+  <div id="webgl-container"></div>
+
+  <!-- HUD Overlay -->
+  <div class="hud-overlay" id="hudOverlay">
+    <div class="hud-title">SAKURA V2 // COSMIC EXPERIENCE</div>
+    <div id="hudStage">STAGE 1: 20s SAKURA PETALS (CLICK CANVAS TO ADD +5 PETALS AT CURSOR)</div>
+    <div class="hud-stats" id="stats">60 FPS | PETALS: 20 | CLUSTERS: 1 UNLOCKED</div>
+  </div>
+
+  <!-- Reset / Start Button Bottom Right -->
+  <button class="control-btn" id="controlBtn">RESET</button>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ==========================================
+      // CONFIGURATION & TIMELINE CONSTANTS
+      // ==========================================
+      const TRANSITION_START_TIME = 20.0; // 20s Stage 1 Petals phase
+      const ARM_BUILD_DURATION = 30.0;     // 20s to 50s Interactive Click-Spawning Phase (30 seconds!)
+      const SHIMMER_START_TIME = 50.0;     // 50s to 60s Rainbow Shimmer Phase (10 seconds)
+      const IMPLODE_START_TIME = 60.0;    // 60s Implosion phase
+
+      const MAX_CLUSTERS = 24;            // Dynamic cluster spawning capability
+      const NODE_COUNT = 600;             // 600 nodes (25 per cluster across 24 clusters)
+      const TOTAL_PETALS = 250;
+      const MAX_CONNECT_DIST = 165;       // Dynamic distance threshold where connections form & dissolve
+      const MAX_CONNECTIONS_PER_NODE = 4;
+      const MAX_LINES = 2400;
+      const ENERGY_ORB_COUNT = 1400;
+
+      // Base Colors
+      const COLOR_HOT_PINK = { r: 1.0, g: 0.2, b: 0.65 };
+      const COLOR_SOFT_PINK = { r: 1.0, g: 0.55, b: 0.85 };
+
+      // 20-Color Session Set
+      const CONTACT_COLOR_PALETTE_20 = [
+        { name: 'Electric Cyan', r: 0.0, g: 0.95, b: 1.0 },
+        { name: 'Neon Lime', r: 0.2, g: 1.0, b: 0.3 },
+        { name: 'Golden Amber', r: 1.0, g: 0.8, b: 0.0 },
+        { name: 'Bright Crimson', r: 1.0, g: 0.15, b: 0.25 },
+        { name: 'Emerald', r: 0.0, g: 1.0, b: 0.65 },
+        { name: 'Sunset Orange', r: 1.0, g: 0.45, b: 0.0 },
+        { name: 'Acid Yellow', r: 0.9, g: 1.0, b: 0.1 },
+        { name: 'Coral', r: 1.0, g: 0.4, b: 0.5 },
+        { name: 'Mint', r: 0.2, g: 1.0, b: 0.8 },
+        { name: 'Vivid Rose', r: 1.0, g: 0.2, b: 0.5 },
+        { name: 'Turquoise', r: 0.0, g: 0.85, b: 0.85 },
+        { name: 'Lavender', r: 0.8, g: 0.6, b: 1.0 },
+        { name: 'Diamond White', r: 1.0, g: 0.95, b: 1.0 },
+        { name: 'Sky Blue', r: 0.15, g: 0.7, b: 1.0 },
+        { name: 'Chartreuse', r: 0.65, g: 1.0, b: 0.0 },
+        { name: 'Fuchsia Flare', r: 1.0, g: 0.1, b: 0.9 }
+      ];
+
+      let selectedSessionContactColor = CONTACT_COLOR_PALETTE_20[0];
+
+      // Global Renderers & Scenes
+      let bgContainer, bgScene, bgCamera, bgRenderer, bgUniforms;
+      let mainScene, camera, mainRenderer;
+      let instancedPetalMesh;
+      let nodePointsMesh, lineSegmentsMesh, lineSegmentsGlowMesh;
+      let roundNebulaMesh, energyOrbsPointsMesh, explosionPulseMesh;
+
+      // Dynamic Clusters & Organic Drifting Setup
+      const baseClusterCenters = [];
+      const clusterDriftSpeedX = [];
+      const clusterDriftSpeedY = [];
+      const clusterDriftSpeedZ = [];
+      const clusterDriftAmpX = [];
+      const clusterDriftAmpY = [];
+      const clusterDriftAmpZ = [];
+      const armStartPositions = [];
+      const clusterSpawnTimes = new Float32Array(MAX_CLUSTERS);
+
+      for (let c = 0; c < MAX_CLUSTERS; c++) {
+        baseClusterCenters.push(new THREE.Vector3(0, 0, 0));
+        armStartPositions.push(new THREE.Vector3(0, 0, 0));
+
+        const dirX = (c % 2 === 0) ? 1 : -1;
+        const dirY = (c % 3 === 0) ? 1 : -1;
+
+        clusterDriftSpeedX.push((0.15 + Math.random() * 0.25) * dirX);
+        clusterDriftSpeedY.push((0.12 + Math.random() * 0.25) * dirY);
+        clusterDriftSpeedZ.push((0.14 + Math.random() * 0.25) * dirX);
+        clusterDriftAmpX.push(75 + Math.random() * 95);
+        clusterDriftAmpY.push(55 + Math.random() * 75);
+        clusterDriftAmpZ.push(45 + Math.random() * 65);
+        clusterSpawnTimes[c] = 0.0;
+      }
+
+      // Initial Cluster 0 ("Ausgangsknäuel") starts at center (0,0,0)!
+      baseClusterCenters[0].set(0, 0, 0);
+
+      // Unlocked Clusters & Arm Progress
+      let unlockedClustersCount = 1;
+      const clusterArmProgress = new Float32Array(MAX_CLUSTERS);
+      clusterArmProgress[0] = 1.0;
+
+      let activeClusterWaveCenter = new THREE.Vector3(0, 0, 0);
+      let activeClusterWaveTime = -999.0;
+
+      // State variables
+      let nodePositions = [];
+      let nodeShellData = [];
+      let nodeClusterAssignment = new Uint8Array(NODE_COUNT);
+      let transformedPositions = new Float32Array(NODE_COUNT * 3);
+      let nodeGlowFactors = new Float32Array(NODE_COUNT);
+      let nodeContactFactors = new Float32Array(NODE_COUNT);
+      let nodeMorphProgress = new Float32Array(NODE_COUNT);
+      let nodeImplodeProgress = new Float32Array(NODE_COUNT);
+      let nodeAbsorbed = new Uint8Array(NODE_COUNT);
+
+      // Sakura Petals 3D Concentric Motion Setup
+      let activePetalCount = 20;
+      const petalCenterOffsetX = new Float32Array(TOTAL_PETALS);
+      const petalCenterOffsetY = new Float32Array(TOTAL_PETALS);
+      const petalOrbitalRadiusX = new Float32Array(TOTAL_PETALS);
+      const petalOrbitalRadiusY = new Float32Array(TOTAL_PETALS);
+      const petalOrbitalSpeed = new Float32Array(TOTAL_PETALS);
+      const petalOrbitalAngle = new Float32Array(TOTAL_PETALS);
+      const petalPhaseZ = new Float32Array(TOTAL_PETALS);
+      const petalTiltX = new Float32Array(TOTAL_PETALS);
+      const petalTiltY = new Float32Array(TOTAL_PETALS);
+      const petalRotX = new Float32Array(TOTAL_PETALS);
+      const petalRotY = new Float32Array(TOTAL_PETALS);
+      const petalRotZ = new Float32Array(TOTAL_PETALS);
+      const petalRotSpeedX = new Float32Array(TOTAL_PETALS);
+      const petalRotSpeedY = new Float32Array(TOTAL_PETALS);
+      const petalRotSpeedZ = new Float32Array(TOTAL_PETALS);
+      const petalBaseScales = new Float32Array(TOTAL_PETALS);
+      const petalPushOffsetX = new Float32Array(TOTAL_PETALS);
+      const petalPushOffsetY = new Float32Array(TOTAL_PETALS);
+
+      const dummyObject = new THREE.Object3D();
+
+      let isExploded = false;
+      let explosionTime = -1.0;
+
+      // Outflowing Volumetric Energy Orbs Data
+      const energyOrbData = [];
+      const orbPositions = new Float32Array(ENERGY_ORB_COUNT * 3);
+      const orbColors = new Float32Array(ENERGY_ORB_COUNT * 3);
+      const orbSizes = new Float32Array(ENERGY_ORB_COUNT);
+      const orbPhases = new Float32Array(ENERGY_ORB_COUNT);
+
+      let mouseScreen = new THREE.Vector2(0.5, 0.5);
+      let mouseWorld = new THREE.Vector3(0, 0, 0);
+
+      let lastTime = performance.now();
+      let frameCount = 0;
+      let currentFps = 60;
+      let statsElement, hudStageElement, webglContainer, hudOverlay, controlBtn;
+      let isSimulationRunning = true;
+      let clock;
+
+      // Helper: Calculate visible 3D world bounds at camera depth
+      function getVisibleBounds() {
+        if (!camera) return { maxX: 400, maxY: 220 };
+        const aspect = window.innerWidth / window.innerHeight;
+        const vHeight = 2.0 * Math.tan((camera.fov * Math.PI / 360)) * camera.position.z;
+        const vWidth = vHeight * aspect;
+        return {
+          maxX: (vWidth * 0.42),
+          maxY: (vHeight * 0.40)
+        };
+      }
+
+      // Helper: Calculate current drifting center position of cluster c
+      function getCurrentClusterPosition(c, totalTime) {
+        const bounds = getVisibleBounds();
+        const tRel = Math.max(0.0, totalTime - clusterSpawnTimes[c]);
+        const driftX = Math.sin(tRel * clusterDriftSpeedX[c]) * clusterDriftAmpX[c];
+        const driftY = (1.0 - Math.cos(tRel * clusterDriftSpeedY[c])) * clusterDriftAmpY[c];
+
+        const dock = armStartPositions[c];
+        return {
+          x: Math.max(-bounds.maxX, Math.min(bounds.maxX, dock.x + driftX)),
+          y: Math.max(-bounds.maxY, Math.min(bounds.maxY, dock.y + driftY))
+        };
+      }
+
+      // Helper: HSL to RGB conversion for Rainbow Shimmer Phase
+      function HSLtoRGB(h, s, l) {
+        let r, g, b;
+        if (s === 0) {
+          r = g = b = l;
+        } else {
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+          };
+          r = hue2rgb(p, q, h + 1 / 3);
+          g = hue2rgb(p, q, h);
+          b = hue2rgb(p, q, h - 1 / 3);
+        }
+        return { r, g, b };
+      }
+
+      function generatePetalTexture() {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.filter = 'drop-shadow(0px 0px 10px rgba(255, 180, 235, 1.0))';
+        const grad = ctx.createLinearGradient(0, 0, 64, 64);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.3, '#ffccf2');
+        grad.addColorStop(0.7, '#ff66cc');
+        grad.addColorStop(1, '#ff1a8c');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(32, 4);
+        ctx.bezierCurveTo(50, 12, 60, 32, 50, 52);
+        ctx.bezierCurveTo(40, 62, 24, 62, 14, 52);
+        ctx.bezierCurveTo(4, 32, 14, 12, 32, 4);
+        ctx.fill();
+        const tex = new THREE.CanvasTexture(c);
+        tex.needsUpdate = true;
+        return tex;
+      }
+
+      // 100% Pure Self-Contained Procedural GLSL Shibuya Magenta Background Fluid Shader
+      const bgVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `;
+
+      const bgFragmentShader = `
+        uniform vec3 iResolution;
+        uniform float iTime;
+
+        float hash(vec2 p) {
+            p = fract(p * vec2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return fract(p.x * p.y);
+        }
+
+        float noise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f*f*(3.0-2.0*f);
+            return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
+                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+        }
+
+        const mat2 mtx = mat2( 0.80,  0.60, -0.60,  0.80 );
+
+        float fbm( vec2 p ) {
+            float f = 0.0;
+            f += 0.500000*noise( p ); p = mtx*p*2.02;
+            f += 0.250000*noise( p ); p = mtx*p*2.03;
+            f += 0.125000*noise( p ); p = mtx*p*2.01;
+            f += 0.062500*noise( p ); p = mtx*p*2.04;
+            return f/0.9375;
+        }
+
+        float pattern(in vec2 p, in float t, out vec2 q, out vec2 r, out vec2 g) {
+            q = vec2(fbm(p), fbm(p + vec2(10.0, 1.3)));
+            r = vec2(fbm(p + 4.0 * q + vec2(t) + vec2(1.7, 9.2)), fbm(p + 4.0 * q + vec2(t) + vec2(8.3, 2.8)));
+            g = vec2(fbm(p + 2.0 * r + vec2(t * 2.0) + vec2(2.0, 6.0)), fbm(p + 2.0 * r + vec2(t * 1.0) + vec2(5.0, 3.0)));
+            return fbm(p + 5.5 * g + vec2(-t * 0.7));
+        }
+
+        void main() {
+            vec2 uv = gl_FragCoord.xy / iResolution.xy;
+            vec2 q, r, g;
+            float noiseVal = pattern(gl_FragCoord.xy * vec2(.004), iTime * 0.07, q, r, g);
+
+            vec3 col = mix(vec3(0.10, 0.00, 0.06), vec3(0.78, 0.00, 0.40), smoothstep(0.0, 1.0, noiseVal));
+            col = mix(col, vec3(0.30, 0.00, 0.16), dot(q, q) * 0.8);
+            col = mix(col, vec3(0.88, 0.04, 0.48), 0.40 * g.y * g.y);
+            col = mix(col, vec3(0.52, 0.00, 0.28), smoothstep(0.0, 0.6, 0.6 * r.g * r.g));
+            col = mix(col, vec3(0.85, 0.40, 0.68), 0.18 * g.x);
+
+            col *= noiseVal * 1.45 + 0.25;
+            gl_FragColor = vec4(col, 1.0);
+        }
+      `;
+
+      // Shader for Knäuel Nodes: Volumetric Starburst Particle Shader (Larger & in signature Pink/Magenta!)
+      const knaeuelNodeVertexShader = `
+        attribute float size;
+        attribute vec3 color;
+        attribute float phase;
+        varying vec3 vColor;
+        varying float vPhase;
+
+        void main() {
+          vColor = color;
+          vPhase = phase;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (580.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `;
+
+      const knaeuelNodeFragmentShader = `
+        uniform float iTime;
+        varying vec3 vColor;
+        varying float vPhase;
+
+        void main() {
+          vec2 p = gl_PointCoord - vec2(0.5);
+          float d = length(p);
+
+          if (d > 0.5) discard;
+
+          float coreLum = 1.0 / (1.0 + d * 10.0);
+          coreLum = pow(coreLum, 2.2);
+
+          vec2 av = abs(p);
+          float starPattern = max(0.0, 1.0 - (av.x * av.y) * 800.0);
+          starPattern = pow(starPattern, 3.5);
+
+          float sparkle = 0.80 + 0.30 * sin(iTime * 3.5 + vPhase);
+          float alpha = (coreLum + starPattern * 0.75) * sparkle;
+
+          vec3 finalColor = vColor * (coreLum * 1.85 + starPattern * 1.3);
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // Shader 2: Stage 6 Central Round Nebula Core
+      const roundNebulaVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `;
+
+      const roundNebulaFragmentShader = `
+        uniform float iTime;
+        varying vec2 vUv;
+
+        float hash(vec2 p) {
+            p = fract(p * vec2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return fract(p.x * p.y);
+        }
+
+        float noise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f*f*(3.0-2.0*f);
+            return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
+                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+        }
+
+        float fbm(vec2 p) {
+            float v = 0.0;
+            float a = 0.5;
+            vec2 shift = vec2(100.0);
+            mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+            for (int i = 0; i < 5; ++i) {
+                v += a * noise(p);
+                p = rot * p * 2.0 + shift;
+                a *= 0.5;
+            }
+            return v;
+        }
+
+        void main() {
+            vec2 p = vUv - vec2(0.5);
+            float d = length(p);
+
+            float circleMask = smoothstep(0.48, 0.12, d);
+
+            float coreOrbRadius = 0.09;
+            float coreOrbLuminance = 1.0 / (1.0 + pow(d / coreOrbRadius, 2.6));
+            vec3 colHotWhiteCore = vec3(1.0, 1.0, 1.0) * pow(coreOrbLuminance, 1.8);
+
+            vec2 q = vec2(fbm(p * 3.2 + vec2(0.0, iTime * 0.12)),
+                          fbm(p * 3.2 + vec2(5.2, 1.3 - iTime * 0.08)));
+
+            vec2 r = vec2(fbm(p * 3.2 + 2.8 * q + vec2(1.7, 9.2) + iTime * 0.15),
+                          fbm(p * 3.2 + 2.8 * q + vec2(8.3, 2.8) - iTime * 0.12));
+
+            float blueGasVal = fbm(p * 3.2 + 3.5 * r);
+            float radialFalloff = exp(-d * 3.2);
+
+            float magentaSmoke = fbm(p * 2.4 - r * 2.0 + vec2(iTime * 0.1, -iTime * 0.15));
+            float magentaRingMask = smoothstep(0.10, 0.36, d) * smoothstep(0.48, 0.25, d);
+            float magentaTendrilVal = magentaSmoke * magentaRingMask;
+
+            vec3 colElectricCyan = vec3(0.25, 0.90, 1.00);
+            vec3 colSapphireBlue = vec3(0.00, 0.30, 0.88);
+            vec3 colSmokyMagenta = vec3(1.00, 0.15, 0.65);
+
+            vec3 col = mix(colSapphireBlue, colElectricCyan, smoothstep(0.12, 0.65, blueGasVal * radialFalloff));
+            col += colHotWhiteCore * 1.7;
+            col = mix(col, colSmokyMagenta * 1.3, magentaTendrilVal * 0.85);
+
+            float totalDensity = (blueGasVal * radialFalloff + magentaTendrilVal * 0.65 + coreOrbLuminance * 0.85) * circleMask;
+            float alpha = smoothstep(0.01, 0.75, totalDensity) * circleMask * 1.6;
+
+            gl_FragColor = vec4(col * 1.45, alpha);
+        }
+      `;
+
+      // Shader 3: Pure Volumetric Energy Orb Point Shader
+      const energyOrbVertexShader = `
+        attribute float size;
+        attribute vec3 color;
+        attribute float phase;
+        varying vec3 vColor;
+        varying float vPhase;
+
+        void main() {
+          vColor = color;
+          vPhase = phase;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (520.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `;
+
+      const energyOrbFragmentShader = `
+        uniform float iTime;
+        varying vec3 vColor;
+        varying float vPhase;
+
+        void main() {
+          vec2 p = gl_PointCoord - vec2(0.5);
+          float d = length(p);
+
+          if (d > 0.5) discard;
+
+          float coreLum = 1.0 / (1.0 + d * 12.0);
+          coreLum = pow(coreLum, 2.5);
+
+          vec2 av1 = abs(p);
+          float starPattern = max(0.0, 1.0 - (av1.x * av1.y) * 900.0);
+          starPattern = pow(starPattern, 4.0);
+
+          float sparkle = 0.75 + 0.35 * sin(iTime * 4.0 + vPhase);
+          float alpha = (coreLum + starPattern * 0.8) * sparkle;
+
+          vec3 finalColor = vColor * (coreLum * 1.8 + starPattern * 1.2);
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // Shader 4: Explosive Shockwave Ring Pulse Shader
+      const shockwaveVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `;
+
+      const shockwaveFragmentShader = `
+        uniform float uProgress;
+        varying vec2 vUv;
+
+        void main() {
+          vec2 p = vUv - vec2(0.5);
+          float d = length(p);
+
+          float ringRadius = uProgress * 0.48;
+          float ringThickness = 0.08 * (1.0 - uProgress * 0.5);
+          float ringDist = abs(d - ringRadius);
+
+          float ringVal = smoothstep(ringThickness, 0.0, ringDist);
+          float coreFlash = smoothstep(0.12, 0.0, d) * (1.0 - uProgress);
+
+          vec3 colFlash = vec3(1.0, 1.0, 1.0) * coreFlash * 2.5;
+          vec3 colRing = mix(vec3(0.3, 0.95, 1.0), vec3(1.0, 0.2, 0.65), uProgress);
+
+          vec3 finalCol = colFlash + colRing * ringVal * 2.0;
+          float alpha = (ringVal + coreFlash) * (1.0 - uProgress * uProgress);
+
+          gl_FragColor = vec4(finalCol, alpha);
+        }
+      `;
+
+      function initApp() {
+        statsElement = document.getElementById('stats');
+        hudStageElement = document.getElementById('hudStage');
+        webglContainer = document.getElementById('webgl-container');
+        hudOverlay = document.getElementById('hudOverlay');
+        controlBtn = document.getElementById('controlBtn');
+        bgContainer = document.getElementById('bg-container');
+
+        clock = new THREE.Clock();
+
+        // 1. Layer 1 Background Renderer
+        bgScene = new THREE.Scene();
+        bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        bgRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        bgRenderer.setSize(window.innerWidth, window.innerHeight);
+        bgContainer.appendChild(bgRenderer.domElement);
+
+        bgUniforms = {
+          iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
+          iTime: { value: 0 }
+        };
+
+        const bgMaterial = new THREE.ShaderMaterial({
+          vertexShader: bgVertexShader,
+          fragmentShader: bgFragmentShader,
+          uniforms: bgUniforms,
+          depthWrite: false,
+          depthTest: false
+        });
+
+        bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMaterial));
+
+        // 2. Layer 2 Main 3D Renderer
+        mainScene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3500);
+        updateCameraDistance();
+
+        mainRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+        mainRenderer.setSize(window.innerWidth, window.innerHeight);
+        mainRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        mainRenderer.setClearColor(0x000000, 0);
+        webglContainer.appendChild(mainRenderer.domElement);
+
+        initPetalPhysics();
+        generateClusterNodes();
+        setupInstancedPetals();
+        setupNodePointsMesh();
+        setupLineMesh();
+        setupStage6RoundNebula();
+        setupStage6EnergyOrbsMesh();
+        setupExplosionPulseMesh();
+
+        window.addEventListener('resize', onWindowResize, false);
+        window.addEventListener('mousemove', onMouseMove, false);
+        window.addEventListener('click', onCanvasClick, false);
+
+        controlBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (isSimulationRunning) {
+            webglContainer.style.opacity = '0';
+            hudOverlay.style.opacity = '0';
+            controlBtn.textContent = 'START';
+            isSimulationRunning = false;
+          } else {
+            resetFullSimulation();
+            webglContainer.style.opacity = '1';
+            hudOverlay.style.opacity = '1';
+            controlBtn.textContent = 'RESET';
+            isSimulationRunning = true;
+          }
+        });
+
+        animate(0);
+      }
+
+      function updateBgSize() {
+        if (!bgRenderer) return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        bgRenderer.setSize(w, h);
+        bgUniforms.iResolution.value.set(w, h, 1);
+      }
+
+      function updateCameraDistance() {
+        const aspect = window.innerWidth / window.innerHeight;
+        const baseDist = aspect < 1.0 ? 680 : 540;
+        camera.position.set(0, 0, baseDist);
+        camera.lookAt(0, 0, 0);
+      }
+
+      // Initialize Petals with 3D Concentric Orbital Flight Parameters
+      function initPetalPhysics() {
+        activePetalCount = 20;
+        const bounds = getVisibleBounds();
+
+        for (let i = 0; i < TOTAL_PETALS; i++) {
+          petalCenterOffsetX[i] = (Math.random() - 0.5) * bounds.maxX * 0.6;
+          petalCenterOffsetY[i] = (Math.random() - 0.5) * bounds.maxY * 0.6;
+
+          petalOrbitalRadiusX[i] = 110 + Math.random() * (bounds.maxX * 0.65);
+          petalOrbitalRadiusY[i] = 80 + Math.random() * (bounds.maxY * 0.65);
+
+          const dir = (i % 2 === 0) ? 1 : -1;
+          petalOrbitalSpeed[i] = (0.18 + Math.random() * 0.35) * dir;
+          petalOrbitalAngle[i] = Math.random() * Math.PI * 2;
+          petalPhaseZ[i] = Math.random() * Math.PI * 2;
+
+          petalTiltX[i] = (Math.random() - 0.5) * 0.85;
+          petalTiltY[i] = (Math.random() - 0.5) * 0.85;
+
+          petalRotX[i] = Math.random() * Math.PI * 2;
+          petalRotY[i] = Math.random() * Math.PI * 2;
+          petalRotZ[i] = Math.random() * Math.PI * 2;
+          petalRotSpeedX[i] = (Math.random() - 0.5) * 0.04;
+          petalRotSpeedY[i] = (Math.random() - 0.5) * 0.04;
+          petalRotSpeedZ[i] = (Math.random() - 0.5) * 0.04;
+
+          petalBaseScales[i] = 0.35 + Math.random() * 0.40;
+          petalPushOffsetX[i] = 0.0;
+          petalPushOffsetY[i] = 0.0;
+        }
+      }
+
+      // Generate Nodes for Dynamic Spawning Clusters
+      function generateClusterNodes() {
+        nodePositions = [];
+        nodeShellData = [];
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          const c = i % MAX_CLUSTERS;
+          nodeClusterAssignment[i] = c;
+          const center = baseClusterCenters[c];
+
+          const rad = 25 + Math.random() * 55;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.random() * Math.PI;
+
+          const offsetX = rad * Math.sin(phi) * Math.cos(theta);
+          const offsetY = rad * Math.sin(phi) * Math.sin(theta);
+          const offsetZ = rad * Math.cos(phi);
+
+          const pos = new THREE.Vector3(
+            center.x + offsetX,
+            center.y + offsetY,
+            center.z + offsetZ
+          );
+
+          nodePositions.push(pos);
+
+          const dir = (c % 2 === 0) ? 1 : -1;
+          nodeShellData.push({
+            clusterIndex: c,
+            baseCenter: center.clone(),
+            localOffset: new THREE.Vector3(offsetX, offsetY, offsetZ),
+            speedX: (0.06 + (c % 6) * 0.02) * dir,
+            speedY: (0.08 - (c % 6) * 0.02) * dir,
+            speedZ: (0.07 + (c % 6) * 0.02) * dir,
+            phase: Math.random() * Math.PI * 2,
+            pulseFreq: 0.6 + Math.random() * 0.8,
+            glowSpeed: 1.2 + Math.random() * 2.8,
+            glowPhase: Math.random() * Math.PI * 2,
+            baseSize: 32 + Math.random() * 24
+          });
+
+          nodeGlowFactors[i] = 1.0;
+          nodeContactFactors[i] = 0.0;
+          nodeMorphProgress[i] = 0.0;
+          nodeImplodeProgress[i] = 0.0;
+          nodeAbsorbed[i] = 0;
+        }
+      }
+
+      function setupInstancedPetals() {
+        const petalGeo = new THREE.PlaneGeometry(11, 11);
+        const petalMat = new THREE.MeshBasicMaterial({
+          map: generatePetalTexture(),
+          color: new THREE.Color(1.5, 1.5, 1.5),
+          transparent: true,
+          depthWrite: false,
+          depthTest: true,
+          side: THREE.DoubleSide,
+          blending: THREE.NormalBlending
+        });
+        instancedPetalMesh = new THREE.InstancedMesh(petalGeo, petalMat, TOTAL_PETALS);
+        mainScene.add(instancedPetalMesh);
+      }
+
+      function setupNodePointsMesh() {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(NODE_COUNT * 3);
+        const colors = new Float32Array(NODE_COUNT * 3);
+        const sizes = new Float32Array(NODE_COUNT);
+        const phases = new Float32Array(NODE_COUNT);
+
+        const colHot = new THREE.Color(0xff2a9d);
+        const colSoft = new THREE.Color(0xff77c8);
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          positions[i * 3] = nodePositions[i].x;
+          positions[i * 3 + 1] = nodePositions[i].y;
+          positions[i * 3 + 2] = nodePositions[i].z;
+
+          const cIndex = nodeClusterAssignment[i];
+          const t = (cIndex % 6) / 5.0;
+          const col = colHot.clone().lerp(colSoft, t);
+
+          colors[i * 3] = col.r;
+          colors[i * 3 + 1] = col.g;
+          colors[i * 3 + 2] = col.b;
+
+          sizes[i] = 0;
+          phases[i] = nodeShellData[i].glowPhase;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+
+        const nodeMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            iTime: { value: 0 }
+          },
+          vertexShader: knaeuelNodeVertexShader,
+          fragmentShader: knaeuelNodeFragmentShader,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        nodePointsMesh = new THREE.Points(geometry, nodeMaterial);
+        mainScene.add(nodePointsMesh);
+      }
+
+      function setupLineMesh() {
+        const geometry = new THREE.BufferGeometry();
+        const linePositions = new Float32Array(MAX_LINES * 6);
+        const lineColors = new Float32Array(MAX_LINES * 6);
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(lineColors, 3));
+        geometry.setDrawRange(0, 0);
+
+        const lineMaterial = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          linewidth: 2
+        });
+
+        lineSegmentsMesh = new THREE.LineSegments(geometry, lineMaterial);
+        mainScene.add(lineSegmentsMesh);
+
+        const lineGlowMaterial = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          linewidth: 3
+        });
+
+        lineSegmentsGlowMesh = new THREE.LineSegments(geometry, lineGlowMaterial);
+        mainScene.add(lineSegmentsGlowMesh);
+      }
+
+      function setupExplosionPulseMesh() {
+        const pulseGeo = new THREE.PlaneGeometry(1200, 1200);
+        const pulseMat = new THREE.ShaderMaterial({
+          vertexShader: shockwaveVertexShader,
+          fragmentShader: shockwaveFragmentShader,
+          uniforms: {
+            uProgress: { value: 0.0 }
+          },
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        explosionPulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
+        explosionPulseMesh.position.z = 10;
+        explosionPulseMesh.visible = false;
+        mainScene.add(explosionPulseMesh);
+      }
+
+      function setupStage6RoundNebula() {
+        const gasGeo = new THREE.PlaneGeometry(420, 420);
+        const gasMat = new THREE.ShaderMaterial({
+          vertexShader: roundNebulaVertexShader,
+          fragmentShader: roundNebulaFragmentShader,
+          uniforms: {
+            iTime: { value: 0 }
+          },
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        roundNebulaMesh = new THREE.Mesh(gasGeo, gasMat);
+        roundNebulaMesh.visible = false;
+        mainScene.add(roundNebulaMesh);
+      }
+
+      function setupStage6EnergyOrbsMesh() {
+        energyOrbData.length = 0;
+        const maxScreenR = Math.sqrt(window.innerWidth * window.innerWidth + window.innerHeight * window.innerHeight) * 0.55;
+
+        const palette = [
+          { r: 0.30, g: 0.92, b: 1.00 },
+          { r: 0.00, g: 0.65, b: 1.00 },
+          { r: 0.75, g: 0.95, b: 1.00 },
+          { r: 1.00, g: 0.40, b: 0.85 },
+          { r: 1.00, g: 0.95, b: 0.80 }
+        ];
+
+        for (let i = 0; i < ENERGY_ORB_COUNT; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = 10 + Math.random() * maxScreenR;
+          const speed = 25.0 + Math.random() * 65.0;
+          const col = palette[Math.floor(Math.random() * palette.length)];
+
+          energyOrbData.push({
+            angle: angle,
+            radius: radius,
+            maxRadius: maxScreenR * (0.85 + Math.random() * 0.3),
+            speed: speed,
+            zDepth: (Math.random() - 0.5) * 350,
+            baseSize: 14.0 + Math.random() * 22.0,
+            sparkleFreq: 1.5 + Math.random() * 3.5,
+            sparklePhase: Math.random() * Math.PI * 2,
+            color: col,
+            offX: 0.0,
+            offY: 0.0
+          });
+
+          orbPhases[i] = energyOrbData[i].sparklePhase;
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(orbPositions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(orbColors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(orbSizes, 1));
+        geometry.setAttribute('phase', new THREE.BufferAttribute(orbPhases, 1));
+        geometry.setDrawRange(0, 0);
+
+        const material = new THREE.ShaderMaterial({
+          uniforms: {
+            iTime: { value: 0 }
+          },
+          vertexShader: energyOrbVertexShader,
+          fragmentShader: energyOrbFragmentShader,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        energyOrbsPointsMesh = new THREE.Points(geometry, material);
+        mainScene.add(energyOrbsPointsMesh);
+      }
+
+      // Handle Mouse Clicks: SPAWNS +5 PETALS AT CURSOR THAT ORBIT CONCENTRICALLY IN 3D
+      function onCanvasClick(e) {
+        if (e.target === controlBtn) return;
+
+        const totalTime = clock.getElapsedTime();
+
+        // 1. Stage 1 (0s - 20s): Add +5 Sakura Petals directly at cursor position!
+        if (totalTime < TRANSITION_START_TIME) {
+          const spawnX = (Math.abs(mouseWorld.x) > 3000) ? 0 : mouseWorld.x;
+          const spawnY = (Math.abs(mouseWorld.y) > 3000) ? 0 : mouseWorld.y;
+
+          const newPetalStart = activePetalCount;
+          activePetalCount = Math.min(TOTAL_PETALS, activePetalCount + 5);
+
+          for (let i = newPetalStart; i < activePetalCount; i++) {
+            petalCenterOffsetX[i] = spawnX;
+            petalCenterOffsetY[i] = spawnY;
+
+            petalOrbitalRadiusX[i] = 70 + Math.random() * 150;
+            petalOrbitalRadiusY[i] = 50 + Math.random() * 110;
+
+            const dir = (i % 2 === 0) ? 1 : -1;
+            petalOrbitalSpeed[i] = (0.2 + Math.random() * 0.4) * dir;
+            petalOrbitalAngle[i] = Math.random() * Math.PI * 2;
+            petalPhaseZ[i] = Math.random() * Math.PI * 2;
+
+            petalTiltX[i] = (Math.random() - 0.5) * 0.9;
+            petalTiltY[i] = (Math.random() - 0.5) * 0.9;
+            petalPushOffsetX[i] = 0.0;
+            petalPushOffsetY[i] = 0.0;
+          }
+        }
+        // 2. Stage 2 (20s - 50s): CLICK AN EXISTING ACTIVE CLUSTER TO SPAWN A NEW ADJACENT CLUSTER!
+        else if (totalTime >= TRANSITION_START_TIME && totalTime < SHIMMER_START_TIME) {
+          if (unlockedClustersCount < MAX_CLUSTERS) {
+            let clickedClusterIndex = -1;
+            let minDist = 115.0; // Click radius threshold around active clusters
+
+            for (let c = 0; c < unlockedClustersCount; c++) {
+              const pos = getCurrentClusterPosition(c, totalTime);
+              const dx = pos.x - mouseWorld.x;
+              const dy = pos.y - mouseWorld.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist < minDist) {
+                minDist = dist;
+                clickedClusterIndex = c;
+              }
+            }
+
+            if (clickedClusterIndex === -1) return;
+
+            const parentPos = getCurrentClusterPosition(clickedClusterIndex, totalTime);
+            const bounds = getVisibleBounds();
+
+            let angle = Math.atan2(mouseWorld.y - parentPos.y, mouseWorld.x - parentPos.x);
+            if (Math.abs(angle) < 0.001) angle = Math.random() * Math.PI * 2;
+
+            const spawnDist = 110.0 + Math.random() * 30.0;
+            const targetX = parentPos.x + Math.cos(angle) * spawnDist;
+            const targetY = parentPos.y + Math.sin(angle) * spawnDist;
+
+            const spawnPoint = new THREE.Vector3(
+              Math.max(-bounds.maxX + 40, Math.min(bounds.maxX - 40, targetX)),
+              Math.max(-bounds.maxY + 40, Math.min(bounds.maxY - 40, targetY)),
+              0.0
+            );
+
+            const newIndex = unlockedClustersCount;
+
+            clusterSpawnTimes[newIndex] = totalTime;
+            baseClusterCenters[newIndex].copy(spawnPoint);
+            armStartPositions[newIndex].copy(spawnPoint);
+
+            unlockedClustersCount++;
+            clusterArmProgress[newIndex] = 1.0;
+
+            selectedSessionContactColor = CONTACT_COLOR_PALETTE_20[
+              Math.floor(Math.random() * CONTACT_COLOR_PALETTE_20.length)
+            ];
+
+            activeClusterWaveCenter.copy(spawnPoint);
+            activeClusterWaveTime = totalTime;
+          }
+        }
+      }
+
+      function triggerCoreExplosion(totalTime) {
+        if (isExploded) return;
+        isExploded = true;
+        explosionTime = totalTime;
+
+        if (explosionPulseMesh) {
+          explosionPulseMesh.visible = true;
+          explosionPulseMesh.scale.set(0.01, 0.01, 1.0);
+        }
+
+        if (roundNebulaMesh) roundNebulaMesh.visible = true;
+
+        const maxScreenR = Math.sqrt(window.innerWidth * window.innerWidth + window.innerHeight * window.innerHeight) * 0.55;
+        for (let i = 0; i < ENERGY_ORB_COUNT; i++) {
+          energyOrbData[i].radius = 10 + Math.random() * (maxScreenR * 0.3);
+          energyOrbData[i].offX = 0;
+          energyOrbData[i].offY = 0;
+        }
+      }
+
+      function resetFullSimulation() {
+        selectedSessionContactColor = CONTACT_COLOR_PALETTE_20[0];
+        activeClusterWaveTime = -999.0;
+        unlockedClustersCount = 1;
+        baseClusterCenters[0].set(0, 0, 0);
+
+        for (let c = 0; c < MAX_CLUSTERS; c++) {
+          clusterArmProgress[c] = (c === 0) ? 1.0 : 0.0;
+          armStartPositions[c].set(0, 0, 0);
+          clusterSpawnTimes[c] = 0.0;
+        }
+
+        clock.stop();
+        clock.start();
+
+        isExploded = false;
+        explosionTime = -1.0;
+
+        if (explosionPulseMesh) explosionPulseMesh.visible = false;
+
+        if (roundNebulaMesh) {
+          roundNebulaMesh.visible = false;
+          roundNebulaMesh.scale.set(0.001, 0.001, 1.0);
+        }
+
+        initPetalPhysics();
+        generateClusterNodes();
+      }
+
+      function onMouseMove(event) {
+        mouseScreen.x = event.clientX / window.innerWidth;
+        mouseScreen.y = 1.0 - (event.clientY / window.innerHeight);
+
+        if (camera) {
+          const vector = new THREE.Vector3(
+            (event.clientX / window.innerWidth) * 2 - 1,
+            -(event.clientY / window.innerHeight) * 2 + 1,
+            0.5
+          );
+          vector.unproject(camera);
+          const dir = vector.sub(camera.position).normalize();
+          const distance = -camera.position.z / dir.z;
+          mouseWorld.copy(camera.position).add(dir.multiplyScalar(distance));
+        }
+      }
+
+      function onWindowResize() {
+        updateBgSize();
+        if (camera && mainRenderer) {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          mainRenderer.setSize(window.innerWidth, window.innerHeight);
+          updateCameraDistance();
+        }
+      }
+
+      function rotateConcentric3D(vec, rotX, rotY, rotZ) {
+        let x = vec.x, y = vec.y, z = vec.z;
+        let cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+        let y1 = y * cosX - z * sinX;
+        let z1 = y * sinX + z * cosX;
+        let cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+        let x2 = x * cosY + z1 * sinY;
+        let z2 = -x * sinY + z1 * cosY;
+        let cosZ = Math.cos(rotZ), sinZ = Math.sin(rotZ);
+        let x3 = x2 * cosZ - y1 * sinZ;
+        let y3 = x2 * sinZ + y1 * cosZ;
+        return { x: x3, y: y3, z: z2 };
+      }
+
+      function animate(timestamp) {
+        requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+        const totalTime = clock.getElapsedTime();
+
+        // Update Arm Progress
+        for (let c = 0; c < unlockedClustersCount; c++) {
+          clusterArmProgress[c] = Math.min(1.0, clusterArmProgress[c] + delta * 0.9);
+        }
+
+        // 1. Layer 1 Shibuya Magenta Background Fluid Render
+        bgUniforms.iTime.value = totalTime;
+        bgRenderer.render(bgScene, bgCamera);
+
+        if (!isSimulationRunning) return;
+
+        const isShimmerPhase = (totalTime >= SHIMMER_START_TIME && totalTime < IMPLODE_START_TIME);
+        const bounds = getVisibleBounds();
+
+        // 2. HUD Controller & Stage Descriptions
+        if (totalTime < TRANSITION_START_TIME) {
+          const rem = (TRANSITION_START_TIME - totalTime).toFixed(1);
+          hudStageElement.textContent = `STAGE 1: ${activePetalCount} SAKURA PETALS (${rem}s) [CLICK CANVAS FOR +5 PETALS]`;
+        } else if (totalTime < SHIMMER_START_TIME) {
+          const buildRem = (SHIMMER_START_TIME - totalTime).toFixed(1);
+          hudStageElement.textContent = `STAGE 2: ${unlockedClustersCount} CLUSTERS DRIFTING (${buildRem}s) [CLICK EXISTING CLUSTERS TO SPAWN NEXT]`;
+        } else if (isShimmerPhase) {
+          const shimRem = (IMPLODE_START_TIME - totalTime).toFixed(1);
+          hudStageElement.textContent = `STAGE 3: 10s PLEXUS RAINBOW SHIMMER ACTIVE (${shimRem}s UNTIL IMPLOSION)...`;
+        } else if (!isExploded) {
+          hudStageElement.textContent = `STAGE 4: COLLAPSING SLOWLY INTO CORE (10s IMPLOSION)...`;
+        } else {
+          hudStageElement.textContent = `STAGE 5: EXPLOSION SHOCKWAVE & CONTINUOUS BLUE ENERGY CORE ACTIVE`;
+        }
+
+        let activeNodesCount = 0;
+        let absorbedCount = 0;
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          if (totalTime < TRANSITION_START_TIME) {
+            nodeMorphProgress[i] = 0.0;
+          } else {
+            const nodeStaggerDelay = (i / NODE_COUNT) * 2.5;
+            const progress = Math.min(1.0, Math.max(0.0, (totalTime - TRANSITION_START_TIME - nodeStaggerDelay) / 2.0));
+            nodeMorphProgress[i] = progress;
+          }
+
+          if (nodeAbsorbed[i]) {
+            absorbedCount++;
+          } else if (nodeMorphProgress[i] > 0.05) {
+            activeNodesCount++;
+          }
+        }
+
+        // Trigger Explosion after slow 10+ sec implosion completes
+        if (totalTime >= IMPLODE_START_TIME && !isExploded) {
+          if (absorbedCount >= NODE_COUNT - 5 || totalTime >= IMPLODE_START_TIME + 12.0) {
+            triggerCoreExplosion(totalTime);
+          }
+        }
+
+
+        // 3. Update Sakura Petals: CONCENTRIC 3D FLIGHT STAYING 100% INSIDE VISIBLE SCREEN!
+        const PETAL_REPEL_RADIUS = 90.0;
+
+        let petalFadeFactor = 1.0;
+        if (totalTime >= TRANSITION_START_TIME) {
+          petalFadeFactor = Math.max(0.0, 1.0 - (totalTime - TRANSITION_START_TIME) / 3.0);
+        }
+
+        for (let i = 0; i < TOTAL_PETALS; i++) {
+          if (i >= activePetalCount || petalFadeFactor <= 0.001) {
+            dummyObject.scale.set(0, 0, 0);
+            dummyObject.updateMatrix();
+            instancedPetalMesh.setMatrixAt(i, dummyObject.matrix);
+            continue;
+          }
+
+          petalOrbitalAngle[i] += petalOrbitalSpeed[i] * delta;
+          const ang = petalOrbitalAngle[i];
+
+          const rx = petalOrbitalRadiusX[i];
+          const ry = petalOrbitalRadiusY[i];
+
+          let bx = Math.cos(ang) * rx;
+          let by = Math.sin(ang) * ry;
+          let bz = Math.sin(ang * 1.4 + petalPhaseZ[i]) * 160.0;
+
+          // 3D Tilt transformation for rich concentric spatial orbits
+          let rotated = rotateConcentric3D({ x: bx, y: by, z: bz }, petalTiltX[i], petalTiltY[i], 0);
+
+          let currentX = petalCenterOffsetX[i] + rotated.x;
+          let currentY = petalCenterOffsetY[i] + rotated.y;
+          let currentZ = rotated.z;
+
+          // Strict Viewport Containment: Petals stay 100% inside screen bounds!
+          const maxPX = bounds.maxX * 0.88;
+          const maxPY = bounds.maxY * 0.88;
+
+          if (Math.abs(currentX) > maxPX) {
+            petalCenterOffsetX[i] *= 0.94;
+            currentX = Math.sign(currentX) * maxPX;
+          }
+          if (Math.abs(currentY) > maxPY) {
+            petalCenterOffsetY[i] *= 0.94;
+            currentY = Math.sign(currentY) * maxPY;
+          }
+
+          // Interactive Cursor Repulsion
+          if (totalTime < TRANSITION_START_TIME + 2.0) {
+            const dxP = currentX - mouseWorld.x;
+            const dyP = currentY - mouseWorld.y;
+            const distP = Math.sqrt(dxP * dxP + dyP * dyP);
+
+            if (distP < PETAL_REPEL_RADIUS && distP > 0.001) {
+              const pushForce = Math.pow(1.0 - distP / PETAL_REPEL_RADIUS, 1.4) * 18.0;
+              petalPushOffsetX[i] += (dxP / distP) * pushForce;
+              petalPushOffsetY[i] += (dyP / distP) * pushForce;
+            }
+          }
+
+          petalPushOffsetX[i] *= 0.92;
+          petalPushOffsetY[i] *= 0.92;
+
+          petalRotX[i] += petalRotSpeedX[i];
+          petalRotY[i] += petalRotSpeedY[i];
+          petalRotZ[i] += petalRotSpeedZ[i];
+
+          const finalX = currentX + petalPushOffsetX[i];
+          const finalY = currentY + petalPushOffsetY[i];
+          const finalZ = currentZ;
+
+          const depthScale = (finalZ + 800) / 800;
+          const finalScale = Math.min(0.85, Math.max(0.001, petalBaseScales[i] * depthScale * petalFadeFactor));
+
+          dummyObject.position.set(finalX, finalY, finalZ);
+          dummyObject.rotation.set(petalRotX[i], petalRotY[i], petalRotZ[i]);
+          dummyObject.scale.set(finalScale, finalScale, finalScale);
+          dummyObject.updateMatrix();
+
+          instancedPetalMesh.setMatrixAt(i, dummyObject.matrix);
+        }
+        instancedPetalMesh.instanceMatrix.needsUpdate = true;
+
+
+        // 4. Update Clusters: SPAWN PRECISELY NEXT TO CLICKED CLUSTER & DRIFT ORGANICALLY!
+        if (nodePointsMesh && nodePointsMesh.material.uniforms) {
+          nodePointsMesh.material.uniforms.iTime.value = totalTime;
+        }
+
+        const nodePosAttr = nodePointsMesh.geometry.attributes.position;
+        const nodeSizeAttr = nodePointsMesh.geometry.attributes.size;
+        const nodeColorAttr = nodePointsMesh.geometry.attributes.color;
+
+        const rawNodePositions = nodePosAttr.array;
+        const rawNodeSizes = nodeSizeAttr.array;
+        const rawNodeColors = nodeColorAttr.array;
+
+        const REPEL_RADIUS = 85;
+
+        const waveDt = totalTime - activeClusterWaveTime;
+        const waveRadius = waveDt > 0 ? waveDt * 420.0 : -1.0;
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          const shell = nodeShellData[i];
+          const morphT = nodeMorphProgress[i];
+          const cIndex = shell.clusterIndex;
+
+          const clusterArmT = clusterArmProgress[cIndex];
+          const dockStart = armStartPositions[cIndex];
+
+          const tRel = Math.max(0.0, totalTime - clusterSpawnTimes[cIndex]);
+          const spawnMorph = Math.min(1.0, tRel / 0.4);
+
+          let rawDriftX = Math.sin(tRel * clusterDriftSpeedX[cIndex]) * clusterDriftAmpX[cIndex];
+          let rawDriftY = (1.0 - Math.cos(tRel * clusterDriftSpeedY[cIndex])) * clusterDriftAmpY[cIndex];
+          let rawDriftZ = Math.sin(tRel * clusterDriftSpeedZ[cIndex]) * clusterDriftAmpZ[cIndex];
+
+          let centerClampedX = Math.max(-bounds.maxX, Math.min(bounds.maxX, dockStart.x + rawDriftX));
+          let centerClampedY = Math.max(-bounds.maxY, Math.min(bounds.maxY, dockStart.y + rawDriftY));
+          let centerZ = dockStart.z + rawDriftZ;
+
+          const pulse = Math.sin(totalTime * shell.pulseFreq + shell.phase) * 5;
+
+          const rx = totalTime * shell.speedX;
+          const ry = totalTime * shell.speedY;
+          const rz = totalTime * shell.speedZ;
+
+          let localX = shell.localOffset.x * spawnMorph + pulse;
+          let localY = shell.localOffset.y * spawnMorph + pulse;
+          let localZ = shell.localOffset.z * spawnMorph;
+
+          let rotPos = rotateConcentric3D({
+            x: centerClampedX + localX,
+            y: centerClampedY + localY,
+            z: centerZ + localZ
+          }, rx, ry, rz);
+
+          rotPos.x = Math.max(-bounds.maxX - 20, Math.min(bounds.maxX + 20, rotPos.x));
+          rotPos.y = Math.max(-bounds.maxY - 20, Math.min(bounds.maxY + 20, rotPos.y));
+
+          // SLOW IMPLOSION PHASE (60s onwards): Pull nodes slowly into center (0,0,0)
+          if (totalTime >= IMPLODE_START_TIME && !nodeAbsorbed[i]) {
+            nodeImplodeProgress[i] = Math.min(1.0, nodeImplodeProgress[i] + delta * 0.085);
+
+            const dxC = rotPos.x - mouseWorld.x;
+            const dyC = rotPos.y - mouseWorld.y;
+            const distC = Math.sqrt(dxC * dxC + dyC * dyC);
+            if (distC < 130.0) {
+              const pushCenter = (1.0 - distC / 130.0) * delta * 0.8;
+              nodeImplodeProgress[i] = Math.min(1.0, nodeImplodeProgress[i] + pushCenter);
+            }
+
+            const implodeT = Math.pow(nodeImplodeProgress[i], 1.8);
+            rotPos.x = rotPos.x * (1 - implodeT);
+            rotPos.y = rotPos.y * (1 - implodeT);
+            rotPos.z = rotPos.z * (1 - implodeT);
+
+            const distOrigin = Math.sqrt(rotPos.x * rotPos.x + rotPos.y * rotPos.y + rotPos.z * rotPos.z);
+            if (distOrigin < 12.0 || implodeT >= 0.99) {
+              nodeAbsorbed[i] = 1;
+            }
+          }
+
+          const dx = rotPos.x - mouseWorld.x;
+          const dy = rotPos.y - mouseWorld.y;
+          const dist2D = Math.sqrt(dx * dx + dy * dy);
+
+          let targetContactFactor = 0.0;
+          if (totalTime < IMPLODE_START_TIME && morphT > 0.1 && dist2D < REPEL_RADIUS && dist2D > 0.001) {
+            const pushFactor = Math.pow(1.0 - dist2D / REPEL_RADIUS, 1.4) * 19.5;
+            rotPos.x += (dx / dist2D) * pushFactor;
+            rotPos.y += (dy / dist2D) * pushFactor;
+            targetContactFactor = Math.pow(1.0 - dist2D / REPEL_RADIUS, 1.2);
+          }
+
+          if (waveRadius > 0) {
+            const distWave = Math.sqrt(
+              Math.pow(rotPos.x - activeClusterWaveCenter.x, 2) +
+              Math.pow(rotPos.y - activeClusterWaveCenter.y, 2)
+            );
+            if (Math.abs(distWave - waveRadius) < 70.0) {
+              targetContactFactor = Math.max(targetContactFactor, 1.0 - Math.abs(distWave - waveRadius) / 70.0);
+            }
+          }
+
+          nodeContactFactors[i] += (targetContactFactor - nodeContactFactors[i]) * 0.2;
+          const contactT = nodeContactFactors[i];
+
+          rawNodePositions[i * 3] = rotPos.x;
+          rawNodePositions[i * 3 + 1] = rotPos.y;
+          rawNodePositions[i * 3 + 2] = rotPos.z;
+
+          transformedPositions[i * 3] = rotPos.x;
+          transformedPositions[i * 3 + 1] = rotPos.y;
+          transformedPositions[i * 3 + 2] = rotPos.z;
+
+          const rawGlowWave = Math.sin(totalTime * shell.glowSpeed + shell.glowPhase);
+          const flashGlow = Math.pow(Math.max(0.0, rawGlowWave), 6.0) * 3.2;
+          const glowFactor = 0.85 + flashGlow;
+          nodeGlowFactors[i] = glowFactor;
+
+          if (nodeAbsorbed[i] || cIndex >= unlockedClustersCount) {
+            rawNodeSizes[i] = 0;
+          } else {
+            const implodeScale = 1.0 - (nodeImplodeProgress[i] * 0.75);
+            rawNodeSizes[i] = shell.baseSize * Math.min(glowFactor, 2.6) * (1.0 + contactT * 0.4) * morphT * clusterArmT * spawnMorph * implodeScale;
+          }
+
+          let r, g, b;
+
+          // 10s RAINBOW SHIMMER PHASE (50s to 60s)
+          if (isShimmerPhase) {
+            const shimmerHue = (cIndex * 0.16 + totalTime * 0.22 + i * 0.003) % 1.0;
+            const rgb = HSLtoRGB(shimmerHue, 0.90, 0.62);
+            r = rgb.r; g = rgb.g; b = rgb.b;
+          } else {
+            const clusterT = (cIndex % 6) / 5.0;
+            r = COLOR_HOT_PINK.r * (1 - clusterT) + COLOR_SOFT_PINK.r * clusterT;
+            g = COLOR_HOT_PINK.g * (1 - clusterT) + COLOR_SOFT_PINK.g * clusterT;
+            b = COLOR_HOT_PINK.b * (1 - clusterT) + COLOR_SOFT_PINK.b * clusterT;
+          }
+
+          const implodeT = nodeImplodeProgress[i];
+          if (implodeT > 0.01) {
+            r = r * (1 - implodeT) + 0.9 * implodeT;
+            g = g * (1 - implodeT) + 0.85 * implodeT;
+            b = b * (1 - implodeT) + 1.0 * implodeT;
+          } else if (contactT > 0.01 && !isShimmerPhase) {
+            r = r * (1 - contactT) + selectedSessionContactColor.r * contactT;
+            g = g * (1 - contactT) + selectedSessionContactColor.g * contactT;
+            b = b * (1 - contactT) + selectedSessionContactColor.b * contactT;
+          }
+
+          const activeScale = morphT * clusterArmT * spawnMorph;
+          rawNodeColors[i * 3] = r * Math.min(glowFactor + contactT * 0.6, 2.0) * activeScale;
+          rawNodeColors[i * 3 + 1] = g * Math.min(glowFactor + contactT * 0.6, 2.0) * activeScale;
+          rawNodeColors[i * 3 + 2] = b * Math.min(glowFactor + contactT * 0.6, 2.0) * activeScale;
+        }
+
+        nodePosAttr.needsUpdate = true;
+        nodeSizeAttr.needsUpdate = true;
+        nodeColorAttr.needsUpdate = true;
+
+
+        // 5. Dynamic Lines: Connecting & Dissolving Lines Based On Real-Time 3D Distance!
+        const lineGeo = lineSegmentsMesh.geometry;
+        const linePosAttr = lineGeo.attributes.position;
+        const lineColorAttr = lineGeo.attributes.color;
+
+        const linePositions = linePosAttr.array;
+        const lineColors = lineColorAttr.array;
+
+        let activeLineCount = 0;
+        let lineVertexCount = 0;
+
+        const connectionCounts = new Uint8Array(NODE_COUNT);
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          const cIndex1 = nodeClusterAssignment[i];
+          if (cIndex1 >= unlockedClustersCount) continue;
+
+          const morph1 = nodeMorphProgress[i] * clusterArmProgress[cIndex1];
+          if (nodeAbsorbed[i] || morph1 < 0.05 || connectionCounts[i] >= MAX_CONNECTIONS_PER_NODE) continue;
+
+          const x1 = transformedPositions[i * 3];
+          const y1 = transformedPositions[i * 3 + 1];
+          const z1 = transformedPositions[i * 3 + 2];
+          const glow1 = nodeGlowFactors[i];
+          const contact1 = nodeContactFactors[i];
+
+          for (let j = i + 1; j < NODE_COUNT; j++) {
+            const cIndex2 = nodeClusterAssignment[j];
+            if (cIndex2 >= unlockedClustersCount) continue;
+
+            const morph2 = nodeMorphProgress[j] * clusterArmProgress[cIndex2];
+            if (nodeAbsorbed[j] || morph2 < 0.05 || connectionCounts[j] >= MAX_CONNECTIONS_PER_NODE) continue;
+            if (activeLineCount >= MAX_LINES) break;
+
+            const x2 = transformedPositions[j * 3];
+            const y2 = transformedPositions[j * 3 + 1];
+            const z2 = transformedPositions[j * 3 + 2];
+            const glow2 = nodeGlowFactors[j];
+            const contact2 = nodeContactFactors[j];
+
+            const dx = x1 - x2;
+            const dy = y1 - y2;
+            const dz = z1 - z2;
+            const distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq < MAX_CONNECT_DIST * MAX_CONNECT_DIST) {
+              const dist = Math.sqrt(distSq);
+              const baseAlpha = Math.pow(1.0 - dist / MAX_CONNECT_DIST, 1.2);
+              const lineGlow = (glow1 + glow2) * 0.5;
+              const lineContact = Math.max(contact1, contact2);
+              const morphFactor = Math.min(1.0, morph1 * morph2);
+
+              const implodeFade = 1.0 - Math.max(nodeImplodeProgress[i], nodeImplodeProgress[j]);
+              const lineBrightness = Math.max(0.45, Math.min(1.0, baseAlpha * lineGlow * 1.2)) * morphFactor * implodeFade;
+
+              let lr, lg, lb;
+
+              if (isShimmerPhase) {
+                const lineHue = ((cIndex1 + cIndex2) * 0.08 + totalTime * 0.22 + (i + j) * 0.002) % 1.0;
+                const rgb = HSLtoRGB(lineHue, 0.90, 0.62);
+                lr = rgb.r; lg = rgb.g; lb = rgb.b;
+              } else {
+                const c1 = (cIndex1 % 6) / 5.0;
+                const c2 = (cIndex2 % 6) / 5.0;
+                const lineT = (c1 + c2) * 0.5;
+                lr = COLOR_HOT_PINK.r * (1 - lineT) + COLOR_SOFT_PINK.r * lineT;
+                lg = COLOR_HOT_PINK.g * (1 - lineT) + COLOR_SOFT_PINK.g * lineT;
+                lb = COLOR_HOT_PINK.b * (1 - lineT) + COLOR_SOFT_PINK.b * lineT;
+
+                if (lineContact > 0.01) {
+                  lr = lr * (1 - lineContact) + selectedSessionContactColor.r * lineContact;
+                  lg = lg * (1 - lineContact) + selectedSessionContactColor.g * lineContact;
+                  lb = lb * (1 - lineContact) + selectedSessionContactColor.b * lineContact;
+                }
+              }
+
+              const finalR = lr * lineBrightness * 1.5;
+              const finalG = lg * lineBrightness * 1.5;
+              const finalB = lb * lineBrightness * 1.5;
+
+              linePositions[lineVertexCount * 3] = x1;
+              linePositions[lineVertexCount * 3 + 1] = y1;
+              linePositions[lineVertexCount * 3 + 2] = z1;
+
+              lineColors[lineVertexCount * 3] = finalR;
+              lineColors[lineVertexCount * 3 + 1] = finalG;
+              lineColors[lineVertexCount * 3 + 2] = finalB;
+              lineVertexCount++;
+
+              linePositions[lineVertexCount * 3] = x2;
+              linePositions[lineVertexCount * 3 + 1] = y2;
+              linePositions[lineVertexCount * 3 + 2] = z2;
+
+              lineColors[lineVertexCount * 3] = finalR;
+              lineColors[lineVertexCount * 3 + 1] = finalG;
+              lineColors[lineVertexCount * 3 + 2] = finalB;
+              lineVertexCount++;
+
+              activeLineCount++;
+              connectionCounts[i]++;
+              connectionCounts[j]++;
+            }
+          }
+        }
+
+        linePosAttr.needsUpdate = true;
+        lineColorAttr.needsUpdate = true;
+
+        lineGeo.setDrawRange(0, lineVertexCount);
+        lineSegmentsGlowMesh.geometry.setDrawRange(0, lineVertexCount);
+
+
+        // 6. Update Stage 6: Dramatic Explosion Shockwave Pulse & Continuous Blue Energy Core Emission
+        if (isExploded) {
+          const dtExplosion = totalTime - explosionTime;
+
+          if (explosionPulseMesh && dtExplosion <= 0.8) {
+            explosionPulseMesh.visible = true;
+            const progress = dtExplosion / 0.8;
+            explosionPulseMesh.material.uniforms.uProgress.value = progress;
+            const scaleVal = 0.01 + progress * 1.45;
+            explosionPulseMesh.scale.set(scaleVal, scaleVal, 1.0);
+          } else if (explosionPulseMesh) {
+            explosionPulseMesh.visible = false;
+          }
+
+          if (roundNebulaMesh && dtExplosion > 0.15) {
+            roundNebulaMesh.visible = true;
+            if (roundNebulaMesh.material.uniforms) {
+              roundNebulaMesh.material.uniforms.iTime.value = totalTime;
+            }
+            const fadeInCore = Math.min(1.0, (dtExplosion - 0.15) / 0.6);
+            const pulseGas = (400.0 + 35.0 * Math.sin(totalTime * 1.8)) * fadeInCore;
+            roundNebulaMesh.scale.set(pulseGas / 420.0, pulseGas / 420.0, 1.0);
+          }
+
+          if (dtExplosion > 0.2) {
+            const orbGeo = energyOrbsPointsMesh.geometry;
+            const orbPosAttr = orbGeo.attributes.position;
+            const orbColorAttr = orbGeo.attributes.color;
+            const orbSizeAttr = orbGeo.attributes.size;
+
+            const oPositions = orbPosAttr.array;
+            const oColors = orbColorAttr.array;
+            const oSizes = orbSizeAttr.array;
+
+            const REPEL_ORB = 110.0;
+            const fadeInParticles = Math.min(1.0, (dtExplosion - 0.2) / 0.8);
+
+            for (let i = 0; i < ENERGY_ORB_COUNT; i++) {
+              const p = energyOrbData[i];
+
+              p.radius += p.speed * delta;
+              if (p.radius > p.maxRadius) {
+                p.radius = 8.0 + Math.random() * 15.0;
+                p.angle = Math.random() * Math.PI * 2;
+              }
+
+              const twirl = Math.sin(totalTime * 0.2 + p.radius * 0.003) * 0.25;
+              const currAngle = p.angle + twirl;
+
+              const baseX = Math.cos(currAngle) * p.radius;
+              const baseY = Math.sin(currAngle) * p.radius;
+              const baseZ = p.zDepth + Math.sin(currAngle * 2.0) * (p.radius * 0.2);
+
+              const currentPosX = baseX + p.offX;
+              const currentPosY = baseY + p.offY;
+
+              const dx = currentPosX - mouseWorld.x;
+              const dy = currentPosY - mouseWorld.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist < REPEL_ORB && dist > 0.001) {
+                const pushForce = Math.pow(1.0 - dist / REPEL_ORB, 1.5) * 28.0;
+                p.offX += (dx / dist) * pushForce;
+                p.offY += (dy / dist) * pushForce;
+              }
+
+              p.offX *= 0.92;
+              p.offY *= 0.92;
+
+              oPositions[i * 3] = baseX + p.offX;
+              oPositions[i * 3 + 1] = baseY + p.offY;
+              oPositions[i * 3 + 2] = baseZ;
+
+              const sparkle = 0.75 + 0.35 * Math.sin(totalTime * p.sparkleFreq + p.sparklePhase);
+              oSizes[i] = p.baseSize * sparkle * fadeInParticles;
+
+              oColors[i * 3] = p.color.r * sparkle;
+              oColors[i * 3 + 1] = p.color.g * sparkle;
+              oColors[i * 3 + 2] = p.color.b * sparkle;
+            }
+
+            orbPosAttr.needsUpdate = true;
+            orbColorAttr.needsUpdate = true;
+            orbSizeAttr.needsUpdate = true;
+
+            if (energyOrbsPointsMesh.material.uniforms) {
+              energyOrbsPointsMesh.material.uniforms.iTime.value = totalTime;
+            }
+
+            orbGeo.setDrawRange(0, ENERGY_ORB_COUNT);
+          }
+        } else {
+          energyOrbsPointsMesh.geometry.setDrawRange(0, 0);
+        }
+
+        // 7. Render Main 3D Scene
+        mainRenderer.render(mainScene, camera);
+
+        // 8. FPS Counter
+        frameCount++;
+        if (timestamp - lastTime >= 1000) {
+          currentFps = Math.round((frameCount * 1000) / (timestamp - lastTime));
+          frameCount = 0;
+          lastTime = timestamp;
+          statsElement.textContent = `${currentFps} FPS | PETALS: ${activePetalCount} | CLUSTERS: ${unlockedClustersCount} DRIFTING | NODES: ${activeNodesCount}`;
+        }
+      }
+
+      // Safe initialization trigger
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+      } else {
+        initApp();
+      }
+    })();
+  </script>
+</body>
+
+</html>

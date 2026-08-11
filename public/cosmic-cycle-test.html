@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmic Cycle Test // Central Bright Core Orb & Gaseous Nebula</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body,
+    html {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #030008;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    #webgl-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    #webgl-container canvas {
+      display: block;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+
+    /* Glassmorphism HUD Overlay */
+    .hud-overlay {
+      position: fixed;
+      top: 24px;
+      left: 28px;
+      z-index: 10;
+      pointer-events: none;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hud-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: rgba(78, 226, 236, 0.95);
+      text-shadow: 0 0 16px rgba(0, 160, 255, 0.8);
+    }
+
+    .hud-stats {
+      font-size: 11px;
+      color: rgba(255, 105, 180, 0.95);
+      font-family: monospace;
+    }
+
+    /* Glassmorphism Control Panel */
+    .panel {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 20px;
+      background: rgba(12, 18, 32, 0.80);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(78, 226, 236, 0.4);
+      border-radius: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 160, 255, 0.25);
+    }
+
+    .btn {
+      padding: 8px 18px;
+      background: rgba(0, 160, 255, 0.15);
+      border: 1px solid rgba(78, 226, 236, 0.6);
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .btn:hover {
+      background: rgba(78, 226, 236, 0.35);
+      border-color: rgba(255, 105, 180, 0.8);
+      color: #ff69b4;
+      transform: translateY(-1px);
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .slider-group input {
+      accent-color: #4ee2ec;
+      cursor: pointer;
+      width: 90px;
+    }
+  </style>
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+
+  <div id="webgl-container"></div>
+
+  <div class="hud-overlay">
+    <div class="hud-title">COSMIC CYCLE TEST // CENTRAL BRIGHT CORE ORB</div>
+    <div>SMOOTH BRIGHT FUSION ORB & SEAMLESS GASEOUS NEBULA</div>
+    <div class="hud-stats" id="stats">60 FPS | ENERGY ORBS: 1200</div>
+  </div>
+
+  <div class="panel">
+    <button class="btn" id="playBtn">PAUSE</button>
+    <button class="btn" id="resetBtn">RESET ORBS</button>
+    <div class="slider-group">
+      <span>SPEED:</span>
+      <input type="range" id="speedSlider" min="0.1" max="3.0" step="0.1" value="1.0">
+      <span id="speedVal">1.0x</span>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const ORB_COUNT = 1200;
+
+      let scene, camera, renderer;
+      let roundNebulaMesh;
+      let energyOrbsPointsMesh;
+
+      let orbData = [];
+
+      // Buffer attributes
+      let orbPositions = new Float32Array(ORB_COUNT * 3);
+      let orbColors = new Float32Array(ORB_COUNT * 3);
+      let orbSizes = new Float32Array(ORB_COUNT);
+      let orbPhases = new Float32Array(ORB_COUNT);
+
+      // Mouse tracking
+      let mouseScreen = new THREE.Vector2(-9999, -9999);
+      let mouseWorld = new THREE.Vector3(-9999, -9999, 0);
+
+      let isPlaying = true;
+      let timeSpeed = 1.0;
+      let totalTime = 0.0;
+      let clock = new THREE.Clock();
+
+      let lastFrameTime = performance.now();
+      let frameCount = 0;
+      const statsElem = document.getElementById('stats');
+      const playBtn = document.getElementById('playBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const speedSlider = document.getElementById('speedSlider');
+      const speedVal = document.getElementById('speedVal');
+
+      // Shader 1: Background Volumetric Space Shader
+      const bgVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `;
+
+      const bgFragmentShader = `
+        uniform vec3 iResolution;
+        uniform float iTime;
+
+        void main() {
+            vec2 uv = gl_FragCoord.xy / iResolution.xy;
+            float d = length(uv - 0.5);
+            vec3 col = mix(vec3(0.04, 0.00, 0.08), vec3(0.00, 0.02, 0.06), d * 1.5);
+            col += vec3(0.12, 0.00, 0.20) * (0.5 + 0.5 * sin(iTime * 0.3 - d * 3.5));
+            gl_FragColor = vec4(col, 1.0);
+        }
+      `;
+
+      // Shader 2: CENTRAL BRIGHT CORE ORB & SEAMLESS GASEOUS NEBULA (No spiky rays!)
+      const roundNebulaVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `;
+
+      const roundNebulaFragmentShader = `
+        uniform float iTime;
+        varying vec2 vUv;
+
+        float hash(vec2 p) {
+            p = fract(p * vec2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return fract(p.x * p.y);
+        }
+
+        float noise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f*f*(3.0-2.0*f);
+            return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
+                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+        }
+
+        float fbm(vec2 p) {
+            float v = 0.0;
+            float a = 0.5;
+            vec2 shift = vec2(100.0);
+            mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+            for (int i = 0; i < 5; ++i) {
+                v += a * noise(p);
+                p = rot * p * 2.0 + shift;
+                a *= 0.5;
+            }
+            return v;
+        }
+
+        void main() {
+            vec2 p = vUv - vec2(0.5);
+            float d = length(p);
+
+            // 1. Radial Boundary Mask (Zero square corner artifacts!)
+            float circleMask = smoothstep(0.48, 0.12, d);
+
+            // 2. Small Bright Fusion Core Orb at Center (Exponential Inverse Decay)
+            float coreOrbRadius = 0.09;
+            float coreOrbLuminance = 1.0 / (1.0 + pow(d / coreOrbRadius, 2.6));
+            vec3 colHotWhiteCore = vec3(1.0, 1.0, 1.0) * pow(coreOrbLuminance, 1.8);
+
+            // 3. Fluid Domain Warping Gas Core (No spiky ray beams!)
+            vec2 q = vec2(fbm(p * 3.2 + vec2(0.0, iTime * 0.12)),
+                          fbm(p * 3.2 + vec2(5.2, 1.3 - iTime * 0.08)));
+
+            vec2 r = vec2(fbm(p * 3.2 + 2.8 * q + vec2(1.7, 9.2) + iTime * 0.15),
+                          fbm(p * 3.2 + 2.8 * q + vec2(8.3, 2.8) - iTime * 0.12));
+
+            float blueGasVal = fbm(p * 3.2 + 3.5 * r);
+            float radialFalloff = exp(-d * 3.2);
+
+            // 4. Variable Smoky Magenta Outer Veil
+            float magentaSmoke = fbm(p * 2.4 - r * 2.0 + vec2(iTime * 0.1, -iTime * 0.15));
+            float magentaRingMask = smoothstep(0.10, 0.36, d) * smoothstep(0.48, 0.25, d);
+            float magentaTendrilVal = magentaSmoke * magentaRingMask;
+
+            // 5. Harmonious Color Palette
+            vec3 colElectricCyan = vec3(0.25, 0.90, 1.00);
+            vec3 colSapphireBlue = vec3(0.00, 0.30, 0.88);
+            vec3 colSmokyMagenta = vec3(1.00, 0.15, 0.65);
+
+            // Blend Blue Gas Core
+            vec3 col = mix(colSapphireBlue, colElectricCyan, smoothstep(0.12, 0.65, blueGasVal * radialFalloff));
+
+            // Seamlessly fuse small bright central core orb
+            col += colHotWhiteCore * 1.7;
+
+            // Seamlessly fuse with outer smoky magenta veil
+            col = mix(col, colSmokyMagenta * 1.3, magentaTendrilVal * 0.85);
+
+            float totalDensity = (blueGasVal * radialFalloff + magentaTendrilVal * 0.65 + coreOrbLuminance * 0.85) * circleMask;
+            float alpha = smoothstep(0.01, 0.75, totalDensity) * circleMask * 1.6;
+
+            gl_FragColor = vec4(col * 1.45, alpha);
+        }
+      `;
+
+      // Shader 3: Pure Volumetric Energy Orb Point Shader
+      const energyOrbVertexShader = `
+        attribute float size;
+        attribute vec3 color;
+        attribute float phase;
+        varying vec3 vColor;
+        varying float vPhase;
+
+        void main() {
+          vColor = color;
+          vPhase = phase;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (520.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `;
+
+      const energyOrbFragmentShader = `
+        uniform float iTime;
+        varying vec3 vColor;
+        varying float vPhase;
+
+        void main() {
+          vec2 p = gl_PointCoord - vec2(0.5);
+          float d = length(p);
+
+          if (d > 0.5) discard;
+
+          // Inverse-decay radial luminance
+          float coreLum = 1.0 / (1.0 + d * 12.0);
+          coreLum = pow(coreLum, 2.5);
+
+          // 4-Point Star Flare Peak
+          vec2 av1 = abs(p);
+          float starPattern = max(0.0, 1.0 - (av1.x * av1.y) * 900.0);
+          starPattern = pow(starPattern, 4.0);
+
+          float sparkle = 0.75 + 0.35 * sin(iTime * 4.0 + vPhase);
+          float alpha = (coreLum + starPattern * 0.8) * sparkle;
+
+          vec3 finalColor = vColor * (coreLum * 1.8 + starPattern * 1.2);
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      function init() {
+        const container = document.getElementById('webgl-container');
+
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3500);
+        camera.position.set(0, 0, 600);
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x030008, 1.0);
+        container.appendChild(renderer.domElement);
+
+        // 1. Background Mesh
+        const bgMat = new THREE.ShaderMaterial({
+          vertexShader: bgVertexShader,
+          fragmentShader: bgFragmentShader,
+          uniforms: {
+            iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
+            iTime: { value: 0 }
+          },
+          depthWrite: false,
+          depthTest: false
+        });
+        const bgPlane = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), bgMat);
+        bgPlane.position.z = -1200;
+        scene.add(bgPlane);
+
+        // 2. Setup ROUND CORE WITH SMALL BRIGHT CORE ORB (No spiky rays!)
+        setupRoundNebula();
+
+        // 3. Setup Streaming Translucent Energy Orbs & Flares
+        setupEnergyOrbsSystem();
+
+        window.addEventListener('resize', onWindowResize, false);
+        window.addEventListener('mousemove', onMouseMove, false);
+
+        playBtn.addEventListener('click', () => {
+          isPlaying = !isPlaying;
+          playBtn.textContent = isPlaying ? 'PAUSE' : 'PLAY';
+        });
+
+        resetBtn.addEventListener('click', () => {
+          totalTime = 0.0;
+          resetOrbPositions();
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+          timeSpeed = parseFloat(e.target.value);
+          speedVal.textContent = timeSpeed.toFixed(1) + 'x';
+        });
+
+        animate(0);
+      }
+
+      function setupRoundNebula() {
+        const gasGeo = new THREE.PlaneGeometry(420, 420);
+        const gasMat = new THREE.ShaderMaterial({
+          vertexShader: roundNebulaVertexShader,
+          fragmentShader: roundNebulaFragmentShader,
+          uniforms: {
+            iTime: { value: 0 }
+          },
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        roundNebulaMesh = new THREE.Mesh(gasGeo, gasMat);
+        scene.add(roundNebulaMesh);
+      }
+
+      function setupEnergyOrbsSystem() {
+        orbData = [];
+        const maxScreenR = Math.sqrt(window.innerWidth * window.innerWidth + window.innerHeight * window.innerHeight) * 0.55;
+
+        const palette = [
+          { r: 0.30, g: 0.92, b: 1.00 }, // Electric Cyan
+          { r: 0.00, g: 0.65, b: 1.00 }, // Azure Sapphire
+          { r: 0.75, g: 0.95, b: 1.00 }, // Ice Blue
+          { r: 1.00, g: 0.40, b: 0.85 }, // Rose Accent
+          { r: 1.00, g: 0.95, b: 0.80 }  // Warm Diamond White
+        ];
+
+        for (let i = 0; i < ORB_COUNT; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = 10 + Math.random() * maxScreenR;
+          const speed = 25.0 + Math.random() * 65.0;
+          const col = palette[Math.floor(Math.random() * palette.length)];
+
+          orbData.push({
+            angle: angle,
+            radius: radius,
+            maxRadius: maxScreenR * (0.85 + Math.random() * 0.3),
+            speed: speed,
+            zDepth: (Math.random() - 0.5) * 350,
+            baseSize: 14.0 + Math.random() * 22.0,
+            sparkleFreq: 1.5 + Math.random() * 3.5,
+            sparklePhase: Math.random() * Math.PI * 2,
+            color: col,
+            offX: 0.0,
+            offY: 0.0
+          });
+
+          orbPhases[i] = orbData[i].sparklePhase;
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(orbPositions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(orbColors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(orbSizes, 1));
+        geometry.setAttribute('phase', new THREE.BufferAttribute(orbPhases, 1));
+
+        const material = new THREE.ShaderMaterial({
+          uniforms: {
+            iTime: { value: 0 }
+          },
+          vertexShader: energyOrbVertexShader,
+          fragmentShader: energyOrbFragmentShader,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        energyOrbsPointsMesh = new THREE.Points(geometry, material);
+        scene.add(energyOrbsPointsMesh);
+      }
+
+      function resetOrbPositions() {
+        const maxScreenR = Math.sqrt(window.innerWidth * window.innerWidth + window.innerHeight * window.innerHeight) * 0.55;
+        for (let i = 0; i < ORB_COUNT; i++) {
+          orbData[i].radius = 10 + Math.random() * maxScreenR;
+          orbData[i].offX = 0;
+          orbData[i].offY = 0;
+        }
+      }
+
+      function onMouseMove(e) {
+        mouseScreen.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseScreen.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        if (camera) {
+          const vector = new THREE.Vector3(mouseScreen.x, mouseScreen.y, 0.5);
+          vector.unproject(camera);
+          const dir = vector.sub(camera.position).normalize();
+          const distance = -camera.position.z / dir.z;
+          mouseWorld.copy(camera.position).add(dir.multiplyScalar(distance));
+        }
+      }
+
+      function onWindowResize() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+
+      function animate(timestamp) {
+        requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+
+        if (isPlaying) {
+          totalTime += delta * timeSpeed;
+        }
+
+        // 1. Update Round Core & Central Bright Core Orb Shader Uniforms
+        if (roundNebulaMesh && roundNebulaMesh.material.uniforms) {
+          roundNebulaMesh.material.uniforms.iTime.value = totalTime;
+          const pulseGas = 400.0 + 35.0 * Math.sin(totalTime * 1.8);
+          roundNebulaMesh.scale.set(pulseGas / 420.0, pulseGas / 420.0, 1.0);
+        }
+
+        // 2. Update Streaming Translucent Energy Orbs & Cursor Repulsion Physics
+        const REPEL_RADIUS = 110.0;
+
+        for (let i = 0; i < ORB_COUNT; i++) {
+          const p = orbData[i];
+
+          if (isPlaying) {
+            p.radius += p.speed * delta * timeSpeed;
+            if (p.radius > p.maxRadius) {
+              p.radius = 10.0 + Math.random() * 20.0;
+              p.angle = Math.random() * Math.PI * 2;
+            }
+          }
+
+          // Outflow 3D Trajectory
+          const twirl = Math.sin(totalTime * 0.2 + p.radius * 0.003) * 0.25;
+          const currAngle = p.angle + twirl;
+
+          const baseX = Math.cos(currAngle) * p.radius;
+          const baseY = Math.sin(currAngle) * p.radius;
+          const baseZ = p.zDepth + Math.sin(currAngle * 2.0) * (p.radius * 0.2);
+
+          const currentPosX = baseX + p.offX;
+          const currentPosY = baseY + p.offY;
+
+          // Mouse Deflection Physics
+          const dx = currentPosX - mouseWorld.x;
+          const dy = currentPosY - mouseWorld.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < REPEL_RADIUS && dist > 0.001) {
+            const pushForce = Math.pow(1.0 - dist / REPEL_RADIUS, 1.5) * 28.0;
+            p.offX += (dx / dist) * pushForce;
+            p.offY += (dy / dist) * pushForce;
+          }
+
+          p.offX *= 0.92;
+          p.offY *= 0.92;
+
+          const finalX = baseX + p.offX;
+          const finalY = baseY + p.offY;
+          const finalZ = baseZ;
+
+          orbPositions[i * 3] = finalX;
+          orbPositions[i * 3 + 1] = finalY;
+          orbPositions[i * 3 + 2] = finalZ;
+
+          const sparkle = 0.75 + 0.35 * Math.sin(totalTime * p.sparkleFreq + p.sparklePhase);
+          orbSizes[i] = p.baseSize * sparkle;
+
+          orbColors[i * 3] = p.color.r * sparkle;
+          orbColors[i * 3 + 1] = p.color.g * sparkle;
+          orbColors[i * 3 + 2] = p.color.b * sparkle;
+        }
+
+        const geo = energyOrbsPointsMesh.geometry;
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.color.needsUpdate = true;
+        geo.attributes.size.needsUpdate = true;
+
+        if (energyOrbsPointsMesh.material.uniforms) {
+          energyOrbsPointsMesh.material.uniforms.iTime.value = totalTime;
+        }
+
+        renderer.render(scene, camera);
+
+        // Stats calculation
+        frameCount++;
+        if (timestamp - lastFrameTime >= 1000) {
+          const fps = Math.round((frameCount * 1000) / (timestamp - lastFrameTime));
+          frameCount = 0;
+          lastFrameTime = timestamp;
+          statsElem.textContent = `${fps} FPS | BRIGHT CORE ORB & NEBULA: ${ORB_COUNT}`;
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+
+</html>

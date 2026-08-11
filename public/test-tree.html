@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Sakura Gitterbaum - Shibuya Sakura Stage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: #0c0209;
+      color: #f8f1f5;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    .hud {
+      position: absolute;
+      top: 30px;
+      left: 30px;
+      z-index: 10;
+      pointer-events: none;
+      max-width: 450px;
+    }
+    .hud h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      background: linear-gradient(45deg, #ffd1df, #ff007f);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 5px;
+    }
+    .hud p {
+      font-size: 13px;
+      font-weight: 300;
+      color: #bfaab6;
+      line-height: 1.6;
+      letter-spacing: 0.08em;
+    }
+    .panel {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      z-index: 10;
+      background: rgba(26, 8, 20, 0.45);
+      border: 1px solid rgba(255, 20, 147, 0.15);
+      border-radius: 12px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      width: 320px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    }
+    .panel h2 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 15px;
+      color: #ffd1dc;
+      border-bottom: 1px dashed rgba(255, 20, 147, 0.2);
+      padding-bottom: 8px;
+    }
+    .control-group {
+      margin-bottom: 15px;
+    }
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+    .control-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #d1b8c8;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .control-label span.value {
+      font-family: monospace;
+      color: #ff007f;
+      font-weight: 600;
+    }
+    input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      height: 4px;
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ff007f;
+      cursor: pointer;
+      box-shadow: 0 0 8px #ff007f;
+      transition: background 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: #ff4da6;
+    }
+    .play-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .btn {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(255, 0, 127, 0.2) 0%, rgba(255, 0, 127, 0.05) 100%);
+      border: 1px solid rgba(255, 0, 127, 0.4);
+      color: #f8f1f5;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .btn:hover {
+      background: linear-gradient(135deg, rgba(255, 0, 127, 0.4) 0%, rgba(255, 0, 127, 0.1) 100%);
+      border-color: #ff007f;
+      box-shadow: 0 0 10px rgba(255, 0, 127, 0.35);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: none;
+    }
+    .help-tooltip {
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      z-index: 10;
+      font-size: 11px;
+      color: rgba(209, 184, 200, 0.5);
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <div class="hud">
+    <h1>Sakura Gitterbaum</h1>
+    <p>Interaktive Kunstinstallation inspiriert vom Shibuya Sakura Stage. Pflanze Laser-Gitterbäume, erlebe die Transformation in die reale Form und interagiere mit fallenden Kirschblüten.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Timeline & Phasen</h2>
+    
+      <div class="control-group">
+      <div class="control-label">
+        <span>Timeline (0 - 40s)</span>
+        <span id="time-val" class="value">0.00s</span>
+      </div>
+      <input type="range" id="timeline" min="0" max="4000" value="0">
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>Zustand</span>
+        <span id="phase-text" class="value" style="color: #ffd1dc;">Kein Wachstum</span>
+      </div>
+    </div>
+
+    <div class="play-controls">
+      <button class="btn" id="btn-play">Abspielen</button>
+      <button class="btn btn-secondary" id="btn-reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="help-tooltip">
+    Kamera ist fixiert | Phase 1 (0-10s): Hover über Blüten bringt sie zum Platzen | Phase 2 (10-30s): Klicke Kreise zum Pflanzen | Phase 4 (35-40s): Klicke Baumkronen
+  </div>
+
+  <!-- Import maps polyfill -->
+  <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Scene variables
+    let scene, camera, renderer, controls;
+    let clock;
+    let isPlaying = false;
+    let timelineVal = 0.0;
+
+    // UI Elements
+    const timelineSlider = document.getElementById('timeline');
+    const timeValLabel = document.getElementById('time-val');
+    const phaseTextLabel = document.getElementById('phase-text');
+    const playBtn = document.getElementById('btn-play');
+    const resetBtn = document.getElementById('btn-reset');
+
+    // Constants
+    const TRUNK_HEIGHT = 1.35;
+    const TOTAL_DURATION = 40.0;
+
+    // Flying Blossoms Phase 1 & 2
+    const flyingBlossoms = [];
+    const maxBlossomsCount = 50;
+    let flyingPetalMat;
+
+    // Pop Particles
+    const particlesPool = [];
+    const maxParticles = 300;
+    let particleGeo, particleMat;
+
+    // Wind Petals
+    const windPetalsPool = [];
+    const maxWindPetals = 150;
+    let windPetalMat;
+
+    // Ground Shockwaves
+    const shockwaves = [];
+
+    // Shared Geometries
+    let petalGeo, ledGeo, stamenCylGeo, filamentMat, antherGeo, antherMat, ovaryGeo, ovaryMat;
+
+    // Base materials for trees (cloned per tree)
+    let metalMat, rodMat, ledMat, petalMat;
+
+    // Slots on the ground
+    const slots = [
+      { id: 0, pos: new THREE.Vector3(-1.8, 0, -1.2), mesh: null, tree: null },
+      { id: 1, pos: new THREE.Vector3(0.0, 0, -1.6), mesh: null, tree: null },
+      { id: 2, pos: new THREE.Vector3(1.8, 0, -1.2), mesh: null, tree: null },
+      { id: 3, pos: new THREE.Vector3(-1.4, 0, 0.4), mesh: null, tree: null },
+      { id: 4, pos: new THREE.Vector3(0.0, 0, 0.8), mesh: null, tree: null },
+      { id: 5, pos: new THREE.Vector3(1.4, 0, 0.4), mesh: null, tree: null }
+    ];
+
+    // Raycasting & Mouse tracking
+    const mouse = new THREE.Vector2(-9999, -9999);
+    const raycaster = new THREE.Raycaster();
+
+    init();
+    animate();
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.3;
+      container.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0108);
+      scene.fog = new THREE.FogExp2(0x0a0108, 0.22);
+
+      camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 3.2, 5.5);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxDistance = 8;
+      controls.minDistance = 1.5;
+      controls.target.set(0, 0.8, 0);
+      controls.enabled = false; // Disable camera interaction!
+
+      clock = new THREE.Clock();
+
+      // Lighting Setup
+      scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+      const hemisphereLight = new THREE.HemisphereLight(0xffc5df, 0x12030f, 0.55);
+      scene.add(hemisphereLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+      dirLight.position.set(4, 5, 4);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.bias = -0.0005;
+      scene.add(dirLight);
+
+      // Subtle warm pink glow point light in the canopy center
+      const corePointLight = new THREE.PointLight(0xff007f, 3.0, 3.5, 1.2);
+      corePointLight.position.set(0, TRUNK_HEIGHT + 0.3, 0);
+      scene.add(corePointLight);
+
+      // Initialize Shared Geometries
+      petalGeo = createPetalGeometry();
+      ledGeo = new THREE.SphereGeometry(0.018, 8, 8);
+      stamenCylGeo = new THREE.CylinderGeometry(0.024, 0.024, 0.24, 4);
+      stamenCylGeo.translate(0, 0.12, 0);
+      filamentMat = new THREE.MeshStandardMaterial({ color: 0xff3b9d, roughness: 0.4 });
+      antherGeo = new THREE.SphereGeometry(0.225, 8, 8);
+      antherMat = new THREE.MeshStandardMaterial({
+        color: 0xfff500,
+        emissive: 0xffcc00,
+        emissiveIntensity: 4.5,
+        roughness: 0.2
+      });
+      ovaryGeo = new THREE.SphereGeometry(0.18, 6, 6, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      ovaryMat = new THREE.MeshStandardMaterial({ color: 0x90e050, roughness: 0.5 });
+
+      // Base Tree Materials
+      metalMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.16,
+        metalness: 0.72,
+        roughness: 0.1,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.05
+      });
+      rodMat = new THREE.MeshStandardMaterial({
+        color: 0xfff0f7,
+        emissive: 0xff2b88,
+        emissiveIntensity: 0.45,
+        roughness: 0.20,
+        metalness: 0.08
+      });
+      ledMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xff0066,
+        emissiveIntensity: 4.0,
+        roughness: 0.1
+      });
+      petalMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffd1df,
+        emissive: 0xff5c8a,
+        emissiveIntensity: 0.15,
+        roughness: 0.30,
+        metalness: 0.05,
+        clearcoat: 0.4,
+        clearcoatRoughness: 0.2,
+        transmission: 0.25,
+        thickness: 0.06,
+        side: THREE.DoubleSide
+      });
+
+      // Flying blossoms setup
+      flyingPetalMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        emissive: 0xff00aa,
+        emissiveIntensity: 12.0, // Richtig hell leuchtend!
+        roughness: 0.2,
+        metalness: 0.05,
+        side: THREE.DoubleSide
+      });
+      initFlyingBlossoms();
+
+      // Particles setup
+      particleGeo = new THREE.BoxGeometry(0.03, 0.03, 0.03);
+      particleMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xff00aa,
+        emissiveIntensity: 12.0, // Richtig hell leuchtend!
+        transparent: true,
+        opacity: 0.95,
+        roughness: 0.1,
+        metalness: 0.1
+      });
+      initParticlesPool();
+
+      // Wind petals setup
+      windPetalMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        emissive: 0xff00aa,
+        emissiveIntensity: 8.0, // Doller leuchtende Blüten im Wind
+        roughness: 0.2,
+        metalness: 0.05,
+        side: THREE.DoubleSide
+      });
+      initWindPetalsPool();
+
+      // Init Slots on ground
+      initSlots();
+
+      // Window resizing
+      window.addEventListener('resize', onWindowResize);
+
+      // Event Listeners
+      window.addEventListener('mousemove', onMouseMove);
+      renderer.domElement.addEventListener('click', onCanvasClick);
+
+      timelineSlider.addEventListener('input', (e) => {
+        timelineVal = parseFloat(e.target.value) / 100;
+        isPlaying = false;
+        playBtn.innerText = "Abspielen";
+        updateTreeState(timelineVal);
+      });
+
+      playBtn.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        playBtn.innerText = isPlaying ? "Pause" : "Abspielen";
+      });
+
+      resetBtn.addEventListener('click', () => {
+        timelineVal = 0.0;
+        timelineSlider.value = 0;
+        isPlaying = false;
+        playBtn.innerText = "Abspielen";
+
+        // Clear all spawned trees
+        slots.forEach(slot => {
+          if (slot.tree) {
+            slot.tree.destroy();
+            slot.tree = null;
+          }
+          if (slot.mesh) slot.mesh.visible = false;
+        });
+
+        // Clear particles & wind petals
+        particlesPool.forEach(p => { p.active = false; p.mesh.visible = false; });
+        windPetalsPool.forEach(wp => { wp.active = false; wp.mesh.visible = false; });
+        
+        // Clear active shockwaves
+        shockwaves.forEach(sw => {
+          scene.remove(sw.mesh);
+          sw.mesh.geometry.dispose();
+          sw.mesh.material.dispose();
+        });
+        shockwaves.length = 0;
+
+        updateTreeState(0);
+        camera.position.set(0, 3.2, 5.5);
+        controls.target.set(0, 0.8, 0);
+        controls.update();
+      });
+
+      updateTreeState(0);
+    }
+
+    // Helper: Create curved 3D petal geometry
+    function createPetalGeometry() {
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.bezierCurveTo(0.12, 0.08, 0.28, 0.28, 0.28, 0.52);
+      shape.bezierCurveTo(0.28, 0.72, 0.16, 0.85, 0.04, 0.90);
+      shape.lineTo(0.0, 0.82);
+      shape.lineTo(-0.04, 0.90);
+      shape.bezierCurveTo(-0.16, 0.85, -0.28, 0.72, -0.28, 0.52);
+      shape.bezierCurveTo(-0.28, 0.28, -0.12, 0.08, 0.0, 0.0);
+
+      const extrudeSettings = {
+        depth: 0.012,
+        bevelEnabled: true,
+        bevelSegments: 4,
+        steps: 1,
+        bevelSize: 0.006,
+        bevelThickness: 0.006
+      };
+
+      const petalGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+      // Bend vertices in Z
+      const posAttr = petalGeo.attributes.position;
+      for (let i = 0; i < posAttr.count; i++) {
+        let x = posAttr.getX(i);
+        let y = posAttr.getY(i);
+        let z = posAttr.getZ(i);
+        let yNorm = y / 0.9;
+        z += Math.sin(yNorm * Math.PI) * 0.14;
+        z += (1.0 - Math.cos((x / 0.28) * Math.PI * 0.5)) * 0.07;
+        posAttr.setXYZ(i, x, y, z);
+      }
+      petalGeo.computeVertexNormals();
+      return petalGeo;
+    }
+
+    // Helper: Assemble individual blossom with petals only
+    function createBlossomGroup(petalGeo, petalMat) {
+      const group = new THREE.Group();
+      const petalsGroup = new THREE.Group();
+      group.add(petalsGroup);
+
+      const blossomPetals = [];
+      for (let i = 0; i < 5; i++) {
+        const angle = i * ((Math.PI * 2) / 5);
+        const petalPivot = new THREE.Group();
+        petalPivot.rotation.z = angle;
+
+        const petalMesh = new THREE.Mesh(petalGeo, petalMat);
+        petalMesh.rotation.x = 0.28;
+        petalMesh.position.y = 0.01;
+        petalMesh.castShadow = true;
+
+        petalMesh.userData = {
+          angle: angle,
+          baseRotX: 0.28,
+          index: i,
+          initialPos: new THREE.Vector3(0, 0.01, 0),
+          initialRot: new THREE.Vector3(0.28, 0, angle)
+        };
+
+        petalPivot.add(petalMesh);
+        petalsGroup.add(petalPivot);
+        blossomPetals.push(petalMesh);
+      }
+
+      // Add simple ovary
+      const ovaryMesh = new THREE.Mesh(ovaryGeo, ovaryMat);
+      ovaryMesh.position.y = 0.005;
+      ovaryMesh.castShadow = true;
+      group.add(ovaryMesh);
+
+      // Add filaments & anthers
+      const stamensGroup = new THREE.Group();
+      group.add(stamensGroup);
+
+      for (let i = 0; i < 10; i++) {
+        const sAngle = (i * Math.PI * 2) / 10 + Math.random() * 0.15;
+        const filamentPivot = new THREE.Group();
+        filamentPivot.rotation.z = sAngle;
+
+        const filament = new THREE.Mesh(stamenCylGeo, filamentMat);
+        filament.rotation.x = 0.18 + Math.random() * 0.08;
+        filament.scale.set(0.06, 0.06, 0.06);
+        filament.castShadow = true;
+
+        const antherMesh = new THREE.Mesh(antherGeo, antherMat);
+        antherMesh.position.y = 0.24;
+        antherMesh.scale.set(0.024, 0.024, 0.024);
+        filament.add(antherMesh);
+
+        filamentPivot.add(filament);
+        stamensGroup.add(filamentPivot);
+      }
+
+      return { group, petals: blossomPetals };
+    }
+
+    // Initialize slots on the ground
+    function initSlots() {
+      const ringGeo = new THREE.RingGeometry(0.18, 0.2, 32);
+      ringGeo.rotateX(-Math.PI / 2);
+      const diskGeo = new THREE.CircleGeometry(0.18, 32);
+      diskGeo.rotateX(-Math.PI / 2);
+
+      slots.forEach(slot => {
+        const slotGroup = new THREE.Group();
+        slotGroup.position.copy(slot.pos);
+        slotGroup.position.y = 0.005;
+
+        const disk = new THREE.Mesh(diskGeo, new THREE.MeshBasicMaterial({
+          color: 0xff007f,
+          transparent: true,
+          opacity: 0.15,
+          side: THREE.DoubleSide
+        }));
+
+        const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+          color: 0xff007f,
+          transparent: true,
+          opacity: 0.5,
+          side: THREE.DoubleSide
+        }));
+
+        slotGroup.add(disk);
+        slotGroup.add(ring);
+        scene.add(slotGroup);
+        slot.mesh = slotGroup;
+        slot.mesh.visible = false; // Hidden initially in Phase 1
+
+        disk.userData = { slotId: slot.id };
+        ring.userData = { slotId: slot.id };
+      });
+    }
+
+    // Flying blossoms
+    function initFlyingBlossoms() {
+      for (let i = 0; i < maxBlossomsCount; i++) {
+        const mesh = new THREE.Mesh(petalGeo, flyingPetalMat);
+        mesh.scale.setScalar(0.18);
+        scene.add(mesh);
+        
+        const blossom = {
+          mesh: mesh,
+          pos: new THREE.Vector3(),
+          vel: new THREE.Vector3(),
+          rotVel: new THREE.Vector3(),
+          angle: Math.random() * Math.PI * 2,
+          flutterSpeed: 1.0 + Math.random() * 2.0,
+          active: true
+        };
+        resetFlyingBlossom(blossom);
+        
+        // Randomize starting positions
+        blossom.pos.x += Math.random() * 10 - 5;
+        blossom.pos.y -= Math.random() * 4.0;
+        blossom.pos.z += Math.random() * 8 - 4;
+        mesh.position.copy(blossom.pos);
+        flyingBlossoms.push(blossom);
+      }
+    }
+
+    function resetFlyingBlossom(b) {
+      b.pos.set(
+        -5.0 - Math.random() * 3.0,
+        3.0 + Math.random() * 2.0,
+        -4.0 + Math.random() * 4.0
+      );
+      b.vel.set(
+        0.5 + Math.random() * 0.3,
+        -0.3 - Math.random() * 0.2,
+        0.3 + Math.random() * 0.3
+      );
+      b.rotVel.set(
+        (Math.random() - 0.5) * 2.0,
+        (Math.random() - 0.5) * 3.0,
+        (Math.random() - 0.5) * 2.0
+      );
+      b.mesh.position.copy(b.pos);
+      b.mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      b.mesh.scale.setScalar(0.08 + Math.random() * 0.06);
+      b.active = true;
+    }
+
+    function updateFlyingBlossoms(dt, activeCount) {
+      for (let i = 0; i < maxBlossomsCount; i++) {
+        const b = flyingBlossoms[i];
+        if (i < activeCount) {
+          b.mesh.visible = true;
+          b.pos.addScaledVector(b.vel, dt);
+          b.angle += b.flutterSpeed * dt;
+          b.mesh.position.copy(b.pos);
+          b.mesh.position.x += Math.sin(b.angle) * 0.1 * dt;
+          b.mesh.position.z += Math.cos(b.angle) * 0.1 * dt;
+          
+          b.mesh.rotation.x += b.rotVel.x * dt;
+          b.mesh.rotation.y += b.rotVel.y * dt;
+          b.mesh.rotation.z += b.rotVel.z * dt;
+          
+          if (b.pos.y < -0.5 || b.pos.x > 5.0 || b.pos.z > 4.0) {
+            resetFlyingBlossom(b);
+          }
+        } else {
+          b.mesh.visible = false;
+        }
+      }
+    }
+
+    // Pop particles
+    function initParticlesPool() {
+      for (let i = 0; i < maxParticles; i++) {
+        const mesh = new THREE.Mesh(particleGeo, particleMat);
+        mesh.visible = false;
+        scene.add(mesh);
+        particlesPool.push({
+          mesh: mesh,
+          pos: new THREE.Vector3(),
+          vel: new THREE.Vector3(),
+          life: 0,
+          age: 0,
+          active: false
+        });
+      }
+    }
+
+    function spawnPopParticles(pos) {
+      let spawned = 0;
+      const count = 15 + Math.floor(Math.random() * 10);
+      for (let i = 0; i < maxParticles; i++) {
+        const p = particlesPool[i];
+        if (!p.active) {
+          p.active = true;
+          p.mesh.visible = true;
+          p.pos.copy(pos);
+          p.mesh.position.copy(pos);
+          
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos((Math.random() * 2) - 1);
+          const speed = 0.6 + Math.random() * 1.4;
+          p.vel.set(
+            Math.sin(phi) * Math.cos(theta) * speed,
+            Math.sin(phi) * Math.sin(theta) * speed,
+            Math.cos(phi) * speed
+          );
+          
+          p.life = 0.4 + Math.random() * 0.5;
+          p.age = 0;
+          
+          spawned++;
+          if (spawned >= count) break;
+        }
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = 0; i < maxParticles; i++) {
+        const p = particlesPool[i];
+        if (p.active) {
+          p.age += dt;
+          if (p.age >= p.life) {
+            p.active = false;
+            p.mesh.visible = false;
+          } else {
+            p.pos.addScaledVector(p.vel, dt);
+            p.vel.y -= 0.6 * dt; // gravity
+            p.vel.multiplyScalar(1.0 - 0.95 * dt); // air drag
+            
+            p.mesh.position.copy(p.pos);
+            const progress = p.age / p.life;
+            p.mesh.scale.setScalar(1.0 - progress);
+          }
+        }
+      }
+    }
+
+    // Wind petals
+    function initWindPetalsPool() {
+      for (let i = 0; i < maxWindPetals; i++) {
+        const mesh = new THREE.Mesh(petalGeo, windPetalMat);
+        mesh.scale.setScalar(0);
+        mesh.visible = false;
+        scene.add(mesh);
+        windPetalsPool.push({
+          mesh: mesh,
+          pos: new THREE.Vector3(),
+          vel: new THREE.Vector3(),
+          rotVel: new THREE.Vector3(),
+          life: 0,
+          age: 0,
+          active: false
+        });
+      }
+    }
+
+    function spawnWindPetals(originPos) {
+      let spawned = 0;
+      const count = 10 + Math.floor(Math.random() * 8);
+      for (let i = 0; i < maxWindPetals; i++) {
+        const wp = windPetalsPool[i];
+        if (!wp.active) {
+          wp.active = true;
+          wp.mesh.visible = true;
+          wp.pos.copy(originPos).add(new THREE.Vector3(
+            (Math.random() - 0.5) * 0.6,
+            (Math.random() - 0.5) * 0.6 + 0.3,
+            (Math.random() - 0.5) * 0.6
+          ));
+          wp.mesh.position.copy(wp.pos);
+          
+          wp.vel.set(
+            0.75 + Math.random() * 0.75, // 50% slower
+            -0.05 + Math.random() * 0.2, // 50% slower
+            (Math.random() - 0.5) * 0.25 // 50% slower
+          );
+          
+          wp.rotVel.set(
+            Math.random() * 5.0,
+            Math.random() * 5.0,
+            Math.random() * 5.0
+          );
+          
+          wp.life = 2.0 + Math.random() * 1.5;
+          wp.age = 0;
+          
+          wp.mesh.scale.setScalar(0.02 + Math.random() * 0.015);
+          spawned++;
+          if (spawned >= count) break;
+        }
+      }
+    }
+
+    function updateWindPetals(dt) {
+      for (let i = 0; i < maxWindPetals; i++) {
+        const wp = windPetalsPool[i];
+        if (wp.active) {
+          wp.age += dt;
+          if (wp.age >= wp.life) {
+            wp.active = false;
+            wp.mesh.visible = false;
+          } else {
+            wp.pos.addScaledVector(wp.vel, dt);
+            wp.vel.x -= 0.1 * dt;
+            wp.vel.y -= 0.1 * dt;
+            
+            wp.mesh.position.copy(wp.pos);
+            wp.mesh.rotation.x += wp.rotVel.x * dt;
+            wp.mesh.rotation.y += wp.rotVel.y * dt;
+            wp.mesh.rotation.z += wp.rotVel.z * dt;
+            
+            const progress = wp.age / wp.life;
+            let opacity = 1.0;
+            if (progress > 0.7) {
+              opacity = 1.0 - (progress - 0.7) / 0.3;
+            }
+            wp.mesh.scale.setScalar((0.02 + Math.random() * 0.015) * opacity);
+          }
+        }
+      }
+    }
+
+    // Ground shockwaves
+    function triggerShockwave(pos) {
+      const geo = new THREE.RingGeometry(0.01, 0.05, 32);
+      geo.rotateX(-Math.PI / 2);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xff007f,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(pos);
+      mesh.position.y = 0.02;
+      scene.add(mesh);
+      
+      shockwaves.push({
+        mesh: mesh,
+        mat: mat,
+        scale: 1.0,
+        maxScale: 60.0,
+        age: 0,
+        life: 0.8
+      });
+    }
+
+    function updateShockwaves(dt) {
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.age += dt;
+        const progress = sw.age / sw.life;
+        if (progress >= 1.0) {
+          scene.remove(sw.mesh);
+          sw.mesh.geometry.dispose();
+          sw.mesh.material.dispose();
+          shockwaves.splice(i, 1);
+        } else {
+          const currentScale = 1.0 + progress * (sw.maxScale - 1.0);
+          sw.mesh.scale.set(currentScale, 1.0, currentScale);
+          sw.mat.opacity = 0.8 * (1.0 - progress);
+        }
+      }
+    }
+
+    // Tree Instance Class
+    class TreeInstance {
+      constructor(position, spawnTime) {
+        this.position = position.clone();
+        this.spawnTime = spawnTime;
+        this.group = new THREE.Group();
+        this.group.position.copy(this.position);
+
+        this.metalMat = metalMat.clone();
+        this.rodMat = rodMat.clone();
+        this.ledMat = ledMat.clone();
+        this.petalMat = petalMat.clone();
+
+        this.edges = [];
+        this.nodes = {};
+        this.blossomsList = [];
+
+        this.trunk = this.createTrunk();
+        this.group.add(this.trunk);
+
+        this.canopyGroup = new THREE.Group();
+        this.budsGroup = new THREE.Group();
+        this.blossomsGroup = new THREE.Group();
+        this.group.add(this.canopyGroup);
+        this.group.add(this.budsGroup);
+        this.group.add(this.blossomsGroup);
+
+        this.generateOrthogonalCanopy();
+        scene.add(this.group);
+      }
+
+      createTrunk() {
+        const trunkGroup = new THREE.Group();
+        const cylGeo = new THREE.CylinderGeometry(0.04, 0.05, TRUNK_HEIGHT, 24);
+        cylGeo.translate(0, TRUNK_HEIGHT / 2, 0);
+
+        const cylMesh = new THREE.Mesh(cylGeo, this.metalMat);
+        cylMesh.castShadow = true;
+        cylMesh.receiveShadow = true;
+        trunkGroup.add(cylMesh);
+        return trunkGroup;
+      }
+
+      generateOrthogonalCanopy() {
+        const gridSpacingX = 0.33;
+        const gridSpacingY = 0.22;
+        const gridSpacingZ = 0.33;
+        const queue = [];
+        const rootKey = "0,0,0";
+
+        this.nodes[rootKey] = {
+          ix: 0, iy: 0, iz: 0,
+          pos: new THREE.Vector3(0, TRUNK_HEIGHT, 0),
+          depth: 0,
+          edgesCount: 0
+        };
+        queue.push(this.nodes[rootKey]);
+
+        const dirs = [
+          { ix: 1,  iy: 0,  iz: 0 },
+          { ix: -1, iy: 0,  iz: 0 },
+          { ix: 0,  iy: 1,  iz: 0 },
+          { ix: 0,  iy: 0,  iz: 1 },
+          { ix: 0,  iy: 0,  iz: -1 }
+        ];
+
+        function isValid(ix, iy, iz) {
+          if (iy < 0 || iy > 4) return false;
+          let maxR = 0;
+          if (iy === 0) maxR = 1;
+          else if (iy === 1) maxR = 2;
+          else if (iy === 2) maxR = 3;
+          else if (iy === 3) maxR = 3;
+          else if (iy === 4) maxR = 4;
+          return (Math.abs(ix) <= maxR && Math.abs(iz) <= maxR);
+        }
+
+        const maxDepth = 6;
+        const visited = new Set();
+        visited.add(rootKey);
+
+        while (queue.length > 0) {
+          const current = queue.shift();
+          if (current.depth >= maxDepth) continue;
+
+          const shuffledDirs = [...dirs].sort(() => Math.random() - 0.5);
+          let branchesCreated = 0;
+
+          for (const d of shuffledDirs) {
+            const nix = current.ix + d.ix;
+            const niy = current.iy + d.iy;
+            const niz = current.iz + d.iz;
+            const nkey = `${nix},${niy},${niz}`;
+
+            if (isValid(nix, niy, niz)) {
+              if (!visited.has(nkey)) {
+                const newNode = {
+                  ix: nix, iy: niy, iz: niz,
+                  pos: new THREE.Vector3(nix * gridSpacingX, TRUNK_HEIGHT + niy * gridSpacingY, niz * gridSpacingZ),
+                  depth: current.depth + 1,
+                  edgesCount: 1
+                };
+                this.nodes[nkey] = newNode;
+                visited.add(nkey);
+                queue.push(newNode);
+
+                this.edges.push({
+                  p1: current.pos.clone(),
+                  p2: newNode.pos.clone(),
+                  depth: current.depth,
+                  dir: new THREE.Vector3(d.ix, d.iy, d.iz),
+                  nodeKey: nkey
+                });
+
+                branchesCreated++;
+                current.edgesCount++;
+                if (branchesCreated >= 3) break;
+              } else {
+                if (Math.random() < 0.25) {
+                  const neighbor = this.nodes[nkey];
+                  const exists = this.edges.some(e => 
+                    (e.p1.equals(current.pos) && e.p2.equals(neighbor.pos)) ||
+                    (e.p1.equals(neighbor.pos) && e.p2.equals(current.pos))
+                  );
+                  if (!exists) {
+                    this.edges.push({
+                      p1: current.pos.clone(),
+                      p2: neighbor.pos.clone(),
+                      depth: Math.max(current.depth, neighbor.depth),
+                      dir: new THREE.Vector3(d.ix, d.iy, d.iz),
+                      nodeKey: nkey
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        const rodThickness = 0.016;
+
+        this.edges.forEach((edge) => {
+          const pivot = new THREE.Group();
+          pivot.position.copy(edge.p1);
+
+          let rodGeo;
+          if (edge.dir.x !== 0) {
+            rodGeo = new THREE.BoxGeometry(gridSpacingX, rodThickness, rodThickness);
+            rodGeo.translate(edge.dir.x * (gridSpacingX / 2), 0, 0);
+          } else if (edge.dir.y !== 0) {
+            rodGeo = new THREE.BoxGeometry(rodThickness, gridSpacingY, rodThickness);
+            rodGeo.translate(0, edge.dir.y * (gridSpacingY / 2), 0);
+          } else {
+            rodGeo = new THREE.BoxGeometry(rodThickness, rodThickness, gridSpacingZ);
+            rodGeo.translate(0, 0, edge.dir.z * (gridSpacingZ / 2));
+          }
+
+          const mesh = new THREE.Mesh(rodGeo, this.rodMat);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          pivot.add(mesh);
+          this.canopyGroup.add(pivot);
+
+          edge.pivot = pivot;
+          edge.mesh = mesh;
+        });
+
+        // LED nodes at intersection points
+        Object.keys(this.nodes).forEach((key) => {
+          const node = this.nodes[key];
+          const ledMesh = new THREE.Mesh(ledGeo, this.ledMat);
+          ledMesh.position.copy(node.pos);
+          ledMesh.castShadow = true;
+          ledMesh.visible = false;
+          this.budsGroup.add(ledMesh);
+          node.mesh = ledMesh;
+        });
+
+        // Blossoms
+        Object.keys(this.nodes).forEach((key, idx) => {
+          const node = this.nodes[key];
+          if (key === rootKey) return;
+
+          const blossom = createBlossomGroup(petalGeo, this.petalMat);
+          blossom.group.position.copy(node.pos);
+
+          blossom.group.rotation.set(
+            (Math.random() - 0.5) * 0.5,
+            (Math.random() - 0.5) * 0.5,
+            (Math.random() - 0.5) * 0.5
+          );
+
+          blossom.group.scale.set(0, 0, 0);
+          this.blossomsGroup.add(blossom.group);
+
+          this.blossomsList.push({
+            group: blossom.group,
+            petals: blossom.petals,
+            depth: node.depth,
+            key: `blossom_${idx}`
+          });
+        });
+      }
+
+      update(t) {
+        let p_grow = 1.0;
+        let f_fade = 0.0;
+        const totalGrowthDuration = 12.0;
+        const trunkDuration = 2.25;
+        const canopyDuration = totalGrowthDuration - trunkDuration;
+
+        if (t < 30.0) {
+          p_grow = Math.min(1.0, (t - this.spawnTime) / totalGrowthDuration);
+          f_fade = 0.0;
+        } else if (t >= 30.0 && t <= 35.0) {
+          p_grow = 1.0;
+          f_fade = (t - 30.0) / 5.0;
+        } else {
+          p_grow = 1.0;
+          f_fade = 1.0;
+        }
+
+        const w_scale = 0.25 + 0.75 * f_fade;
+
+        // Interpolate Materials
+        if (t < 30.0) {
+          // Super knalliger, hell leuchtender Laser (Intensität 16.0)
+          this.metalMat.color.setHex(0xff00aa);
+          this.metalMat.emissive.setHex(0xff00aa);
+          this.metalMat.emissiveIntensity = 16.0;
+          this.metalMat.metalness = 0.0;
+          this.metalMat.roughness = 0.1;
+
+          this.rodMat.color.setHex(0xff00aa);
+          this.rodMat.emissive.setHex(0xff00aa);
+          this.rodMat.emissiveIntensity = 16.0;
+          this.rodMat.metalness = 0.0;
+          this.rodMat.roughness = 0.1;
+        } else {
+          const cTrunk = new THREE.Color(0xff00aa).lerp(new THREE.Color(0xffffff), f_fade);
+          const eTrunk = new THREE.Color(0xff00aa).lerp(new THREE.Color(0xffffff), f_fade);
+          const iTrunk = 16.0 + (0.16 - 16.0) * f_fade;
+          const mTrunk = 0.72 * f_fade;
+          const rTrunk = 0.1;
+
+          this.metalMat.color.copy(cTrunk);
+          this.metalMat.emissive.copy(eTrunk);
+          this.metalMat.emissiveIntensity = iTrunk;
+          this.metalMat.metalness = mTrunk;
+          this.metalMat.roughness = rTrunk;
+
+          const cRod = new THREE.Color(0xff00aa).lerp(new THREE.Color(0xfff0f7), f_fade);
+          const eRod = new THREE.Color(0xff00aa).lerp(new THREE.Color(0xff2b88), f_fade);
+          const iRod = 16.0 + (0.45 - 16.0) * f_fade;
+          const mRod = 0.08 * f_fade;
+          const rRod = 0.1 + 0.1 * f_fade;
+
+          this.rodMat.color.copy(cRod);
+          this.rodMat.emissive.copy(eRod);
+          this.rodMat.emissiveIntensity = iRod;
+          this.rodMat.metalness = mRod;
+          this.rodMat.roughness = rRod;
+        }
+
+        const localTime = p_grow * totalGrowthDuration;
+        const trunkProgress = Math.min(1.0, localTime / trunkDuration);
+        this.trunk.scale.set(w_scale, trunkProgress, w_scale);
+
+        const maxEdgeDepth = this.edges.reduce((max, e) => Math.max(max, e.depth), 0);
+        const stepDuration = canopyDuration / (maxEdgeDepth + 1);
+
+        this.edges.forEach((edge) => {
+          const startTime = trunkDuration + edge.depth * stepDuration;
+          const endTime = startTime + stepDuration;
+
+          if (localTime < startTime) {
+            edge.pivot.scale.set(0, 0, 0);
+          } else if (localTime > endTime) {
+            if (edge.dir.x !== 0) edge.pivot.scale.set(1, w_scale, w_scale);
+            else if (edge.dir.y !== 0) edge.pivot.scale.set(w_scale, 1, w_scale);
+            else edge.pivot.scale.set(w_scale, w_scale, 1);
+          } else {
+            const progress = (localTime - startTime) / stepDuration;
+            if (edge.dir.x !== 0) edge.pivot.scale.set(progress, w_scale, w_scale);
+            else if (edge.dir.y !== 0) edge.pivot.scale.set(w_scale, progress, w_scale);
+            else edge.pivot.scale.set(w_scale, w_scale, progress);
+          }
+        });
+
+        this.ledMat.emissiveIntensity = 2.0 + Math.sin(performance.now() * 0.009) * 0.5;
+
+        Object.keys(this.nodes).forEach((key) => {
+          const node = this.nodes[key];
+          const leadingEdges = this.edges.filter(e => e.nodeKey === key);
+
+          let isCompleted = false;
+          if (leadingEdges.length === 0) {
+            isCompleted = (localTime >= trunkDuration);
+          } else {
+            isCompleted = leadingEdges.some(e => {
+              const edgeEndTime = trunkDuration + e.depth * stepDuration + stepDuration;
+              return (localTime >= edgeEndTime);
+            });
+          }
+          node.mesh.visible = isCompleted;
+        });
+
+        const blossomScale = 0.032 * f_fade;
+        // Make blossoms glow nicely on the final tree
+        this.petalMat.emissiveIntensity = 0.15 + (1.2 - 0.15) * f_fade;
+        this.petalMat.emissive.copy(new THREE.Color(0xff5c8a).lerp(new THREE.Color(0xff3b9d), f_fade));
+
+        this.blossomsList.forEach((blossom) => {
+          blossom.group.scale.setScalar(blossomScale);
+          blossom.petals.forEach((petalMesh) => {
+            petalMesh.position.copy(petalMesh.userData.initialPos);
+            petalMesh.rotation.set(petalMesh.userData.initialRot.x, 0, petalMesh.userData.angle);
+            petalMesh.scale.setScalar(1.0);
+          });
+        });
+      }
+
+      destroy() {
+        scene.remove(this.group);
+        this.metalMat.dispose();
+        this.rodMat.dispose();
+        this.ledMat.dispose();
+        this.petalMat.dispose();
+      }
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function onMouseMove(e) {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    }
+
+    function onCanvasClick(e) {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      if (timelineVal >= 10.0 && timelineVal < 30.0) {
+        // Phase 2: click slots
+        const activeSlots = slots.filter(s => s.tree === null);
+        const slotMeshes = [];
+        activeSlots.forEach(s => {
+          s.mesh.traverse(child => {
+            if (child.isMesh) slotMeshes.push(child);
+          });
+        });
+
+        const intersects = raycaster.intersectObjects(slotMeshes);
+        if (intersects.length > 0) {
+          let slotId = null;
+          intersects[0].object.traverseAncestors(parent => {
+            if (parent.userData && parent.userData.slotId !== undefined) {
+              slotId = parent.userData.slotId;
+            }
+          });
+          if (slotId === null && intersects[0].object.userData.slotId !== undefined) {
+            slotId = intersects[0].object.userData.slotId;
+          }
+
+          if (slotId !== null) {
+            const slot = slots.find(s => s.id === slotId);
+            if (slot && slot.tree === null) {
+              slot.tree = new TreeInstance(slot.pos, timelineVal);
+              slot.mesh.visible = false;
+              triggerShockwave(slot.pos);
+            }
+          }
+        }
+      } else if (timelineVal >= 35.0) {
+        // Phase 4: click canopy
+        const treeMeshes = [];
+        slots.forEach(s => {
+          if (s.tree) {
+            s.tree.group.traverse(child => {
+              if (child.isMesh) treeMeshes.push(child);
+            });
+          }
+        });
+
+        const intersects = raycaster.intersectObjects(treeMeshes);
+        if (intersects.length > 0) {
+          let clickedTree = null;
+          let hitObj = intersects[0].object;
+          slots.forEach(s => {
+            if (s.tree) {
+              s.tree.group.traverse(child => {
+                if (child === hitObj) clickedTree = s.tree;
+              });
+            }
+          });
+
+          if (clickedTree) {
+            const canopyPos = clickedTree.position.clone().add(new THREE.Vector3(0, TRUNK_HEIGHT + 0.5, 0));
+            spawnWindPetals(canopyPos);
+          }
+        }
+      }
+    }
+
+    function updateCursorPointer() {
+      let isHoveringInteractive = false;
+      raycaster.setFromCamera(mouse, camera);
+
+      if (timelineVal >= 10.0 && timelineVal < 30.0) {
+        const activeSlots = slots.filter(s => s.tree === null);
+        const slotMeshes = [];
+        activeSlots.forEach(s => {
+          s.mesh.traverse(child => {
+            if (child.isMesh) slotMeshes.push(child);
+          });
+        });
+        const intersects = raycaster.intersectObjects(slotMeshes);
+        if (intersects.length > 0) {
+          isHoveringInteractive = true;
+        }
+      } else if (timelineVal >= 35.0) {
+        const treeMeshes = [];
+        slots.forEach(s => {
+          if (s.tree) {
+            s.tree.group.traverse(child => {
+              if (child.isMesh) treeMeshes.push(child);
+            });
+          }
+        });
+        const intersects = raycaster.intersectObjects(treeMeshes);
+        if (intersects.length > 0) {
+          isHoveringInteractive = true;
+        }
+      }
+
+      document.body.style.cursor = isHoveringInteractive ? 'pointer' : 'default';
+    }
+
+    function updateTreeState(t) {
+      timeValLabel.innerText = `${t.toFixed(2)}s`;
+
+      if (t === 0) {
+        phaseTextLabel.innerText = "Kein Wachstum";
+        phaseTextLabel.style.color = "#d1b8c8";
+      } else if (t < 10.0) {
+        phaseTextLabel.innerText = "Phase 1: Sakura-Blütensturm (Hover zum Zerplatzen)";
+        phaseTextLabel.style.color = "#ffd1dc";
+      } else if (t < 30.0) {
+        phaseTextLabel.innerText = "Phase 2: Laserbäume pflanzen (Klick auf rosa Kreise)";
+        phaseTextLabel.style.color = "#ff66b2";
+      } else if (t < 35.0) {
+        phaseTextLabel.innerText = "Phase 3: Transformation von Laser zu Blütenbaum";
+        phaseTextLabel.style.color = "#ff007f";
+      } else {
+        phaseTextLabel.innerText = "Phase 4: Blütenbäume ausgereift (Klick auf Baumkronen)";
+        phaseTextLabel.style.color = "#ffbb00";
+      }
+
+      slots.forEach(slot => {
+        if (slot.tree) {
+          if (t < slot.tree.spawnTime) {
+            slot.tree.group.visible = false;
+            if (t >= 10.0 && t < 30.0) {
+              slot.mesh.visible = true;
+            } else {
+              slot.mesh.visible = false;
+            }
+          } else {
+            slot.tree.group.visible = true;
+            slot.tree.update(t);
+            slot.mesh.visible = false;
+          }
+        } else {
+          if (t >= 10.0 && t < 30.0) {
+            slot.mesh.visible = true;
+          } else {
+            slot.mesh.visible = false;
+          }
+        }
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = Math.min(clock.getDelta(), 0.1);
+
+      if (isPlaying) {
+        timelineVal += delta * 1.0;
+        if (timelineVal > TOTAL_DURATION) {
+          timelineVal = 0.0;
+          slots.forEach(slot => {
+            if (slot.tree) {
+              slot.tree.destroy();
+              slot.tree = null;
+            }
+          });
+        }
+        timelineSlider.value = timelineVal * 100;
+        updateTreeState(timelineVal);
+      }
+
+      let activeFlyingCount = 0;
+      if (timelineVal < 10.0) {
+        activeFlyingCount = 50;
+      } else if (timelineVal < 30.0) {
+        activeFlyingCount = 12;
+      } else {
+        activeFlyingCount = 5;
+      }
+      updateFlyingBlossoms(delta, activeFlyingCount);
+
+      updateParticles(delta);
+      updateWindPetals(delta);
+      updateShockwaves(delta);
+
+      if (timelineVal < 30.0) {
+        raycaster.setFromCamera(mouse, camera);
+        const ray = raycaster.ray;
+        const hitDistanceThreshold = 0.38; // Enlarge mouse hitbox radius (3D space units)
+
+        for (let i = 0; i < activeFlyingCount; i++) {
+          const b = flyingBlossoms[i];
+          if (b && b.mesh.visible) {
+            // Distance from mouse ray to blossom center
+            const dist = ray.distanceToPoint(b.pos);
+            // Verify the blossom is in front of the camera (not behind)
+            const toBlossom = b.pos.clone().sub(ray.origin);
+            const dot = toBlossom.dot(ray.direction);
+
+            if (dist < hitDistanceThreshold && dot > 0) {
+              spawnPopParticles(b.pos);
+              resetFlyingBlossom(b);
+            }
+          }
+        }
+      }
+
+      updateCursorPointer();
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>

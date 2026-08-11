@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Particles V1 - Concentric 3D Plexus (Subtle Contact & 20-Color Session Set)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #040105;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    #webgl-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    /* Minimalist HUD overlay */
+    .hud-overlay {
+      position: absolute;
+      top: 24px;
+      left: 28px;
+      z-index: 10;
+      pointer-events: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hud-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: rgba(255, 105, 180, 0.95);
+      text-shadow: 0 0 14px rgba(255, 42, 157, 0.8);
+    }
+
+    .hud-stats {
+      font-size: 10px;
+      color: rgba(255, 119, 200, 0.9);
+      font-family: monospace;
+    }
+  </style>
+  <!-- Three.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="webgl-container"></div>
+
+  <div class="hud-overlay">
+    <div class="hud-title">PARTICLES V1</div>
+    <div>CONCENTRIC 3D PLEXUS // COLOR SHIFT & SUBTLE DEFLECTION</div>
+    <div class="hud-stats" id="stats">60 FPS | NODES: 320 | CONTACT COLOR ACTIVE</div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // --- CONFIGURATION ---
+      const NODE_COUNT = 320;
+      const SHELL_COUNT = 8;
+      const MAX_CONNECT_DIST = 160;
+      const MAX_CONNECTIONS_PER_NODE = 4;
+      const MAX_LINES = 1800;
+
+      // Base Pink Palette
+      const COLOR_HOT_PINK = { r: 1.0, g: 0.16, b: 0.62 };
+      const COLOR_SOFT_PINK = { r: 1.0, g: 0.46, b: 0.78 };
+
+      // Set of 20 vibrant distinct contact colors
+      const CONTACT_COLOR_PALETTE_20 = [
+        { name: 'Electric Cyan', r: 0.0, g: 0.95, b: 1.0 },
+        { name: 'Neon Lime', r: 0.2, g: 1.0, b: 0.3 },
+        { name: 'Golden Amber', r: 1.0, g: 0.8, b: 0.0 },
+        { name: 'Bright Crimson', r: 1.0, g: 0.15, b: 0.25 },
+        { name: 'Hot Purple', r: 0.7, g: 0.1, b: 1.0 },
+        { name: 'Deep Violet', r: 0.5, g: 0.2, b: 1.0 },
+        { name: 'Ice Blue', r: 0.4, g: 0.85, b: 1.0 },
+        { name: 'Emerald', r: 0.0, g: 1.0, b: 0.65 },
+        { name: 'Sunset Orange', r: 1.0, g: 0.45, b: 0.0 },
+        { name: 'Acid Yellow', r: 0.9, g: 1.0, b: 0.1 },
+        { name: 'Coral', r: 1.0, g: 0.4, b: 0.5 },
+        { name: 'Electric Indigo', r: 0.3, g: 0.4, b: 1.0 },
+        { name: 'Mint', r: 0.2, g: 1.0, b: 0.8 },
+        { name: 'Vivid Rose', r: 1.0, g: 0.2, b: 0.5 },
+        { name: 'Turquoise', r: 0.0, g: 0.85, b: 0.85 },
+        { name: 'Lavender', r: 0.8, g: 0.6, b: 1.0 },
+        { name: 'Diamond White', r: 1.0, g: 0.95, b: 1.0 },
+        { name: 'Sky Blue', r: 0.15, g: 0.7, b: 1.0 },
+        { name: 'Chartreuse', r: 0.65, g: 1.0, b: 0.0 },
+        { name: 'Fuchsia Flare', r: 1.0, g: 0.1, b: 0.9 }
+      ];
+
+      // Randomly pick ONE contact color at animation initialization
+      const selectedSessionContactColor = CONTACT_COLOR_PALETTE_20[
+        Math.floor(Math.random() * CONTACT_COLOR_PALETTE_20.length)
+      ];
+
+      let scene, camera, renderer;
+      let nodePointsMesh, lineSegmentsMesh, lineSegmentsGlowMesh;
+      let nodePositions = [];
+      let nodeShellData = [];
+      let transformedPositions = new Float32Array(NODE_COUNT * 3);
+      let nodeGlowFactors = new Float32Array(NODE_COUNT);
+      let nodeContactFactors = new Float32Array(NODE_COUNT);
+
+      // Cursor interaction tracking
+      let mouseScreen = new THREE.Vector2(-9999, -9999);
+      let mouseWorld = new THREE.Vector3(-9999, -9999, 0);
+
+      // Stats monitoring
+      let lastTime = performance.now();
+      let frameCount = 0;
+      let currentFps = 60;
+      const statsElement = document.getElementById('stats');
+
+      // Texture generator for glowing particle node sprites
+      function createParticleTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+
+        const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+        gradient.addColorStop(0.22, 'rgba(255, 42, 157, 0.95)');
+        gradient.addColorStop(0.55, 'rgba(255, 119, 200, 0.45)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 64, 64);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      function init() {
+        const container = document.getElementById('webgl-container');
+
+        // Scene
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x040105, 0.0007);
+
+        // Fixed Camera setup
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3500);
+        updateCameraDistance();
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setClearColor(0x040105, 1);
+        container.appendChild(renderer.domElement);
+
+        // Generate 320 Nodes evenly spread across full viewport
+        generateUniformDistributedNodes();
+
+        // Setup Node Points Mesh
+        setupNodeMesh();
+
+        // Setup Glowing Line Meshes
+        setupLineMesh();
+
+        // Event Listeners
+        window.addEventListener('resize', onWindowResize, false);
+        window.addEventListener('mousemove', onMouseMove, false);
+
+        // Animation Loop
+        animate(0);
+      }
+
+      function updateCameraDistance() {
+        const aspect = window.innerWidth / window.innerHeight;
+        const baseDist = aspect < 1.0 ? 680 : 540;
+        camera.position.set(0, 0, baseDist);
+        camera.lookAt(0, 0, 0);
+      }
+
+      function generateUniformDistributedNodes() {
+        nodePositions = [];
+        nodeShellData = [];
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          const shellIndex = i % SHELL_COUNT;
+
+          const radiusX = 200 + shellIndex * 68 + (Math.random() * 40 - 20);
+          const radiusY = radiusX * 0.62;
+
+          const angle = (i / (NODE_COUNT / SHELL_COUNT)) * Math.PI * 2 + (Math.random() * 0.4 - 0.2);
+
+          const x = Math.cos(angle) * radiusX;
+          const y = Math.sin(angle) * radiusY;
+          const z = (Math.random() - 0.5) * 320;
+
+          nodePositions.push(new THREE.Vector3(x, y, z));
+
+          const dir = (shellIndex % 2 === 0) ? 1 : -1;
+          nodeShellData.push({
+            shellIndex: shellIndex,
+            baseRadius: radiusX,
+            speedX: (0.08 + shellIndex * 0.03) * dir,
+            speedY: (0.12 - shellIndex * 0.02) * dir,
+            speedZ: (0.10 + shellIndex * 0.03) * dir,
+            phase: Math.random() * Math.PI * 2,
+            pulseFreq: 0.5 + Math.random() * 0.7,
+            glowSpeed: 1.2 + Math.random() * 2.8,
+            glowPhase: Math.random() * Math.PI * 2,
+            baseSize: 20 + Math.random() * 12
+          });
+
+          nodeGlowFactors[i] = 1.0;
+          nodeContactFactors[i] = 0.0;
+        }
+      }
+
+      function setupNodeMesh() {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(NODE_COUNT * 3);
+        const colors = new Float32Array(NODE_COUNT * 3);
+        const sizes = new Float32Array(NODE_COUNT);
+
+        const colHot = new THREE.Color(0xff2a9d);
+        const colSoft = new THREE.Color(0xff77c8);
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          positions[i * 3] = nodePositions[i].x;
+          positions[i * 3 + 1] = nodePositions[i].y;
+          positions[i * 3 + 2] = nodePositions[i].z;
+
+          const t = nodeShellData[i].shellIndex / (SHELL_COUNT - 1);
+          const col = colHot.clone().lerp(colSoft, t);
+
+          colors[i * 3] = col.r;
+          colors[i * 3 + 1] = col.g;
+          colors[i * 3 + 2] = col.b;
+
+          sizes[i] = nodeShellData[i].baseSize;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const nodeMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            uTexture: { value: createParticleTexture() }
+          },
+          vertexShader: `
+            attribute float size;
+            attribute vec3 color;
+            varying vec3 vColor;
+
+            void main() {
+              vColor = color;
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              gl_PointSize = size * (420.0 / -mvPosition.z);
+              gl_Position = projectionMatrix * mvPosition;
+            }
+          `,
+          fragmentShader: `
+            uniform sampler2D uTexture;
+            varying vec3 vColor;
+
+            void main() {
+              vec4 texColor = texture2D(uTexture, gl_PointCoord);
+              gl_FragColor = vec4(vColor * texColor.rgb, texColor.a);
+            }
+          `,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        nodePointsMesh = new THREE.Points(geometry, nodeMaterial);
+        scene.add(nodePointsMesh);
+      }
+
+      function setupLineMesh() {
+        const geometry = new THREE.BufferGeometry();
+
+        const linePositions = new Float32Array(MAX_LINES * 6);
+        const lineColors = new Float32Array(MAX_LINES * 6);
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(lineColors, 3));
+        geometry.setDrawRange(0, 0);
+
+        const lineMaterial = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          linewidth: 2
+        });
+
+        lineSegmentsMesh = new THREE.LineSegments(geometry, lineMaterial);
+        scene.add(lineSegmentsMesh);
+
+        const lineGlowMaterial = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          linewidth: 3
+        });
+
+        lineSegmentsGlowMesh = new THREE.LineSegments(geometry, lineGlowMaterial);
+        scene.add(lineSegmentsGlowMesh);
+      }
+
+      function onMouseMove(event) {
+        mouseScreen.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouseScreen.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        const vector = new THREE.Vector3(mouseScreen.x, mouseScreen.y, 0.5);
+        vector.unproject(camera);
+        const dir = vector.sub(camera.position).normalize();
+        const distance = -camera.position.z / dir.z;
+        mouseWorld.copy(camera.position).add(dir.multiplyScalar(distance));
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        updateCameraDistance();
+      }
+
+      // Concentric 3D Rotation helper around X, Y, and Z axes
+      function rotateConcentric3D(vec, rotX, rotY, rotZ) {
+        let x = vec.x, y = vec.y, z = vec.z;
+
+        // Rotate X
+        let cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+        let y1 = y * cosX - z * sinX;
+        let z1 = y * sinX + z * cosX;
+
+        // Rotate Y
+        let cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+        let x2 = x * cosY + z1 * sinY;
+        let z2 = -x * sinY + z1 * cosY;
+
+        // Rotate Z
+        let cosZ = Math.cos(rotZ), sinZ = Math.sin(rotZ);
+        let x3 = x2 * cosZ - y1 * sinZ;
+        let y3 = x2 * sinZ + y1 * cosZ;
+
+        return { x: x3, y: y3, z: z2 };
+      }
+
+      function updateNodesAndLines(timeSeconds) {
+        camera.position.set(0, 0, camera.position.z);
+        camera.lookAt(0, 0, 0);
+
+        const nodePosAttr = nodePointsMesh.geometry.attributes.position;
+        const nodeSizeAttr = nodePointsMesh.geometry.attributes.size;
+        const nodeColorAttr = nodePointsMesh.geometry.attributes.color;
+
+        const rawNodePositions = nodePosAttr.array;
+        const rawNodeSizes = nodeSizeAttr.array;
+        const rawNodeColors = nodeColorAttr.array;
+
+        // 20px screen radius equivalent in 3D world space
+        const REPEL_RADIUS = 85; 
+
+        // 1. Update 320 Nodes: 3D Rotations + Very Subtle 70%-Reduced Repulsion + Contact Color Shift
+        for (let i = 0; i < NODE_COUNT; i++) {
+          const shell = nodeShellData[i];
+          const baseVec = nodePositions[i];
+
+          const pulse = Math.sin(timeSeconds * shell.pulseFreq + shell.phase) * 6;
+          const radialScale = (shell.baseRadius + pulse) / shell.baseRadius;
+
+          const scaledVec = {
+            x: baseVec.x * radialScale,
+            y: baseVec.y * radialScale,
+            z: baseVec.z * radialScale
+          };
+
+          const rx = timeSeconds * shell.speedX;
+          const ry = timeSeconds * shell.speedY;
+          const rz = timeSeconds * shell.speedZ;
+
+          const rotPos = rotateConcentric3D(scaledVec, rx, ry, rz);
+
+          // --- CURSOR CONTACT & DEFLECTION (REDUCED BY 70% FOR VERY SUBTLE MOVEMENT) ---
+          const dx = rotPos.x - mouseWorld.x;
+          const dy = rotPos.y - mouseWorld.y;
+          const dist2D = Math.sqrt(dx * dx + dy * dy);
+
+          let targetContactFactor = 0.0;
+
+          if (dist2D < REPEL_RADIUS && dist2D > 0.001) {
+            // Repulsion force reduced by 70% (from 65.0 down to 19.5 max deflection)
+            const pushFactor = Math.pow(1.0 - dist2D / REPEL_RADIUS, 1.4) * 19.5;
+            rotPos.x += (dx / dist2D) * pushFactor;
+            rotPos.y += (dy / dist2D) * pushFactor;
+
+            targetContactFactor = Math.pow(1.0 - dist2D / REPEL_RADIUS, 1.2);
+          }
+
+          // Smooth contact color interpolation
+          nodeContactFactors[i] += (targetContactFactor - nodeContactFactors[i]) * 0.2;
+          const contactT = nodeContactFactors[i];
+
+          rawNodePositions[i * 3] = rotPos.x;
+          rawNodePositions[i * 3 + 1] = rotPos.y;
+          rawNodePositions[i * 3 + 2] = rotPos.z;
+
+          transformedPositions[i * 3] = rotPos.x;
+          transformedPositions[i * 3 + 1] = rotPos.y;
+          transformedPositions[i * 3 + 2] = rotPos.z;
+
+          // Dynamic glow pulse
+          const rawGlowWave = Math.sin(timeSeconds * shell.glowSpeed + shell.glowPhase);
+          const flashGlow = Math.pow(Math.max(0.0, rawGlowWave), 6.0) * 3.2;
+          const glowFactor = 0.85 + flashGlow;
+          nodeGlowFactors[i] = glowFactor;
+
+          rawNodeSizes[i] = shell.baseSize * Math.min(glowFactor, 2.6) * (1.0 + contactT * 0.3);
+
+          const shellT = shell.shellIndex / (SHELL_COUNT - 1);
+          let r = COLOR_HOT_PINK.r * (1 - shellT) + COLOR_SOFT_PINK.r * shellT;
+          let g = COLOR_HOT_PINK.g * (1 - shellT) + COLOR_SOFT_PINK.g * shellT;
+          let b = COLOR_HOT_PINK.b * (1 - shellT) + COLOR_SOFT_PINK.b * shellT;
+
+          // Morph node color towards randomly selected session contact color on cursor contact!
+          if (contactT > 0.01) {
+            r = r * (1 - contactT) + selectedSessionContactColor.r * contactT;
+            g = g * (1 - contactT) + selectedSessionContactColor.g * contactT;
+            b = b * (1 - contactT) + selectedSessionContactColor.b * contactT;
+          }
+
+          rawNodeColors[i * 3] = r * Math.min(glowFactor + contactT * 0.6, 2.0);
+          rawNodeColors[i * 3 + 1] = g * Math.min(glowFactor + contactT * 0.6, 2.0);
+          rawNodeColors[i * 3 + 2] = b * Math.min(glowFactor + contactT * 0.6, 2.0);
+        }
+
+        nodePosAttr.needsUpdate = true;
+        nodeSizeAttr.needsUpdate = true;
+        nodeColorAttr.needsUpdate = true;
+
+        // 2. Update Glowing Connection Lines Buffer
+        const lineGeo = lineSegmentsMesh.geometry;
+        const linePosAttr = lineGeo.attributes.position;
+        const lineColorAttr = lineGeo.attributes.color;
+
+        const linePositions = linePosAttr.array;
+        const lineColors = lineColorAttr.array;
+
+        let activeLineCount = 0;
+        let lineVertexCount = 0;
+
+        const connectionCounts = new Uint8Array(NODE_COUNT);
+
+        for (let i = 0; i < NODE_COUNT; i++) {
+          if (connectionCounts[i] >= MAX_CONNECTIONS_PER_NODE) continue;
+
+          const x1 = transformedPositions[i * 3];
+          const y1 = transformedPositions[i * 3 + 1];
+          const z1 = transformedPositions[i * 3 + 2];
+          const glow1 = nodeGlowFactors[i];
+          const contact1 = nodeContactFactors[i];
+
+          for (let j = i + 1; j < NODE_COUNT; j++) {
+            if (connectionCounts[j] >= MAX_CONNECTIONS_PER_NODE) continue;
+            if (activeLineCount >= MAX_LINES) break;
+
+            const x2 = transformedPositions[j * 3];
+            const y2 = transformedPositions[j * 3 + 1];
+            const z2 = transformedPositions[j * 3 + 2];
+            const glow2 = nodeGlowFactors[j];
+            const contact2 = nodeContactFactors[j];
+
+            const dx = x1 - x2;
+            const dy = y1 - y2;
+            const dz = z1 - z2;
+            const distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq < MAX_CONNECT_DIST * MAX_CONNECT_DIST) {
+              const dist = Math.sqrt(distSq);
+              const baseAlpha = Math.pow(1.0 - dist / MAX_CONNECT_DIST, 1.3);
+              const lineGlow = (glow1 + glow2) * 0.5;
+              const lineContact = Math.max(contact1, contact2);
+              const alpha = Math.min(1.0, baseAlpha * lineGlow * 1.15);
+
+              const shellT1 = nodeShellData[i].shellIndex / (SHELL_COUNT - 1);
+              const shellT2 = nodeShellData[j].shellIndex / (SHELL_COUNT - 1);
+              const lineT = (shellT1 + shellT2) * 0.5;
+
+              let lr = COLOR_HOT_PINK.r * (1 - lineT) + COLOR_SOFT_PINK.r * lineT;
+              let lg = COLOR_HOT_PINK.g * (1 - lineT) + COLOR_SOFT_PINK.g * lineT;
+              let lb = COLOR_HOT_PINK.b * (1 - lineT) + COLOR_SOFT_PINK.b * lineT;
+
+              // Morph line color to session contact color on contact!
+              if (lineContact > 0.01) {
+                lr = lr * (1 - lineContact) + selectedSessionContactColor.r * lineContact;
+                lg = lg * (1 - lineContact) + selectedSessionContactColor.g * lineContact;
+                lb = lb * (1 - lineContact) + selectedSessionContactColor.b * lineContact;
+              }
+
+              // Vertex 1
+              linePositions[lineVertexCount * 3] = x1;
+              linePositions[lineVertexCount * 3 + 1] = y1;
+              linePositions[lineVertexCount * 3 + 2] = z1;
+
+              lineColors[lineVertexCount * 3] = lr * alpha * 1.4;
+              lineColors[lineVertexCount * 3 + 1] = lg * alpha * 1.4;
+              lineColors[lineVertexCount * 3 + 2] = lb * alpha * 1.4;
+              lineVertexCount++;
+
+              // Vertex 2
+              linePositions[lineVertexCount * 3] = x2;
+              linePositions[lineVertexCount * 3 + 1] = y2;
+              linePositions[lineVertexCount * 3 + 2] = z2;
+
+              lineColors[lineVertexCount * 3] = lr * alpha * 1.4;
+              lineColors[lineVertexCount * 3 + 1] = lg * alpha * 1.4;
+              lineColors[lineVertexCount * 3 + 2] = lb * alpha * 1.4;
+              lineVertexCount++;
+
+              activeLineCount++;
+              connectionCounts[i]++;
+              connectionCounts[j]++;
+            }
+          }
+        }
+
+        linePosAttr.needsUpdate = true;
+        lineColorAttr.needsUpdate = true;
+
+        lineGeo.setDrawRange(0, lineVertexCount);
+        lineSegmentsGlowMesh.geometry.setDrawRange(0, lineVertexCount);
+
+        return activeLineCount;
+      }
+
+      function animate(timestamp) {
+        requestAnimationFrame(animate);
+
+        const timeSeconds = timestamp * 0.001;
+
+        // Update 3D Concentric Plexus System
+        const activeLines = updateNodesAndLines(timeSeconds);
+
+        // Render Frame
+        renderer.render(scene, camera);
+
+        // FPS Calculation
+        frameCount++;
+        if (timestamp - lastTime >= 1000) {
+          currentFps = Math.round((frameCount * 1000) / (timestamp - lastTime));
+          frameCount = 0;
+          lastTime = timestamp;
+          statsElement.textContent = `${currentFps} FPS | NODES: ${NODE_COUNT} | CONTACT COLOR: ${selectedSessionContactColor.name.toUpperCase()}`;
+        }
+      }
+
+      // Initialize on load
+      window.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</body>
+</html>

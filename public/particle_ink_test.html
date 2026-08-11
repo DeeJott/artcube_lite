@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alcohol Ink - 1:1 Particle Cloud</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    overflow: hidden;
+    background: #020205;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  
+  /* Loading screen */
+  #loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #020205;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    transition: opacity 0.8s ease;
+  }
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(232, 160, 168, 0.1);
+    border-top: 3px solid #e8a0a8;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* Glassmorphic control panel */
+  #controls {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    width: 320px;
+    background: rgba(10, 10, 20, 0.5);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    z-index: 5;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  }
+  
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    background: linear-gradient(45deg, #e8a0a8, #8b1a2b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .subtitle {
+    font-size: 11px;
+    color: #8a8a9a;
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+  
+  .control-group {
+    margin-bottom: 18px;
+  }
+  
+  label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #b5b5c5;
+    margin-bottom: 8px;
+  }
+  
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    outline: none;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #e8a0a8;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+  
+  .val-display {
+    font-size: 12px;
+    font-family: monospace;
+    color: #e8a0a8;
+    width: 36px;
+    text-align: right;
+  }
+  
+  /* Toggle switch styling */
+  .switch-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    transition: .3s;
+    border-radius: 10px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+  }
+  input:checked + .slider {
+    background-color: #8b1a2b;
+  }
+  input:checked + .slider:before {
+    transform: translateX(20px);
+    background-color: #e8a0a8;
+  }
+  
+  .btn {
+    display: block;
+    width: 100%;
+    background: rgba(232, 160, 168, 0.1);
+    color: #e8a0a8;
+    border: 1px solid rgba(232, 160, 168, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .btn:hover {
+    background: rgba(232, 160, 168, 0.2);
+    border-color: #e8a0a8;
+  }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="spinner"></div>
+  <div style="font-size: 13px; color: #a5a5b5; letter-spacing: 1px;">SAMPLING INK PIXELS...</div>
+</div>
+
+<div id="controls">
+  <h1>Alcohol Ink Particles</h1>
+  <div class="subtitle">1:1 Image-to-Particle Cloud mapping. The texture is generated entirely from the reference image.</div>
+  
+  <div class="switch-container">
+    <label for="animateToggle" style="margin-bottom: 0;">Enable Wiggle/Drift</label>
+    <label class="switch">
+      <input type="checkbox" id="animateToggle">
+      <span class="slider"></span>
+    </label>
+  </div>
+  
+  <div class="control-group">
+    <label>Particle Size</label>
+    <div class="slider-container">
+      <input type="range" id="sizeSlider" min="0.5" max="3" step="0.1" value="1.2">
+      <span class="val-display" id="sizeVal">1.2</span>
+    </div>
+  </div>
+  
+  <div class="control-group">
+    <label>Mouse Push Strength</label>
+    <div class="slider-container">
+      <input type="range" id="strengthSlider" min="0" max="0.5" step="0.01" value="0.15">
+      <span class="val-display" id="strengthVal">0.15</span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Mouse Push Radius</label>
+    <div class="slider-container">
+      <input type="range" id="radiusSlider" min="0.05" max="0.5" step="0.01" value="0.2">
+      <span class="val-display" id="radiusVal">0.20</span>
+    </div>
+  </div>
+  
+  <button class="btn" id="resetBtn">Reset Particles</button>
+</div>
+
+<canvas id="c"></canvas>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.175.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const canvas = document.getElementById('c');
+const loader = document.getElementById('loader');
+
+// Create Three.js components
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+const scene = new THREE.Scene();
+// Using a PerspectiveCamera to allow Z-displacement depth effects
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10);
+camera.position.z = 2.2;
+
+// Pointer state
+const mouse = new THREE.Vector2(-99, -99);
+const targetMouse = new THREE.Vector2(-99, -99);
+const raycaster = new THREE.Raycaster();
+const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const mouse3D = new THREE.Vector3(-99, -99, 0);
+
+// Animation uniforms & configuration
+const uniforms = {
+  uTime: { value: 0 },
+  uMouse: { value: new THREE.Vector3(-99, -99, 0) },
+  uMouseRadius: { value: 0.20 },
+  uMouseStrength: { value: 0.15 },
+  uParticleSize: { value: 1.2 },
+  uNoiseFreq: { value: 1.5 },
+  uNoiseAmp: { value: 0.0 } // Initially static
+};
+
+// Shaders for the Particle System
+const vertexShader = `
+uniform float uTime;
+uniform vec3 uMouse;
+uniform float uMouseRadius;
+uniform float uMouseStrength;
+uniform float uParticleSize;
+uniform float uNoiseFreq;
+uniform float uNoiseAmp;
+
+attribute vec3 aOriginalPosition;
+
+varying vec3 vColor;
+
+// Clean noise function for drift
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+        mix(hash(i + vec2(0.0,0.0)), hash(i + vec2(1.0,0.0)), u.x),
+        mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), u.x),
+        u.y
+    );
+}
+
+void main() {
+    vColor = color;
+    vec3 pos = position; // Instanced/current position
+    
+    // Mouse repulsion in 3D (XY repulsion + Z push)
+    vec3 toMouse = pos - uMouse;
+    float dist = length(toMouse.xy);
+    
+    if (dist < uMouseRadius) {
+        float force = (1.0 - dist / uMouseRadius) * uMouseStrength;
+        pos.xy += normalize(toMouse.xy) * force;
+        pos.z += force * 0.4; // Push forwards in depth for 3D warping
+    }
+    
+    // Smooth drift wiggle
+    if (uNoiseAmp > 0.0) {
+        vec2 noiseUV = aOriginalPosition.xy * uNoiseFreq + vec2(uTime * 0.2);
+        float nX = noise(noiseUV) - 0.5;
+        float nY = noise(noiseUV + 10.0) - 0.5;
+        pos.x += nX * uNoiseAmp;
+        pos.y += nY * uNoiseAmp;
+        pos.z += (noise(noiseUV + 20.0) - 0.5) * uNoiseAmp * 0.5;
+    }
+    
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    
+    // Scale point size based on perspective distance
+    gl_PointSize = uParticleSize * (300.0 / -mvPosition.z);
+}
+`;
+
+const fragmentShader = `
+varying vec3 vColor;
+void main() {
+    // Shape coordinate mapping (makes it a round circle)
+    vec2 center = gl_PointCoord - vec2(0.5);
+    float dist = length(center);
+    if (dist > 0.5) discard;
+    
+    // Feathered edges for smooth glow
+    float alpha = smoothstep(0.5, 0.15, dist);
+    gl_FragColor = vec4(vColor, alpha);
+}
+`;
+
+let points = null;
+let positionsAttr = null;
+
+// Load image and convert to particle cloud
+const image = new Image();
+image.crossOrigin = 'anonymous';
+image.src = '/media/alcohol_ink.jpg';
+
+image.onload = () => {
+  // Hide loader
+  loader.style.opacity = '0';
+  setTimeout(() => loader.style.display = 'none', 800);
+  
+  // Sample pixels on a temporary canvas
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+  
+  // High density: 320x180 = 57,600 particles maximum
+  tempCanvas.width = 320;
+  tempCanvas.height = 180;
+  
+  tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+  const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const pixels = imgData.data;
+  
+  const tempPos = [];
+  const tempCol = [];
+  const tempOrig = [];
+  
+  const aspect = tempCanvas.width / tempCanvas.height;
+  
+  // Loop and keep only colored ink pixels, skip full black background pixels to optimize
+  for (let y = 0; y < tempCanvas.height; y++) {
+    for (let x = 0; x < tempCanvas.width; x++) {
+      const idx = (y * tempCanvas.width + x) * 4;
+      const r = pixels[idx] / 255;
+      const g = pixels[idx+1] / 255;
+      const b = pixels[idx+2] / 255;
+      
+      // Calculate color intensity
+      const intensity = r + g + b;
+      
+      // Skip background pixels (near-black threshold)
+      if (intensity < 0.05) continue;
+      
+      // Coordinate mapping (standardize image size to approx height of 1.0)
+      const posX = (x / tempCanvas.width - 0.5) * aspect * 1.1;
+      const posY = (0.5 - y / tempCanvas.height) * 1.1;
+      const posZ = 0.0;
+      
+      tempPos.push(posX, posY, posZ);
+      tempCol.push(r, g, b);
+      tempOrig.push(posX, posY, posZ);
+    }
+  }
+  
+  // Construct geometry
+  const geometry = new THREE.BufferGeometry();
+  
+  positionsAttr = new THREE.BufferAttribute(new Float32Array(tempPos), 3);
+  geometry.setAttribute('position', positionsAttr);
+  geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(tempCol), 3));
+  geometry.setAttribute('aOriginalPosition', new THREE.BufferAttribute(new Float32Array(tempOrig), 3));
+  
+  const material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  
+  points = new THREE.Points(geometry, material);
+  scene.add(points);
+};
+
+// UI Element binding
+const sizeSlider = document.getElementById('sizeSlider');
+const sizeVal = document.getElementById('sizeVal');
+const strengthSlider = document.getElementById('strengthSlider');
+const strengthVal = document.getElementById('strengthVal');
+const radiusSlider = document.getElementById('radiusSlider');
+const radiusVal = document.getElementById('radiusVal');
+const animateToggle = document.getElementById('animateToggle');
+const resetBtn = document.getElementById('resetBtn');
+
+sizeSlider.addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  sizeVal.textContent = val.toFixed(1);
+  uniforms.uParticleSize.value = val;
+});
+
+strengthSlider.addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  strengthVal.textContent = val.toFixed(2);
+  uniforms.uMouseStrength.value = val;
+});
+
+radiusSlider.addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  radiusVal.textContent = val.toFixed(2);
+  uniforms.uMouseRadius.value = val;
+});
+
+animateToggle.addEventListener('change', (e) => {
+  uniforms.uNoiseAmp.value = e.target.checked ? 0.08 : 0.0;
+});
+
+resetBtn.addEventListener('click', () => {
+  if (points && positionsAttr) {
+    const origAttr = points.geometry.getAttribute('aOriginalPosition');
+    const pos = positionsAttr.array;
+    const orig = origAttr.array;
+    for (let i = 0; i < pos.length; i++) {
+      pos[i] = orig[i];
+    }
+    positionsAttr.needsUpdate = true;
+  }
+});
+
+// Update pointer state
+window.addEventListener('pointermove', (e) => {
+  targetMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  targetMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+// Mouse leave pulls pointer away
+window.addEventListener('pointerleave', () => {
+  targetMouse.set(-99, -99);
+});
+
+// Handle resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+const startTime = performance.now();
+
+// Main render & update loop
+(function animate() {
+  requestAnimationFrame(animate);
+  
+  const elapsed = (performance.now() - startTime) * 0.001;
+  uniforms.uTime.value = elapsed;
+  
+  // Dampen mouse movements for smooth physics response
+  mouse.x += (targetMouse.x - mouse.x) * 0.12;
+  mouse.y += (targetMouse.y - mouse.y) * 0.12;
+  
+  if (mouse.x > -90) {
+    // Project normalized mouse coordinates back onto Z=0 plane in 3D space
+    raycaster.setFromCamera(mouse, camera);
+    raycaster.ray.intersectPlane(planeZ, mouse3D);
+    uniforms.uMouse.value.copy(mouse3D);
+  } else {
+    uniforms.uMouse.value.set(-99, -99, 0);
+  }
+  
+  // Bring displaced particles slowly back to their original position using spring physics
+  if (points && positionsAttr) {
+    const pos = positionsAttr.array;
+    const orig = points.geometry.getAttribute('aOriginalPosition').array;
+    
+    // Slow relaxation speed
+    const k = 0.04; 
+    for (let i = 0; i < pos.length; i++) {
+      pos[i] += (orig[i] - pos[i]) * k;
+    }
+    positionsAttr.needsUpdate = true;
+  }
+  
+  renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>
