@@ -396,6 +396,12 @@
       align-items: center;
     }
 
+    .top-right-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .phase-badge {
       display: inline-flex;
       align-items: center;
@@ -421,6 +427,33 @@
       background-color: #ff2a9d;
       box-shadow: 0 0 10px #ff2a9d;
       animation: pulsePhase 2s infinite ease-in-out;
+    }
+
+    /* Audio Mute/Play Toggle Button Top Right */
+    .audio-toggle-btn {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(18, 12, 28, 0.8);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 105, 180, 0.4);
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .audio-toggle-btn:hover {
+      background: rgba(255, 42, 157, 0.25);
+      border-color: #ff2a9d;
+      transform: translateY(-1px);
     }
 
     /* Switch Active User Toggle Button Top Right */
@@ -652,6 +685,9 @@
 
 <body>
 
+  <!-- Audio Element: Contrasts-Dryhope Audio Track -->
+  <audio id="bgAudio" src="/media/Contrasts-Dryhope.mp3" loop preload="auto"></audio>
+
   <!-- Layer 1: Metallic Magenta Background Canvas -->
   <div id="bg-container"></div>
 
@@ -720,18 +756,26 @@
 
   <!-- Glassmorphic HUD Layer -->
   <div class="hud-layer" id="hudLayer">
-    <!-- Top Bar: Phase Indicator & User Switcher -->
+    <!-- Top Bar: Phase Indicator & User Switcher & Audio Toggle -->
     <div class="top-bar">
       <div class="phase-badge" id="phaseBadge">
         <span class="phase-dot"></span>
         <span id="phaseText">Exploration Phase</span>
       </div>
 
-      <!-- Quick Switcher for Testing 2-Player Collaboration -->
-      <button class="user-switch-toggle" id="userSwitchBtn">
-        <span>Active User: <strong id="activeUserName">Maya (User 1)</strong></span>
-        <span style="opacity: 0.6; font-size: 9px;">[Press TAB]</span>
-      </button>
+      <div class="top-right-group">
+        <!-- Audio Mute/Unmute Toggle Button -->
+        <button class="audio-toggle-btn" id="audioToggleBtn" title="Audio stummschalten / abspielen">
+          <span id="audioIcon">🎵</span>
+          <span id="audioLabel">Sound ON</span>
+        </button>
+
+        <!-- Quick Switcher for Testing 2-Player Collaboration -->
+        <button class="user-switch-toggle" id="userSwitchBtn">
+          <span>Active User: <strong id="activeUserName">Maya (User 1)</strong></span>
+          <span style="opacity: 0.6; font-size: 9px;">[Press TAB]</span>
+        </button>
+      </div>
     </div>
 
     <!-- Bottom Bar: Title (Left), Action Button (Center), Mode Selector (Right) -->
@@ -809,6 +853,10 @@
       let isBlütenCompleted = false;
       let isPlexusCompleted = false;
 
+      // Audio State
+      let bgAudio;
+      let isAudioMuted = false;
+
       // ==========================================
       // TIMELINE CONSTANTS & CONFIGURATION
       // ==========================================
@@ -857,6 +905,7 @@
       let btnModeBluten, btnModePlexus, btnModeWald;
       let lobbyOverlay, userNameInput, copyInviteBtn, toggleGuestBtn, startArtworkBtn, toastMsg;
       let pItem2, pStatus2, pName1, pName2, guestBtnText;
+      let audioToggleBtn, audioIcon, audioLabel;
 
       let activePetalCount = INITIAL_PETALS;
       const activeOrbs = [];
@@ -1238,6 +1287,11 @@
         pName2 = document.getElementById('pName2');
         guestBtnText = document.getElementById('guestBtnText');
 
+        bgAudio = document.getElementById('bgAudio');
+        audioToggleBtn = document.getElementById('audioToggleBtn');
+        audioIcon = document.getElementById('audioIcon');
+        audioLabel = document.getElementById('audioLabel');
+
         // Apply Assigned Translucent Colors to Cursor Badges & Lobby Badges
         setupUserColors();
 
@@ -1330,6 +1384,23 @@
           launchArtworkExperience();
         });
 
+        audioToggleBtn.addEventListener('click', () => {
+          if (!bgAudio) return;
+          if (isAudioMuted) {
+            bgAudio.play();
+            isAudioMuted = false;
+            audioIcon.textContent = "🎵";
+            audioLabel.textContent = "Sound ON";
+            showToast("Audio aktiviert");
+          } else {
+            bgAudio.pause();
+            isAudioMuted = true;
+            audioIcon.textContent = "🔇";
+            audioLabel.textContent = "Sound OFF";
+            showToast("Audio stummgeschaltet");
+          }
+        });
+
         window.addEventListener('resize', onWindowResize, false);
         window.addEventListener('mousemove', onMouseMove, false);
         window.addEventListener('mousedown', onMouseDown, false);
@@ -1370,6 +1441,18 @@
       function launchArtworkExperience() {
         isArtworkStarted = true;
         clock.start(); // Start time countdown at artwork launch!
+
+        // START AUDIO PLAYBACK UPON USER CLICK "KUNSTWERK STARTEN"!
+        if (bgAudio) {
+          bgAudio.volume = 0.75;
+          bgAudio.play().then(() => {
+            isAudioMuted = false;
+            audioIcon.textContent = "🎵";
+            audioLabel.textContent = "Sound ON";
+          }).catch(err => {
+            console.log('Audio autoplay info:', err);
+          });
+        }
 
         lobbyOverlay.classList.add('hidden');
         document.getElementById('webgl-container').classList.add('active');
