@@ -685,8 +685,13 @@
 
 <body>
 
-  <!-- Audio Element: Contrasts-Dryhope Audio Track -->
-  <audio id="bgAudio" src="/media/Contrasts-Dryhope.mp3" loop preload="auto"></audio>
+  <!-- Audio Element: Multi-Source Contrasts Audio Track -->
+  <audio id="bgAudio" loop preload="auto">
+    <source src="media/Contrasts-Dryhope.mp3" type="audio/mpeg">
+    <source src="/media/Contrasts-Dryhope.mp3" type="audio/mpeg">
+    <source src="media/contrasts_dryhope_inspired.wav" type="audio/wav">
+    <source src="/media/contrasts_dryhope_inspired.wav" type="audio/wav">
+  </audio>
 
   <!-- Layer 1: Metallic Magenta Background Canvas -->
   <div id="bg-container"></div>
@@ -856,6 +861,7 @@
       // Audio State
       let bgAudio;
       let isAudioMuted = false;
+      let audioCtx = null;
 
       // ==========================================
       // TIMELINE CONSTANTS & CONFIGURATION
@@ -1262,6 +1268,44 @@
         }, 2600);
       }
 
+      function playAudioTrack() {
+        if (!bgAudio) bgAudio = document.getElementById('bgAudio');
+
+        if (bgAudio) {
+          bgAudio.volume = 0.85;
+
+          const playPromise = bgAudio.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              isAudioMuted = false;
+              if (audioIcon) audioIcon.textContent = "🎵";
+              if (audioLabel) audioLabel.textContent = "Sound ON";
+              console.log("Audio playing successfully!");
+            }).catch(err => {
+              console.warn("Audio autoplay blocked by browser policy, waiting for next user touch/click:", err);
+
+              // Gesture fallback handler
+              const unlockHandler = () => {
+                if (bgAudio) {
+                  bgAudio.play().then(() => {
+                    isAudioMuted = false;
+                    if (audioIcon) audioIcon.textContent = "🎵";
+                    if (audioLabel) audioLabel.textContent = "Sound ON";
+                  }).catch(e => console.error(e));
+                }
+                document.removeEventListener('click', unlockHandler);
+                document.removeEventListener('keydown', unlockHandler);
+                document.removeEventListener('touchstart', unlockHandler);
+              };
+
+              document.addEventListener('click', unlockHandler);
+              document.addEventListener('keydown', unlockHandler);
+              document.addEventListener('touchstart', unlockHandler);
+            });
+          }
+        }
+      }
+
       function initApp() {
         bgContainer = document.getElementById('bg-container');
         createArtBtn = document.getElementById('createArtBtn');
@@ -1385,12 +1429,10 @@
         });
 
         audioToggleBtn.addEventListener('click', () => {
+          if (!bgAudio) bgAudio = document.getElementById('bgAudio');
           if (!bgAudio) return;
-          if (isAudioMuted) {
-            bgAudio.play();
-            isAudioMuted = false;
-            audioIcon.textContent = "🎵";
-            audioLabel.textContent = "Sound ON";
+          if (isAudioMuted || bgAudio.paused) {
+            playAudioTrack();
             showToast("Audio aktiviert");
           } else {
             bgAudio.pause();
@@ -1443,16 +1485,7 @@
         clock.start(); // Start time countdown at artwork launch!
 
         // START AUDIO PLAYBACK UPON USER CLICK "KUNSTWERK STARTEN"!
-        if (bgAudio) {
-          bgAudio.volume = 0.75;
-          bgAudio.play().then(() => {
-            isAudioMuted = false;
-            audioIcon.textContent = "🎵";
-            audioLabel.textContent = "Sound ON";
-          }).catch(err => {
-            console.log('Audio autoplay info:', err);
-          });
-        }
+        playAudioTrack();
 
         lobbyOverlay.classList.add('hidden');
         document.getElementById('webgl-container').classList.add('active');
