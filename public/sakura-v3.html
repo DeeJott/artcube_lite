@@ -465,6 +465,31 @@
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
 
+    .participants-hud-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      background: rgba(18, 12, 28, 0.7);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(78, 226, 236, 0.35);
+      border-radius: 20px;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      transition: all 0.4s ease;
+    }
+
+    .participants-hud-badge.connected {
+      border-color: #00ffa3;
+      box-shadow: 0 0 15px rgba(0, 255, 163, 0.4);
+      color: #ffffff;
+    }
+
     .phase-dot {
       width: 7px;
       height: 7px;
@@ -766,11 +791,8 @@
         <div class="invite-group">
           <label>Session & Mitspieler</label>
           <div class="invite-actions">
-            <button type="button" class="invite-btn" id="copyInviteBtn">
-              <span>🔗 Link kopieren</span>
-            </button>
-            <button type="button" class="guest-toggle-btn" id="toggleGuestBtn">
-              <span id="guestBtnText">+ Gast zuschalten</span>
+            <button type="button" class="invite-btn" id="copyInviteBtn" style="width: 100%;">
+              <span>🔗 Einladungslink kopieren</span>
             </button>
           </div>
         </div>
@@ -784,7 +806,7 @@
           <div class="participant-item disabled" id="pItem2">
             <span class="p-dot" id="pDot2"></span>
             <span class="p-name" id="pName2">Gast</span>
-            <span class="p-status" id="pStatus2">Nicht beigetreten</span>
+            <span class="p-status" id="pStatus2">Warte auf Beitritt...</span>
           </div>
         </div>
       </div>
@@ -811,11 +833,16 @@
 
   <!-- Glassmorphic HUD Layer -->
   <div class="hud-layer" id="hudLayer">
-    <!-- Top Bar: Phase Indicator & User Switcher & Audio Toggle -->
+    <!-- Top Bar: Phase Indicator & Participant Status & User Switcher & Audio Toggle -->
     <div class="top-bar">
-      <div class="phase-badge" id="phaseBadge">
-        <span class="phase-dot"></span>
-        <span id="phaseText">Exploration Phase</span>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <div class="phase-badge" id="phaseBadge">
+          <span class="phase-dot"></span>
+          <span id="phaseText">Exploration Phase</span>
+        </div>
+        <div class="participants-hud-badge" id="participantsHudBadge">
+          <span id="hudParticipantsText">👤 1 Spieler (Warte auf Gast...)</span>
+        </div>
       </div>
 
       <div class="top-right-group">
@@ -1438,17 +1465,15 @@
         setupInstancedPetals();
         setupOrbMesh();
         setupParticleTrailMesh();
-        setupPlexusMesh();
-
-        // Lobby Form & User Setup Listeners
+                // Lobby Form & User Setup Listeners
         const guestNameInput = document.getElementById('guestNameInput');
-        const guestInputGroup = document.getElementById('guestInputGroup');
 
         userNameInput.addEventListener('input', (e) => {
           user1Name = e.target.value.trim() || "Host";
           pName1.textContent = `${user1Name} (Host)`;
           document.getElementById('cursorName1').textContent = user1Name;
           activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+          updateParticipantStatus();
           broadcastState('USER_NAME', { user1Name, user2Name });
         });
 
@@ -1458,43 +1483,19 @@
             pName2.textContent = `${user2Name} (Gast)`;
             document.getElementById('cursorName2').textContent = user2Name;
             activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+            updateParticipantStatus();
             broadcastState('USER_NAME', { user1Name, user2Name });
           });
         }
 
         copyInviteBtn.addEventListener('click', () => {
-          const inviteUrl = window.location.href.split('?')[0] + `?room=sakura-${Math.floor(1000 + Math.random() * 9000)}`;
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(inviteUrl).then(() => {
-              showToast("Einladungslink in Zwischenablage kopiert!");
-            }).catch(() => {
-              showToast("Link: " + inviteUrl);
-            });
-          } else {
-            showToast("Einladungslink generiert!");
-          }
-        });
-
-        toggleGuestBtn.addEventListener('click', () => {
-          isGuestJoined = !isGuestJoined;
-          if (isGuestJoined) {
-            toggleGuestBtn.classList.add('active');
-            guestBtnText.textContent = "Gast entfernen";
-            if (guestInputGroup) guestInputGroup.style.display = 'flex';
-            pItem2.classList.remove('disabled');
-            pStatus2.textContent = "Bereit";
-            document.getElementById('userCursor2').classList.add('active');
-            showToast(`Gast ${user2Name} zugeschaltet!`);
-          } else {
-            toggleGuestBtn.classList.remove('active');
-            guestBtnText.textContent = "+ Gast zuschalten";
-            if (guestInputGroup) guestInputGroup.style.display = 'none';
-            pItem2.classList.add('disabled');
-            pStatus2.textContent = "Nicht beigetreten";
-            document.getElementById('userCursor2').classList.remove('active');
-            showToast("Gast entfernt");
-          }
-          broadcastState('GUEST_TOGGLE', { isGuestJoined, user1Name, user2Name });
+          const currentRoom = roomId || `sakura-${Math.floor(1000 + Math.random() * 9000)}`;
+          const inviteUrl = window.location.origin + window.location.pathname + `?room=${currentRoom}`;
+          copyToClipboard(inviteUrl).then(() => {
+            showToast("🔗 Einladungslink in Zwischenablage kopiert!");
+          }).catch(() => {
+            showToast("Link: " + inviteUrl);
+          });
         });
 
         startArtworkBtn.addEventListener('click', () => {
@@ -1550,10 +1551,68 @@
           }
         });
 
-        // Setup BroadcastChannel Message Receiver
+        // Setup BroadcastChannel Message Receiver & Handshake
         setupBroadcastListener();
+        updateParticipantStatus();
 
         animate();
+      }
+
+      function copyToClipboard(text) {
+        return new Promise((resolve, reject) => {
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(resolve).catch(() => {
+              fallbackCopy(text) ? resolve() : reject();
+            });
+          } else {
+            fallbackCopy(text) ? resolve() : reject();
+          }
+        });
+      }
+
+      function fallbackCopy(text) {
+        try {
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-9999px';
+          textArea.style.top = '-9999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+          return successful;
+        } catch (err) {
+          return false;
+        }
+      }
+
+      function updateParticipantStatus() {
+        const pItem2 = document.getElementById('pItem2');
+        const pStatus2 = document.getElementById('pStatus2');
+        const hudBadge = document.getElementById('participantsHudBadge');
+        const hudText = document.getElementById('hudParticipantsText');
+        const cursor2 = document.getElementById('userCursor2');
+
+        if (isGuestJoined) {
+          if (pItem2) pItem2.classList.remove('disabled');
+          if (pStatus2) {
+            pStatus2.textContent = "Bereit (Verbunden)";
+            pStatus2.style.color = "#00ffa3";
+          }
+          if (hudBadge) hudBadge.classList.add('connected');
+          if (hudText) hudText.textContent = `👥 2 Spieler (${user1Name} & ${user2Name})`;
+          if (cursor2) cursor2.classList.add('active');
+        } else {
+          if (pItem2) pItem2.classList.add('disabled');
+          if (pStatus2) {
+            pStatus2.textContent = "Warte auf Beitritt...";
+            pStatus2.style.color = "";
+          }
+          if (hudBadge) hudBadge.classList.remove('connected');
+          if (hudText) hudText.textContent = `👤 1 Spieler (${user1Name} - Warte auf Gast...)`;
+        }
       }
 
       function broadcastState(type, payload = {}) {
@@ -1565,11 +1624,32 @@
 
       function setupBroadcastListener() {
         if (!broadcastChannel) return;
+
+        // Auto announce presence when page loads
+        broadcastState('HELLO', { user1Name, user2Name });
+
         broadcastChannel.onmessage = (event) => {
           const data = event.data;
           if (!data || !data.type) return;
 
-          if (data.type === 'CURSOR_MOVE') {
+          if (data.type === 'HELLO') {
+            isGuestJoined = true;
+            if (data.role === 'guest' && data.user2Name) {
+              user2Name = data.user2Name;
+            }
+            updateParticipantStatus();
+            showToast(`Mitspieler ${data.user2Name || 'Gast'} ist beigetreten!`);
+            broadcastState('WELCOME', { user1Name, user2Name });
+          } else if (data.type === 'WELCOME') {
+            isGuestJoined = true;
+            if (data.user1Name) user1Name = data.user1Name;
+            if (data.user2Name) user2Name = data.user2Name;
+            updateParticipantStatus();
+          } else if (data.type === 'CURSOR_MOVE') {
+            if (!isGuestJoined) {
+              isGuestJoined = true;
+              updateParticipantStatus();
+            }
             const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
             const cursorElem = document.getElementById(remoteIdx === 1 ? 'userCursor1' : 'userCursor2');
             if (cursorElem) {
@@ -1609,13 +1689,7 @@
               pName2.textContent = `${user2Name} (Gast)`;
               document.getElementById('cursorName2').textContent = user2Name;
             }
-          } else if (data.type === 'GUEST_TOGGLE') {
-            isGuestJoined = data.isGuestJoined;
-            if (isGuestJoined) {
-              document.getElementById('userCursor2').classList.add('active');
-              pItem2.classList.remove('disabled');
-              pStatus2.textContent = "Bereit";
-            }
+            updateParticipantStatus();
           } else if (data.type === 'START_ARTWORK') {
             if (!isArtworkStarted) {
               launchArtworkExperience(false);
@@ -1659,7 +1733,9 @@
         document.getElementById('webgl-container').classList.add('active');
         document.getElementById('hudLayer').classList.add('active');
         document.getElementById('userCursor1').classList.add('active');
-        document.getElementById('userCursor2').classList.add('active');
+        if (isGuestJoined) {
+          document.getElementById('userCursor2').classList.add('active');
+        }
 
         if (shouldBroadcast) {
           broadcastState('START_ARTWORK', { user1Name, user2Name, activeMode });
@@ -1724,7 +1800,6 @@
           broadcastState('MODE_SWITCH', { mode: newMode });
         }
       }
-      }
 
       function checkUnlockWald() {
         if (isBlütenCompleted && isPlexusCompleted) {
@@ -1750,8 +1825,15 @@
       }
 
       function updateCameraDistance() {
-        const aspect = window.innerWidth / window.innerHeight;
-        const baseDist = aspect < 1.0 ? 680 : 540;
+        if (!camera) return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const aspect = w / h;
+
+        // Responsive scale factor based on width (desktop reference 1440px)
+        const widthScale = Math.max(0.45, Math.min(1.0, w / 1440));
+        const baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
+
         camera.position.set(0, 0, baseDist);
         camera.lookAt(0, 0, 0);
       }
