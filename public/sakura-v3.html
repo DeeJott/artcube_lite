@@ -93,6 +93,51 @@
       background-color: var(--user-color-alpha, rgba(0, 240, 255, 0.35));
       box-shadow: 0 0 16px var(--user-color-glow, rgba(0, 240, 255, 0.6));
       position: relative;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
+    }
+
+    .cursor-circle.gesture-active {
+      transform: scale(1.38);
+      box-shadow: 0 0 30px var(--user-color-glow, rgba(0, 240, 255, 0.95)), 0 0 45px rgba(255, 255, 255, 0.9);
+    }
+
+    .cursor-circle.gesture-click {
+      animation: cursorClickPulse 0.4s ease-out;
+    }
+
+    @keyframes cursorClickPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.45); }
+      100% { transform: scale(1); }
+    }
+
+    .gesture-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--user-color-glow, rgba(0, 240, 255, 0.9));
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: none;
+      opacity: 1;
+      animation: gestureRingExpand 0.6s ease-out forwards;
+    }
+
+    @keyframes gestureRingExpand {
+      0% {
+        width: 32px;
+        height: 32px;
+        opacity: 0.95;
+        border-width: 3px;
+      }
+      100% {
+        width: 110px;
+        height: 110px;
+        opacity: 0;
+        border-width: 1px;
+      }
     }
 
     .cursor-circle::after {
@@ -709,8 +754,13 @@
 
       <div class="lobby-form">
         <div class="input-group">
-          <label for="userNameInput">Dein Name</label>
-          <input type="text" class="name-input" id="userNameInput" value="Maya" placeholder="Gib deinen Namen ein..." maxlength="18" />
+          <label for="userNameInput">Dein Name (Host)</label>
+          <input type="text" class="name-input" id="userNameInput" placeholder="Dein Name" maxlength="18" />
+        </div>
+
+        <div class="input-group" id="guestInputGroup" style="display: none;">
+          <label for="guestNameInput">Mitspieler Name (Gast)</label>
+          <input type="text" class="name-input" id="guestNameInput" placeholder="Dein Name" maxlength="18" />
         </div>
 
         <div class="invite-group">
@@ -728,12 +778,12 @@
         <div class="participants-list">
           <div class="participant-item" id="pItem1">
             <span class="p-dot" id="pDot1"></span>
-            <span class="p-name" id="pName1">Maya (Host)</span>
+            <span class="p-name" id="pName1">Host</span>
             <span class="p-status">Bereit</span>
           </div>
           <div class="participant-item disabled" id="pItem2">
             <span class="p-dot" id="pDot2"></span>
-            <span class="p-name" id="pName2">Kenji (Gast)</span>
+            <span class="p-name" id="pName2">Gast</span>
             <span class="p-status" id="pStatus2">Nicht beigetreten</span>
           </div>
         </div>
@@ -751,12 +801,12 @@
   <!-- Custom User Cursors -->
   <div class="user-cursor" id="userCursor1">
     <div class="cursor-circle" id="cursorCircle1"></div>
-    <div class="cursor-name" id="cursorName1">Maya</div>
+    <div class="cursor-name" id="cursorName1">Host</div>
   </div>
 
   <div class="user-cursor" id="userCursor2">
     <div class="cursor-circle" id="cursorCircle2"></div>
-    <div class="cursor-name" id="cursorName2">Kenji</div>
+    <div class="cursor-name" id="cursorName2">Gast</div>
   </div>
 
   <!-- Glassmorphic HUD Layer -->
@@ -777,7 +827,7 @@
 
         <!-- Quick Switcher for Testing 2-Player Collaboration -->
         <button class="user-switch-toggle" id="userSwitchBtn">
-          <span>Active User: <strong id="activeUserName">Maya (User 1)</strong></span>
+          <span>Active User: <strong id="activeUserName">Host (User 1)</strong></span>
           <span style="opacity: 0.6; font-size: 9px;">[Press TAB]</span>
         </button>
       </div>
@@ -845,10 +895,16 @@
       const user1Color = CURSOR_PALETTE_10[colorIndex1];
       const user2Color = CURSOR_PALETTE_10[colorIndex2];
 
-      let activeUserIndex = 1; // 1 = Maya (User 1), 2 = Kenji (User 2)
-      let user1Name = "Maya";
-      let user2Name = "Kenji";
-      let isGuestJoined = false;
+      // Multi-screen & Cross-Tab Real-time BroadcastChannel Synchronization
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get('room') || 'sakura-session';
+      const broadcastChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel(`sakura_channel_${roomId}`) : null;
+
+      const myRole = urlParams.has('room') ? 'guest' : 'host';
+      let activeUserIndex = (myRole === 'guest') ? 2 : 1; // 1 = Host (User 1), 2 = Guest (User 2)
+      let user1Name = "Host";
+      let user2Name = "Gast";
+      let isGuestJoined = (myRole === 'guest');
       let isArtworkStarted = false;
 
       // Active Artwork Mode: 'bluten', 'plexus', 'wald'
@@ -1385,12 +1441,26 @@
         setupPlexusMesh();
 
         // Lobby Form & User Setup Listeners
+        const guestNameInput = document.getElementById('guestNameInput');
+        const guestInputGroup = document.getElementById('guestInputGroup');
+
         userNameInput.addEventListener('input', (e) => {
-          user1Name = e.target.value.trim() || "Maya";
+          user1Name = e.target.value.trim() || "Host";
           pName1.textContent = `${user1Name} (Host)`;
           document.getElementById('cursorName1').textContent = user1Name;
           activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+          broadcastState('USER_NAME', { user1Name, user2Name });
         });
+
+        if (guestNameInput) {
+          guestNameInput.addEventListener('input', (e) => {
+            user2Name = e.target.value.trim() || "Gast";
+            pName2.textContent = `${user2Name} (Gast)`;
+            document.getElementById('cursorName2').textContent = user2Name;
+            activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+            broadcastState('USER_NAME', { user1Name, user2Name });
+          });
+        }
 
         copyInviteBtn.addEventListener('click', () => {
           const inviteUrl = window.location.href.split('?')[0] + `?room=sakura-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1410,22 +1480,25 @@
           if (isGuestJoined) {
             toggleGuestBtn.classList.add('active');
             guestBtnText.textContent = "Gast entfernen";
+            if (guestInputGroup) guestInputGroup.style.display = 'flex';
             pItem2.classList.remove('disabled');
             pStatus2.textContent = "Bereit";
             document.getElementById('userCursor2').classList.add('active');
-            showToast("Gast Kenji zugeschaltet!");
+            showToast(`Gast ${user2Name} zugeschaltet!`);
           } else {
             toggleGuestBtn.classList.remove('active');
             guestBtnText.textContent = "+ Gast zuschalten";
+            if (guestInputGroup) guestInputGroup.style.display = 'none';
             pItem2.classList.add('disabled');
             pStatus2.textContent = "Nicht beigetreten";
             document.getElementById('userCursor2').classList.remove('active');
             showToast("Gast entfernt");
           }
+          broadcastState('GUEST_TOGGLE', { isGuestJoined, user1Name, user2Name });
         });
 
         startArtworkBtn.addEventListener('click', () => {
-          launchArtworkExperience();
+          launchArtworkExperience(true);
         });
 
         audioToggleBtn.addEventListener('click', () => {
@@ -1464,10 +1537,10 @@
         });
 
         // Mode Switcher Button Listeners
-        btnModeBluten.addEventListener('click', () => switchMode('bluten'));
-        btnModePlexus.addEventListener('click', () => switchMode('plexus'));
+        btnModeBluten.addEventListener('click', () => switchMode('bluten', true));
+        btnModePlexus.addEventListener('click', () => switchMode('plexus', true));
         btnModeWald.addEventListener('click', () => {
-          if (!btnModeWald.disabled) switchMode('wald');
+          if (!btnModeWald.disabled) switchMode('wald', true);
         });
 
         createArtBtn.addEventListener('click', () => {
@@ -1477,25 +1550,119 @@
           }
         });
 
+        // Setup BroadcastChannel Message Receiver
+        setupBroadcastListener();
+
         animate();
       }
 
-      function launchArtworkExperience() {
-        isArtworkStarted = true;
-        clock.start(); // Start time countdown at artwork launch!
+      function broadcastState(type, payload = {}) {
+        if (!broadcastChannel) return;
+        try {
+          broadcastChannel.postMessage({ type, role: myRole, senderIndex: activeUserIndex, ...payload });
+        } catch (e) {}
+      }
 
-        // START AUDIO PLAYBACK UPON USER CLICK "KUNSTWERK STARTEN"!
+      function setupBroadcastListener() {
+        if (!broadcastChannel) return;
+        broadcastChannel.onmessage = (event) => {
+          const data = event.data;
+          if (!data || !data.type) return;
+
+          if (data.type === 'CURSOR_MOVE') {
+            const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
+            const cursorElem = document.getElementById(remoteIdx === 1 ? 'userCursor1' : 'userCursor2');
+            if (cursorElem) {
+              cursorElem.classList.add('active');
+              const cX = data.normX * window.innerWidth;
+              const cY = (1.0 - data.normY) * window.innerHeight;
+              cursorElem.style.left = `${cX}px`;
+              cursorElem.style.top = `${cY}px`;
+
+              if (camera) {
+                const vector = new THREE.Vector3(
+                  data.normX * 2 - 1,
+                  data.normY * 2 - 1,
+                  0.5
+                );
+                vector.unproject(camera);
+                const dir = vector.sub(camera.position).normalize();
+                const dist = -camera.position.z / dir.z;
+                if (remoteIdx === 1) {
+                  mouseWorld.copy(camera.position).add(dir.multiplyScalar(dist));
+                } else {
+                  user2WorldPos.copy(camera.position).add(dir.multiplyScalar(dist));
+                }
+              }
+            }
+          } else if (data.type === 'GESTURE') {
+            const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
+            triggerCursorGesture(remoteIdx, data.gestureType);
+          } else if (data.type === 'USER_NAME') {
+            if (data.user1Name) {
+              user1Name = data.user1Name;
+              pName1.textContent = `${user1Name} (Host)`;
+              document.getElementById('cursorName1').textContent = user1Name;
+            }
+            if (data.user2Name) {
+              user2Name = data.user2Name;
+              pName2.textContent = `${user2Name} (Gast)`;
+              document.getElementById('cursorName2').textContent = user2Name;
+            }
+          } else if (data.type === 'GUEST_TOGGLE') {
+            isGuestJoined = data.isGuestJoined;
+            if (isGuestJoined) {
+              document.getElementById('userCursor2').classList.add('active');
+              pItem2.classList.remove('disabled');
+              pStatus2.textContent = "Bereit";
+            }
+          } else if (data.type === 'START_ARTWORK') {
+            if (!isArtworkStarted) {
+              launchArtworkExperience(false);
+            }
+          } else if (data.type === 'MODE_SWITCH') {
+            if (data.mode && data.mode !== activeMode) {
+              switchMode(data.mode, false);
+            }
+          }
+        };
+      }
+
+      function triggerCursorGesture(userIndex, type) {
+        const circle = document.getElementById(userIndex === 1 ? 'cursorCircle1' : 'cursorCircle2');
+        const cursor = document.getElementById(userIndex === 1 ? 'userCursor1' : 'userCursor2');
+        if (!circle || !cursor) return;
+
+        if (type === 'mousedown' || type === 'hold') {
+          circle.classList.add('gesture-active');
+        } else if (type === 'mouseup') {
+          circle.classList.remove('gesture-active');
+        } else if (type === 'click' || type === 'orb_click' || type === 'burst') {
+          circle.classList.add('gesture-click');
+          setTimeout(() => circle.classList.remove('gesture-click'), 400);
+
+          const ring = document.createElement('div');
+          ring.className = 'gesture-ring';
+          ring.style.setProperty('--user-color-glow', userIndex === 1 ? `rgba(${user1Color.rgb}, 0.9)` : `rgba(${user2Color.rgb}, 0.9)`);
+          cursor.appendChild(ring);
+          setTimeout(() => ring.remove(), 600);
+        }
+      }
+
+      function launchArtworkExperience(shouldBroadcast = true) {
+        isArtworkStarted = true;
+        clock.start();
+
         playAudioTrack();
 
         lobbyOverlay.classList.add('hidden');
         document.getElementById('webgl-container').classList.add('active');
         document.getElementById('hudLayer').classList.add('active');
         document.getElementById('userCursor1').classList.add('active');
+        document.getElementById('userCursor2').classList.add('active');
 
-        if (isGuestJoined) {
-          document.getElementById('userCursor2').classList.add('active');
-        } else {
-          document.getElementById('userCursor2').classList.remove('active');
+        if (shouldBroadcast) {
+          broadcastState('START_ARTWORK', { user1Name, user2Name, activeMode });
         }
       }
 
@@ -1521,7 +1688,7 @@
         pDot2.style.boxShadow = `0 0 10px ${user2Color.hex}`;
       }
 
-      function switchMode(newMode) {
+      function switchMode(newMode, shouldBroadcast = true) {
         if (activeMode === newMode) return;
         activeMode = newMode;
 
@@ -1552,6 +1719,11 @@
           if (plexusPointsMesh) plexusPointsMesh.visible = true;
           alert("Wald Modus freigeschaltet! Genieße die symphonische Kombination.");
         }
+
+        if (shouldBroadcast) {
+          broadcastState('MODE_SWITCH', { mode: newMode });
+        }
+      }
       }
 
       function checkUnlockWald() {
@@ -1839,6 +2011,10 @@
       function onMouseDown(e) {
         if (!isArtworkStarted) return;
         if (e.target.closest('.hud-layer') || e.target.closest('button')) return;
+
+        triggerCursorGesture(activeUserIndex, 'mousedown');
+        broadcastState('GESTURE', { gestureType: 'mousedown' });
+
         if (activeMode !== 'plexus' && activeMode !== 'wald') return;
 
         const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
@@ -1874,6 +2050,10 @@
 
       function onMouseUp() {
         if (!isArtworkStarted) return;
+
+        triggerCursorGesture(activeUserIndex, 'mouseup');
+        broadcastState('GESTURE', { gestureType: 'mouseup' });
+
         if (isMouseDown && (activeMode === 'plexus' || activeMode === 'wald')) {
           if (!draggedPlexusCluster) {
             // Lock in newly generated plexus cluster if held for 2 seconds
@@ -1894,6 +2074,9 @@
       function onCanvasClick(e) {
         if (!isArtworkStarted) return;
         if (e.target === createArtBtn || e.target.closest('#createArtBtn') || e.target === userSwitchBtn || e.target.closest('#userSwitchBtn') || e.target.closest('.mode-selector-container')) return;
+
+        triggerCursorGesture(activeUserIndex, 'click');
+        broadcastState('GESTURE', { gestureType: 'click' });
 
         if (activeMode !== 'bluten' && activeMode !== 'wald') return;
 
@@ -1995,45 +2178,51 @@
       }
 
       function onMouseMove(event) {
-        mouseScreen.x = event.clientX / window.innerWidth;
-        mouseScreen.y = 1.0 - (event.clientY / window.innerHeight);
+        const normX = event.clientX / window.innerWidth;
+        const normY = 1.0 - (event.clientY / window.innerHeight);
 
-        // Update User 1 Cursor Element
-        const cursor1 = document.getElementById('userCursor1');
-        cursor1.style.left = `${event.clientX}px`;
-        cursor1.style.top = `${event.clientY}px`;
+        mouseScreen.x = normX;
+        mouseScreen.y = normY;
 
+        // Position current local user cursor element
+        const activeCursor = document.getElementById(activeUserIndex === 1 ? 'userCursor1' : 'userCursor2');
+        if (activeCursor) {
+          activeCursor.classList.add('active');
+          activeCursor.style.left = `${event.clientX}px`;
+          activeCursor.style.top = `${event.clientY}px`;
+        }
+
+        // Ensure both cursors are active and visible when guest is connected or active
+        if (isGuestJoined || myRole === 'guest') {
+          const cursor1 = document.getElementById('userCursor1');
+          const cursor2 = document.getElementById('userCursor2');
+          if (cursor1) cursor1.classList.add('active');
+          if (cursor2) cursor2.classList.add('active');
+        }
+
+        // Update 3D World position for local active user
         if (camera) {
           const vector = new THREE.Vector3(
-            (event.clientX / window.innerWidth) * 2 - 1,
-            -(event.clientY / window.innerHeight) * 2 + 1,
+            normX * 2 - 1,
+            normY * 2 - 1,
             0.5
           );
           vector.unproject(camera);
           const dir = vector.sub(camera.position).normalize();
           const distance = -camera.position.z / dir.z;
-          mouseWorld.copy(camera.position).add(dir.multiplyScalar(distance));
+          const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+          if (activeUserIndex === 1) {
+            mouseWorld.copy(pos);
+          } else {
+            user2WorldPos.copy(pos);
+          }
         }
 
-        // Simulate User 2 (Kenji) position smoothly drifting near User 1
-        const u2X = (window.innerWidth * 0.5) + Math.sin(performance.now() * 0.001) * 220;
-        const u2Y = (window.innerHeight * 0.5) + Math.cos(performance.now() * 0.0012) * 140;
-
-        const cursor2 = document.getElementById('userCursor2');
-        cursor2.style.left = `${u2X}px`;
-        cursor2.style.top = `${u2Y}px`;
-
-        if (camera) {
-          const vector2 = new THREE.Vector3(
-            (u2X / window.innerWidth) * 2 - 1,
-            -(u2Y / window.innerHeight) * 2 + 1,
-            0.5
-          );
-          vector2.unproject(camera);
-          const dir2 = vector2.sub(camera.position).normalize();
-          const dist2 = -camera.position.z / dir2.z;
-          user2WorldPos.copy(camera.position).add(dir2.multiplyScalar(dist2));
-        }
+        // Broadcast local cursor move to other screens / tabs
+        broadcastState('CURSOR_MOVE', {
+          normX: normX,
+          normY: normY
+        });
       }
 
       function onWindowResize() {
