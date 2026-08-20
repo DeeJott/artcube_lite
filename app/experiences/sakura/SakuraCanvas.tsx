@@ -594,12 +594,17 @@ class OrbNode {
 // MAIN SAKURA CANVAS REACT COMPONENT
 // ==========================================
 
+interface SakuraCanvasProps extends ExperienceComponentProps {
+  onExit?: () => void;
+}
+
 export function SakuraCanvas({
   intensity,
   bass,
   sendInteraction,
-  onRendererReady
-}: ExperienceComponentProps) {
+  onRendererReady,
+  onExit
+}: SakuraCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -702,8 +707,12 @@ export function SakuraCanvas({
 
   // Exit back to main start website
   const handleExit = useCallback(() => {
-    window.location.reload();
-  }, []);
+    if (onExit) {
+      onExit();
+    } else {
+      window.location.reload();
+    }
+  }, [onExit]);
 
   // Main Three.js Scene Setup & Interactive Event Handling
   useEffect(() => {
