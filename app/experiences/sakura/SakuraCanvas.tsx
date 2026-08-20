@@ -309,6 +309,58 @@ const orbFragmentShader = /* glsl */ `
   }
 `;
 
+// 4. 4,000 Particle Trail Shaders (4-Pointed Starburst Flares)
+const particleTrailVertexShader = /* glsl */ `
+  attribute float size;
+  attribute float alpha;
+  attribute vec3 color;
+  attribute float rotAngle;
+
+  varying float vAlpha;
+  varying vec3 vColor;
+  varying float vRotAngle;
+
+  void main() {
+    vAlpha = alpha;
+    vColor = color;
+    vRotAngle = rotAngle;
+
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * (300.0 / -mvPosition.z);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const particleTrailFragmentShader = /* glsl */ `
+  varying float vAlpha;
+  varying vec3 vColor;
+  varying float vRotAngle;
+
+  void main() {
+    vec2 p = gl_PointCoord - vec2(0.5);
+    
+    float cosA = cos(vRotAngle);
+    float sinA = sin(vRotAngle);
+    vec2 rotP = vec2(
+      p.x * cosA - p.y * sinA,
+      p.x * sinA + p.y * cosA
+    );
+
+    float d = length(rotP);
+    if (d > 0.5) discard;
+
+    float starVal = pow(clamp(1.0 - abs(rotP.x) * 2.0, 0.0, 1.0) * clamp(1.0 - abs(rotP.y) * 2.0, 0.0, 1.0), 3.0);
+    vec2 diagP = vec2(rotP.x + rotP.y, rotP.x - rotP.y) * 0.7071;
+    float diagStar = pow(clamp(1.0 - abs(diagP.x) * 2.0, 0.0, 1.0) * clamp(1.0 - abs(diagP.y) * 2.0, 0.0, 1.0), 4.0);
+    
+    float softCore = exp(-d * d * 18.0);
+    float totalIntensity = Math.max(starVal * 1.5, Math.max(diagStar * 0.8, softCore * 1.2));
+
+    vec3 finalColor = mix(vColor, vec3(1.0, 1.0, 1.0), softCore * 0.7);
+    gl_FragColor = vec4(finalColor, totalIntensity * vAlpha * 0.95);
+  }
+`;
+
 // ==========================================
 // HELPER CLASSES
 // ==========================================
@@ -710,7 +762,7 @@ export function SakuraCanvas({
     }
   }, [onExit]);
 
-  // Main Three.js Scene Setup & Step-by-Step Interactive Engine
+  // Main Three.js Scene Setup & Native WebGL Engine
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
@@ -771,7 +823,7 @@ export function SakuraCanvas({
     const mouseScreen = new THREE.Vector2(0.5, 0.5);
     const mouseWorld = new THREE.Vector3(0, 0, 0);
 
-    // 1. Instanced Sakura Petals (600 Petals — Hidden until Petal Phase!)
+    // 1. Instanced Sakura Petals (600 Petals)
     const petalGeo = new THREE.PlaneGeometry(0.9, 0.9);
     const petalMat = new THREE.MeshBasicMaterial({
       map: generatePetalTexture(),
@@ -782,7 +834,7 @@ export function SakuraCanvas({
     });
     const instancedPetalMesh = new THREE.InstancedMesh(petalGeo, petalMat, MAX_PETALS);
     instancedPetalMesh.matrixAutoUpdate = false;
-    instancedPetalMesh.visible = false; // Initially invisible!
+    instancedPetalMesh.visible = false; // Hidden until Petal phase!
     petalGroup.add(instancedPetalMesh);
 
     const petalOriginX = new Float32Array(MAX_PETALS);
@@ -827,7 +879,6 @@ export function SakuraCanvas({
       const t = i / 140;
       mainTrunkStroke.addPoint(pts[i], Math.max(0.18, 1.0 - t * 0.55));
     }
-    // Starts at 0.0 progress for step-by-step growth!
     mainTrunkStroke.setProgress(0.0);
 
     const parentInfo = { curve: trunkCurve, stroke: mainTrunkStroke, level: 0, totalLength: trunkCurve.getLength() };
@@ -836,7 +887,6 @@ export function SakuraCanvas({
     let growthProgressVal = 0.0;
     const growthDurationSeconds = 6.0;
 
-    // Function to spawn round orbs
     const spawnOrbRound = (roundNum: number, phase: 'BRANCH' | 'BLOSSOM' | 'PETAL') => {
       setCurrentPhase(phase);
       setCurrentRound(roundNum);
@@ -851,7 +901,32 @@ export function SakuraCanvas({
       activeOrbs.forEach(o => o.setAlpha(0.95));
     };
 
-    // 3. Plexus Mesh
+    // 3. Particle Trail Mesh (4,000 Starburst Flares)
+    const trailPositions = new Float32Array(MAX_TRAIL_PARTICLES * 3);
+    const trailColors = new Float32Array(MAX_TRAIL_PARTICLES * 3);
+    const trailSizes = new Float32Array(MAX_TRAIL_PARTICLES);
+    const trailAlphas = new Float32Array(MAX_TRAIL_PARTICLES);
+    const trailRotations = new Float32Array(MAX_TRAIL_PARTICLES);
+
+    const trailGeo = new THREE.BufferGeometry();
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+    trailGeo.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
+    trailGeo.setAttribute('size', new THREE.BufferAttribute(trailSizes, 1));
+    trailGeo.setAttribute('alpha', new THREE.BufferAttribute(trailAlphas, 1));
+    trailGeo.setAttribute('rotAngle', new THREE.BufferAttribute(trailRotations, 1));
+
+    const trailMat = new THREE.ShaderMaterial({
+      vertexShader: particleTrailVertexShader,
+      fragmentShader: particleTrailFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const trailPointsMesh = new THREE.Points(trailGeo, trailMat);
+    mainScene.add(trailPointsMesh);
+
+    // 4. Plexus Mesh
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
     lineGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
@@ -891,7 +966,7 @@ export function SakuraCanvas({
     const plexusPointsMesh = new THREE.Points(nodeGeo, nodeMat);
     mainScene.add(plexusPointsMesh);
 
-    // Interactive Pointer Listeners for Step-by-Step Artwork Mechanics
+    // Interactive Pointer Handlers
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
@@ -937,7 +1012,7 @@ export function SakuraCanvas({
 
     const animateLoop = () => {
       animFrameId = requestAnimationFrame(animateLoop);
-      const delta = clock.getDelta();
+      const delta = Math.min(clock.getDelta(), 0.1);
       if (isPausedRef.current) return;
 
       totalAnimTime += delta;
@@ -1039,6 +1114,8 @@ export function SakuraCanvas({
       nodeGeo.dispose();
       petalMat.dispose();
       petalGeo.dispose();
+      trailMat.dispose();
+      trailGeo.dispose();
       noiseTex.dispose();
     };
   }, [onRendererReady, handleSwitchMode, markArtworkCompleted, showToast, updateCameraDistance]);
