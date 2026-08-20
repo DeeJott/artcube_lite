@@ -1148,12 +1148,12 @@ export function SakuraCanvas({
       }
 
       // Mode visibility sync
-      const showBlüten = activeModeRef.current === 'bluten' || frozenModeRef.current === 'bluten';
+      const showBlüten = activeModeRef.current === 'bluten' || activeModeRef.current === 'wald';
       strokeGroup.visible = showBlüten;
       orbGroup.visible = showBlüten;
       petalGroup.visible = showBlüten;
 
-      const showPlexus = activeModeRef.current === 'plexus' || frozenModeRef.current === 'plexus' || activeModeRef.current === 'wald' || frozenModeRef.current === 'wald';
+      const showPlexus = activeModeRef.current === 'plexus' || activeModeRef.current === 'wald';
       plexusLinesMesh.visible = showPlexus;
       plexusPointsMesh.visible = showPlexus;
 
