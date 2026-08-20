@@ -2981,12 +2981,12 @@
         btnModePlexus.classList.remove('active');
         btnModeWald.classList.remove('active');
 
-        const showBlüten = (activeMode === 'bluten' || frozenMode === 'bluten');
+        const showBlüten = (activeMode === 'bluten' || activeMode === 'wald');
         if (strokeGroup) strokeGroup.visible = showBlüten;
         if (orbGroup) orbGroup.visible = showBlüten;
         if (petalGroup) petalGroup.visible = showBlüten;
 
-        const showPlexus = (activeMode === 'plexus' || frozenMode === 'plexus' || activeMode === 'wald' || frozenMode === 'wald');
+        const showPlexus = (activeMode === 'plexus' || activeMode === 'wald');
         if (plexusLinesMesh) plexusLinesMesh.visible = showPlexus;
         if (plexusPointsMesh) plexusPointsMesh.visible = showPlexus;
 

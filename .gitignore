@@ -29,15 +29,3 @@ yarn-error.log*
 # scratch
 scratch/
 
-# unused test HTML & experimental files
-public/test*.html
-public/test *.html
-public/background-v*.html
-public/particles-*.html
-public/sakura-v1.html
-public/sakura-v2.html
-public/sakura-final.html
-public/cosmic-cycle-test.html
-public/lofi-player.html
-public/particle_ink_test.html
-public/alcohol ink project/
