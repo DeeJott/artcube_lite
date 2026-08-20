@@ -1034,18 +1034,18 @@ export function SakuraCanvas({
         mainTrunkStroke.setProgress(growthProgressVal);
       }
 
-      // Visibility sync
-      const showBlüten = activeModeRef.current === 'bluten' || frozenModeRef.current === 'bluten';
-      strokeGroup.visible = showBlüten;
-      orbGroup.visible = showBlüten;
-      petalGroup.visible = showBlüten;
+      // Strict Visibility Isolation per Artwork Mode
+      const isBlütenActive = activeModeRef.current === 'bluten' || activeModeRef.current === 'wald';
+      strokeGroup.visible = isBlütenActive;
+      orbGroup.visible = isBlütenActive;
+      petalGroup.visible = isBlütenActive;
 
-      const showPlexus = activeModeRef.current === 'plexus' || frozenModeRef.current === 'plexus' || activeModeRef.current === 'wald' || frozenModeRef.current === 'wald';
-      plexusLinesMesh.visible = showPlexus;
-      plexusPointsMesh.visible = showPlexus;
+      const isPlexusActive = activeModeRef.current === 'plexus' || activeModeRef.current === 'wald';
+      plexusLinesMesh.visible = isPlexusActive;
+      plexusPointsMesh.visible = isPlexusActive;
 
       // Update Instanced Petals
-      if (showBlüten && instancedPetalMesh.visible) {
+      if (isBlütenActive && instancedPetalMesh.visible) {
         const renderPetals = Math.min(MAX_PETALS, activePetalCount);
         for (let i = 0; i < renderPetals; i++) {
           petalAngle[i] += petalSpeed[i] * delta;
