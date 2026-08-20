@@ -5,8 +5,14 @@ import * as THREE from 'three';
 import type { ExperienceComponentProps } from '../../lib/experience-types';
 
 // ==========================================
-// SHADERS & TEXTURES
+// CONSTANTS & SHADERS
 // ==========================================
+
+const MAX_PETALS = 600;
+const INITIAL_PETALS = 20;
+const MAX_TRAIL_PARTICLES = 4000;
+const MAX_TOTAL_NODES = 450;
+const MAX_TOTAL_LINES = 1400;
 
 function createNoiseTexture(): THREE.DataTexture {
   const size = 256;
@@ -25,6 +31,31 @@ function createNoiseTexture(): THREE.DataTexture {
   texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
   return texture;
+}
+
+function generatePetalTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    ctx.filter = 'drop-shadow(0px 0px 8px rgba(255, 180, 235, 0.9))';
+    const grad = ctx.createLinearGradient(0, 0, 64, 64);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.3, '#ffccf2');
+    grad.addColorStop(0.7, '#ff66cc');
+    grad.addColorStop(1, '#ff1a8c');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(32, 4);
+    ctx.bezierCurveTo(50, 12, 60, 32, 50, 52);
+    ctx.bezierCurveTo(40, 62, 24, 62, 14, 52);
+    ctx.bezierCurveTo(4, 32, 14, 12, 32, 4);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
 }
 
 // 1. Background Metallic Fluid Shader with Refraction Wave
@@ -465,7 +496,7 @@ class ImmersiveStroke {
 class OrbNode {
   basePosition: THREE.Vector3;
   position: THREE.Vector3;
-  parentBranchInfo: { curve: THREE.CatmullRomCurve3; stroke: ImmersiveStroke; level: number; totalLength: number };
+  parentBranchInfo: { curve: THREE.CatmullRomCurve3; stroke: ImmersiveStroke; level: number; totalLength: number } | null;
   level: number;
   roundId: number;
   type: string;
@@ -485,14 +516,14 @@ class OrbNode {
 
   constructor(
     orbGroup: THREE.Group,
-    parentBranchInfo: { curve: THREE.CatmullRomCurve3; stroke: ImmersiveStroke; level: number; totalLength: number },
+    parentBranchInfo: { curve: THREE.CatmullRomCurve3; stroke: ImmersiveStroke; level: number; totalLength: number } | null,
     level: number,
     roundId: number,
     orbT: number,
     type = 'branch',
     customPos: THREE.Vector3 | null = null
   ) {
-    this.basePosition = customPos ? customPos.clone() : parentBranchInfo.curve.getPointAt(orbT).clone();
+    this.basePosition = customPos ? customPos.clone() : (parentBranchInfo ? parentBranchInfo.curve.getPointAt(orbT).clone() : new THREE.Vector3(0, 0, 0));
     this.position = this.basePosition.clone();
     this.parentBranchInfo = parentBranchInfo;
     this.level = level;
@@ -608,110 +639,6 @@ class OrbNode {
   }
 }
 
-function create2DPetalGeometry(): THREE.ShapeGeometry {
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 0);
-  shape.bezierCurveTo(0.18, 0.08, 0.28, 0.25, 0.22, 0.45);
-  shape.bezierCurveTo(0.18, 0.58, 0.08, 0.72, -0.08, 0.85);
-  shape.bezierCurveTo(-0.14, 0.82, -0.12, 0.75, -0.10, 0.68);
-  shape.bezierCurveTo(-0.14, 0.52, -0.06, 0.38, -0.10, 0.22);
-  shape.bezierCurveTo(-0.12, 0.12, -0.06, 0.04, 0, 0);
-  return new THREE.ShapeGeometry(shape);
-}
-
-const shared2DPetalGeometry = create2DPetalGeometry();
-
-class Floating2DPetal {
-  posX: number;
-  posY: number;
-  baseZ: number;
-  targetZ: number;
-  posZ: number;
-  seed: number;
-  speedX: number;
-  speedY: number;
-  amplitudeX: number;
-  amplitudeY: number;
-  amplitudeZ: number;
-  freqX: number;
-  freqY: number;
-  freqZ: number;
-  phaseX: number;
-  phaseY: number;
-  phaseZ: number;
-  age = 0.0;
-  fadeInDuration = 0.8;
-  material: THREE.MeshBasicMaterial;
-  mesh: THREE.Mesh;
-  baseScale: number;
-
-  constructor(petalGroup: THREE.Group, originPos: THREE.Vector3) {
-    this.posX = originPos.x;
-    this.posY = originPos.y;
-    this.baseZ = -3.5 - Math.random() * 1.5;
-    this.targetZ = 2.2 + Math.random() * 1.5;
-    this.posZ = this.baseZ;
-
-    this.seed = Math.random() * 100.0;
-    this.speedX = (Math.random() > 0.5 ? 1 : -1) * (0.6 + Math.random() * 0.8);
-    this.speedY = (Math.random() - 0.5) * 0.4;
-    this.amplitudeX = 1.6 + Math.random() * 2.2;
-    this.amplitudeY = 1.2 + Math.random() * 1.8;
-    this.amplitudeZ = 0.8 + Math.random() * 1.2;
-    this.freqX = 0.3 + Math.random() * 0.4;
-    this.freqY = 0.25 + Math.random() * 0.35;
-    this.freqZ = 0.4 + Math.random() * 0.5;
-    this.phaseX = Math.random() * Math.PI * 2.0;
-    this.phaseY = Math.random() * Math.PI * 2.0;
-    this.phaseZ = Math.random() * Math.PI * 2.0;
-
-    const pinkColors = [0xff66cc, 0xff88dd, 0xff44aa, 0xffbbee, 0xff33aa];
-    const color = pinkColors[Math.floor(Math.random() * pinkColors.length)];
-
-    this.material = new THREE.MeshBasicMaterial({
-      color: color,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.0,
-      depthWrite: false
-    });
-
-    this.mesh = new THREE.Mesh(shared2DPetalGeometry, this.material);
-    this.baseScale = 0.525 + Math.random() * 0.15;
-    this.mesh.scale.setScalar(this.baseScale);
-    this.mesh.position.set(this.posX, this.posY, this.posZ);
-    petalGroup.add(this.mesh);
-  }
-
-  update(delta: number, totalElapsedTime: number, isVortexActive: boolean) {
-    this.age += delta;
-    const fadeFactor = Math.min(1.0, this.age / this.fadeInDuration);
-    this.material.opacity = fadeFactor * 0.92;
-
-    if (!isVortexActive) {
-      this.posX += this.speedX * delta;
-      this.posY += this.speedY * delta;
-    }
-
-    if (this.posZ < this.targetZ) {
-      this.posZ += 0.45 * delta;
-    }
-
-    const swayX = Math.sin(totalElapsedTime * this.freqX + this.phaseX) * this.amplitudeX;
-    const swayY = Math.cos(totalElapsedTime * this.freqY + this.phaseY) * this.amplitudeY;
-    const swayZ = Math.sin(totalElapsedTime * this.freqZ + this.phaseZ) * this.amplitudeZ;
-
-    this.mesh.position.set(this.posX + swayX, this.posY + swayY, this.posZ + swayZ);
-    this.mesh.rotation.x = totalElapsedTime * 0.8 + this.seed;
-    this.mesh.rotation.y = totalElapsedTime * 1.2 + this.seed;
-  }
-
-  destroy(petalGroup: THREE.Group) {
-    petalGroup.remove(this.mesh);
-    this.material.dispose();
-  }
-}
-
 // ==========================================
 // MAIN SAKURA CANVAS REACT COMPONENT
 // ==========================================
@@ -724,6 +651,7 @@ export function SakuraCanvas({
 }: ExperienceComponentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
   // App & Artwork Mode State
   const [activeMode, setActiveMode] = useState<'bluten' | 'plexus' | 'wald'>('bluten');
@@ -761,23 +689,54 @@ export function SakuraCanvas({
     }
   }, [blutenCounted, plexusCounted, waldCounted]);
 
+  const updateCameraDistance = useCallback((w: number, h: number, mode: 'bluten' | 'plexus' | 'wald') => {
+    if (!cameraRef.current) return;
+    const camera = cameraRef.current;
+    const aspect = w / h;
+
+    if (mode === 'bluten' || mode === 'wald') {
+      camera.fov = 45;
+      camera.updateProjectionMatrix();
+      const visibleWidth = 2 * Math.tan(THREE.MathUtils.degToRad(22.5)) * 16 * aspect;
+      const targetCamX = -9.6 + (visibleWidth * 0.48);
+      camera.position.set(targetCamX, -0.4, 16);
+      camera.lookAt(targetCamX, -0.4, 0);
+    } else {
+      camera.fov = 60;
+      camera.updateProjectionMatrix();
+      const laptopAspect = 16 / 9;
+      const widthScale = Math.max(0.35, Math.min(1.0, w / 1440));
+      let baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
+      if (w <= 950 && aspect > laptopAspect) {
+        baseDist *= (aspect / laptopAspect);
+      }
+      camera.position.set(0, 0, baseDist);
+      camera.lookAt(0, 0, 0);
+    }
+  }, []);
+
   const handleSwitchMode = useCallback((newMode: 'bluten' | 'plexus' | 'wald') => {
     if (activeModeRef.current === newMode) return;
     setFrozenMode(activeModeRef.current);
     setActiveMode(newMode);
+    if (containerRef.current) {
+      const w = containerRef.current.clientWidth || window.innerWidth;
+      const h = containerRef.current.clientHeight || window.innerHeight;
+      updateCameraDistance(w, h, newMode);
+    }
     if (newMode === 'wald') {
       markArtworkCompleted('wald');
       showToast('🌸 Sakura Modus gestartet!');
     }
     sendInteraction('MODE_SWITCH', { mode: newMode });
-  }, [markArtworkCompleted, sendInteraction, showToast]);
+  }, [markArtworkCompleted, sendInteraction, showToast, updateCameraDistance]);
 
   const togglePause = useCallback(() => {
     setIsPaused(p => !p);
     sendInteraction('PAUSE_TOGGLE', { isPaused: !isPaused });
   }, [isPaused, sendInteraction]);
 
-  // Main Three.js Scene Initialization & Loop
+  // Main Three.js Scene Setup
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
@@ -795,7 +754,7 @@ export function SakuraCanvas({
     renderer.setSize(width, height);
     renderer.autoClear = false;
 
-    // Background Scene
+    // Background Scene (100% full screen orthographic quad)
     const bgScene = new THREE.Scene();
     const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const noiseTex = createNoiseTexture();
@@ -820,10 +779,11 @@ export function SakuraCanvas({
     const bgQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
     bgScene.add(bgQuad);
 
-    // Main Scene
+    // Main 3D Scene
     const mainScene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 1, 3000);
-    camera.position.set(0, 0, 540);
+    cameraRef.current = camera;
+    updateCameraDistance(width, height, activeModeRef.current);
 
     // Groups
     const strokeGroup = new THREE.Group();
@@ -833,7 +793,42 @@ export function SakuraCanvas({
     mainScene.add(orbGroup);
     mainScene.add(petalGroup);
 
-    // Initial Trunk
+    // 1. Instanced Sakura Petals (600 Petals with 3D orbital dynamics)
+    const petalGeo = new THREE.PlaneGeometry(0.9, 0.9);
+    const petalMat = new THREE.MeshBasicMaterial({
+      map: generatePetalTexture(),
+      color: new THREE.Color(1.2, 1.2, 1.2),
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const instancedPetalMesh = new THREE.InstancedMesh(petalGeo, petalMat, MAX_PETALS);
+    instancedPetalMesh.matrixAutoUpdate = false;
+    petalGroup.add(instancedPetalMesh);
+
+    // Petal physics data arrays
+    const petalOriginX = new Float32Array(MAX_PETALS);
+    const petalOriginY = new Float32Array(MAX_PETALS);
+    const petalRadiusX = new Float32Array(MAX_PETALS);
+    const petalRadiusY = new Float32Array(MAX_PETALS);
+    const petalSpeed = new Float32Array(MAX_PETALS);
+    const petalAngle = new Float32Array(MAX_PETALS);
+    const petalPhaseZ = new Float32Array(MAX_PETALS);
+    const petalScales = new Float32Array(MAX_PETALS);
+    const dummy = new THREE.Object3D();
+
+    for (let i = 0; i < MAX_PETALS; i++) {
+      petalOriginX[i] = (Math.random() - 0.5) * 16.0;
+      petalOriginY[i] = (Math.random() - 0.5) * 10.0;
+      petalRadiusX[i] = 4.0 + Math.random() * 8.0;
+      petalRadiusY[i] = 3.0 + Math.random() * 6.0;
+      petalSpeed[i] = (0.2 + Math.random() * 0.4) * (i % 2 === 0 ? 1 : -1);
+      petalAngle[i] = Math.random() * Math.PI * 2.0;
+      petalPhaseZ[i] = Math.random() * Math.PI * 2.0;
+      petalScales[i] = 0.4 + Math.random() * 0.6;
+    }
+
+    // 2. Trunk & Branches
     const startX = -11.9;
     const trunkCurve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(startX, -3.4, 0.0),
@@ -863,27 +858,18 @@ export function SakuraCanvas({
     ];
     activeOrbs.forEach(o => o.setAlpha(0.95));
 
-    // Floating 2D Petals Collection
-    const floatingPetals: Floating2DPetal[] = [];
-    for (let i = 0; i < 40; i++) {
-      const origin = new THREE.Vector3((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 8, 0);
-      floatingPetals.push(new Floating2DPetal(petalGroup, origin));
-    }
-
-    // Plexus Meshes
-    const maxPlexusNodes = 300;
-    const maxPlexusLines = maxPlexusNodes * maxPlexusNodes;
+    // 3. Plexus Web & Star Node Mesh
     const lineGeo = new THREE.BufferGeometry();
-    lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPlexusLines * 3), 3));
-    lineGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(maxPlexusLines * 3), 3));
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
+    lineGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
     const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, depthWrite: false });
     const plexusLinesMesh = new THREE.LineSegments(lineGeo, lineMat);
     mainScene.add(plexusLinesMesh);
 
     const nodeGeo = new THREE.BufferGeometry();
-    nodeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPlexusNodes * 3), 3));
-    nodeGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(maxPlexusNodes * 3), 3));
-    nodeGeo.setAttribute('size', new THREE.BufferAttribute(new Float32Array(maxPlexusNodes), 1));
+    nodeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_NODES * 3), 3));
+    nodeGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_NODES * 3), 3));
+    nodeGeo.setAttribute('size', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_NODES), 1));
     const nodeMat = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 } },
       vertexShader: /* glsl */ `
@@ -912,7 +898,7 @@ export function SakuraCanvas({
     const plexusPointsMesh = new THREE.Points(nodeGeo, nodeMat);
     mainScene.add(plexusPointsMesh);
 
-    // Animation variables
+    // Animation Loop
     let animFrameId: number;
     const clock = new THREE.Clock();
     let totalAnimTime = 0;
@@ -928,7 +914,7 @@ export function SakuraCanvas({
       bgUniforms.iTime.value = totalAnimTime;
       mainTrunkStroke.setTime(totalAnimTime);
 
-      // Mode visibility sync
+      // Visibility sync
       const showBlüten = activeModeRef.current === 'bluten' || frozenModeRef.current === 'bluten';
       strokeGroup.visible = showBlüten;
       orbGroup.visible = showBlüten;
@@ -938,11 +924,28 @@ export function SakuraCanvas({
       plexusLinesMesh.visible = showPlexus;
       plexusPointsMesh.visible = showPlexus;
 
-      // Update Orbs & Petals
-      activeOrbs.forEach(orb => orb.update(totalAnimTime, delta));
-      floatingPetals.forEach(p => p.update(delta, totalAnimTime, false));
+      // Update 600 Instanced Petals
+      if (showBlüten) {
+        for (let i = 0; i < MAX_PETALS; i++) {
+          petalAngle[i] += petalSpeed[i] * delta;
+          const a = petalAngle[i];
+          const px = petalOriginX[i] + Math.cos(a) * petalRadiusX[i];
+          const py = petalOriginY[i] + Math.sin(a * 0.8) * petalRadiusY[i];
+          const pz = Math.sin(totalAnimTime * 1.5 + petalPhaseZ[i]) * 1.5;
 
-      // Render double pass
+          dummy.position.set(px, py, pz);
+          dummy.rotation.set(totalAnimTime * 0.5 + i, totalAnimTime * 0.7 + i, a);
+          dummy.scale.setScalar(petalScales[i]);
+          dummy.updateMatrix();
+          instancedPetalMesh.setMatrixAt(i, dummy.matrix);
+        }
+        instancedPetalMesh.instanceMatrix.needsUpdate = true;
+      }
+
+      // Update Orbs
+      activeOrbs.forEach(orb => orb.update(totalAnimTime, delta));
+
+      // Render dual pass
       renderer.clear();
       renderer.render(bgScene, bgCamera);
       renderer.clearDepth();
@@ -954,10 +957,9 @@ export function SakuraCanvas({
     // Resize Handler
     const handleResize = () => {
       if (!containerRef.current) return;
-      const w = containerRef.current.clientWidth;
-      const h = containerRef.current.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      const w = containerRef.current.clientWidth || window.innerWidth;
+      const h = containerRef.current.clientHeight || window.innerHeight;
+      updateCameraDistance(w, h, activeModeRef.current);
       renderer.setSize(w, h);
       bgUniforms.iResolution.value.set(w, h, 1);
     };
@@ -986,16 +988,18 @@ export function SakuraCanvas({
       lineMat.dispose();
       lineGeo.dispose();
       nodeGeo.dispose();
+      petalMat.dispose();
+      petalGeo.dispose();
       noiseTex.dispose();
     };
-  }, [onRendererReady, handleSwitchMode, showToast]);
+  }, [onRendererReady, handleSwitchMode, showToast, updateCameraDistance]);
 
   const isSakuraUnlocked = blutenCounted && plexusCounted;
   const isCreationUnlocked = completedArtworksCount >= 3;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[#08000c] select-none">
-      {/* Three.js Canvas */}
+    <div ref={containerRef} className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c] select-none z-0">
+      {/* Three.js Fullscreen Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
 
       {/* Toast Overlay */}
