@@ -590,10 +590,6 @@ class OrbNode {
   }
 }
 
-// ==========================================
-// MAIN SAKURA CANVAS REACT COMPONENT
-// ==========================================
-
 interface SakuraCanvasProps extends ExperienceComponentProps {
   onExit?: () => void;
 }
@@ -620,9 +616,10 @@ export function SakuraCanvas({
   const [waldCounted, setWaldCounted] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Phase & Instruction State
+  // Step-by-Step Artwork Phase Lifecycle State
   const [currentPhase, setCurrentPhase] = useState<'BRANCH' | 'BLOSSOM' | 'PETAL'>('BRANCH');
   const [currentRound, setCurrentRound] = useState(1);
+  const [isTrunkGrowing, setIsTrunkGrowing] = useState(true);
   const maxRoundsPerPhase = 5;
 
   const activeModeRef = useRef(activeMode);
@@ -705,7 +702,6 @@ export function SakuraCanvas({
     sendInteraction('RESTART_ARTWORK', {});
   }, [sendInteraction, showToast]);
 
-  // Exit back to main start website
   const handleExit = useCallback(() => {
     if (onExit) {
       onExit();
@@ -714,7 +710,7 @@ export function SakuraCanvas({
     }
   }, [onExit]);
 
-  // Main Three.js Scene Setup & Interactive Event Handling
+  // Main Three.js Scene Setup & Step-by-Step Interactive Engine
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
@@ -775,7 +771,7 @@ export function SakuraCanvas({
     const mouseScreen = new THREE.Vector2(0.5, 0.5);
     const mouseWorld = new THREE.Vector3(0, 0, 0);
 
-    // 1. Instanced Sakura Petals (600 Petals)
+    // 1. Instanced Sakura Petals (600 Petals — Hidden until Petal Phase!)
     const petalGeo = new THREE.PlaneGeometry(0.9, 0.9);
     const petalMat = new THREE.MeshBasicMaterial({
       map: generatePetalTexture(),
@@ -786,6 +782,7 @@ export function SakuraCanvas({
     });
     const instancedPetalMesh = new THREE.InstancedMesh(petalGeo, petalMat, MAX_PETALS);
     instancedPetalMesh.matrixAutoUpdate = false;
+    instancedPetalMesh.visible = false; // Initially invisible!
     petalGroup.add(instancedPetalMesh);
 
     const petalOriginX = new Float32Array(MAX_PETALS);
@@ -797,6 +794,7 @@ export function SakuraCanvas({
     const petalPhaseZ = new Float32Array(MAX_PETALS);
     const petalScales = new Float32Array(MAX_PETALS);
     const dummy = new THREE.Object3D();
+    let activePetalCount = 0;
 
     for (let i = 0; i < MAX_PETALS; i++) {
       petalOriginX[i] = (Math.random() - 0.5) * 16.0;
@@ -809,7 +807,7 @@ export function SakuraCanvas({
       petalScales[i] = 0.4 + Math.random() * 0.6;
     }
 
-    // 2. Main Trunk & Branches
+    // 2. Main Trunk & Progressive Growth Lifecycle
     const startX = -11.9;
     const trunkCurve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(startX, -3.4, 0.0),
@@ -829,15 +827,29 @@ export function SakuraCanvas({
       const t = i / 140;
       mainTrunkStroke.addPoint(pts[i], Math.max(0.18, 1.0 - t * 0.55));
     }
-    mainTrunkStroke.setProgress(1.0);
+    // Starts at 0.0 progress for step-by-step growth!
+    mainTrunkStroke.setProgress(0.0);
 
     const parentInfo = { curve: trunkCurve, stroke: mainTrunkStroke, level: 0, totalLength: trunkCurve.getLength() };
-    const activeOrbs: OrbNode[] = [
-      new OrbNode(orbGroup, parentInfo, 0, 1, 0.30, 'branch'),
-      new OrbNode(orbGroup, parentInfo, 0, 1, 0.58, 'branch'),
-      new OrbNode(orbGroup, parentInfo, 0, 1, 0.85, 'branch')
-    ];
-    activeOrbs.forEach(o => o.setAlpha(0.95));
+    const activeOrbs: OrbNode[] = [];
+    let isTrunkGrowthFinished = false;
+    let growthProgressVal = 0.0;
+    const growthDurationSeconds = 6.0;
+
+    // Function to spawn round orbs
+    const spawnOrbRound = (roundNum: number, phase: 'BRANCH' | 'BLOSSOM' | 'PETAL') => {
+      setCurrentPhase(phase);
+      setCurrentRound(roundNum);
+      activeOrbs.forEach(o => o.destroy(orbGroup));
+      activeOrbs.length = 0;
+
+      const type = phase === 'PETAL' ? 'petal' : 'branch';
+      const orb1 = new OrbNode(orbGroup, parentInfo, 0, roundNum, 0.30, type);
+      const orb2 = new OrbNode(orbGroup, parentInfo, 0, roundNum, 0.58, type);
+      const orb3 = new OrbNode(orbGroup, parentInfo, 0, roundNum, 0.85, type);
+      activeOrbs.push(orb1, orb2, orb3);
+      activeOrbs.forEach(o => o.setAlpha(0.95));
+    };
 
     // 3. Plexus Mesh
     const lineGeo = new THREE.BufferGeometry();
@@ -879,7 +891,7 @@ export function SakuraCanvas({
     const plexusPointsMesh = new THREE.Points(nodeGeo, nodeMat);
     mainScene.add(plexusPointsMesh);
 
-    // Interactive Pointer Listeners for Artwork Mechanics
+    // Interactive Pointer Listeners for Step-by-Step Artwork Mechanics
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
@@ -897,12 +909,19 @@ export function SakuraCanvas({
     };
 
     const handlePointerDown = () => {
-      if (isPausedRef.current) return;
+      if (isPausedRef.current || !isTrunkGrowthFinished) return;
+
       activeOrbs.forEach(orb => {
         if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < 2.5) {
           orb.triggerExplosion();
+
+          if (currentPhase === 'PETAL') {
+            instancedPetalMesh.visible = true;
+            activePetalCount = Math.min(MAX_PETALS, activePetalCount + 120);
+          }
+
           markArtworkCompleted('bluten');
-          showToast('🌸 Blütenkunstwerk vervollständigt!');
+          showToast('🌸 Interaktiver Knotenpunkt aktiviert!');
         }
       });
     };
@@ -927,6 +946,19 @@ export function SakuraCanvas({
       bgUniforms.iTime.value = totalAnimTime;
       mainTrunkStroke.setTime(totalAnimTime);
 
+      // Step-by-Step Trunk Growth Animation (0.0 -> 1.0 over 6 seconds)
+      if (!isTrunkGrowthFinished) {
+        growthProgressVal += delta / growthDurationSeconds;
+        if (growthProgressVal >= 1.0) {
+          growthProgressVal = 1.0;
+          isTrunkGrowthFinished = true;
+          setIsTrunkGrowing(false);
+          spawnOrbRound(1, 'BRANCH');
+          showToast('🌱 Astphase gestartet — Klicke die Knotenpunkte!');
+        }
+        mainTrunkStroke.setProgress(growthProgressVal);
+      }
+
       // Visibility sync
       const showBlüten = activeModeRef.current === 'bluten' || frozenModeRef.current === 'bluten';
       strokeGroup.visible = showBlüten;
@@ -937,9 +969,10 @@ export function SakuraCanvas({
       plexusLinesMesh.visible = showPlexus;
       plexusPointsMesh.visible = showPlexus;
 
-      // Update 600 Instanced Petals
-      if (showBlüten) {
-        for (let i = 0; i < MAX_PETALS; i++) {
+      // Update Instanced Petals
+      if (showBlüten && instancedPetalMesh.visible) {
+        const renderPetals = Math.min(MAX_PETALS, activePetalCount);
+        for (let i = 0; i < renderPetals; i++) {
           petalAngle[i] += petalSpeed[i] * delta;
           const a = petalAngle[i];
           const px = petalOriginX[i] + Math.cos(a) * petalRadiusX[i];
@@ -1013,22 +1046,26 @@ export function SakuraCanvas({
   const isSakuraUnlocked = blutenCounted && plexusCounted;
   const isCreationUnlocked = completedArtworksCount >= 3;
 
-  // Dynamic Instruction Text Calculation
-  const instructionTitle = activeMode === 'bluten'
-    ? `Sumi-e Blütenkunst (Runde ${currentRound}/${maxRoundsPerPhase})`
-    : activeMode === 'plexus'
-      ? 'Plexus Konstellation'
-      : '🌸 Sakura Kunstwerk';
+  // Dynamic Instruction Text Calculation based on step-by-step phase
+  const instructionTitle = isTrunkGrowing
+    ? 'Stammwuchs (Initialisierung)'
+    : activeMode === 'bluten'
+      ? `Sumi-e Blütenkunst (${currentPhase} - Runde ${currentRound}/${maxRoundsPerPhase})`
+      : activeMode === 'plexus'
+        ? 'Plexus Konstellation'
+        : '🌸 Sakura Kunstwerk';
 
-  const instructionBody = activeMode === 'bluten'
-    ? currentPhase === 'BRANCH'
-      ? 'Klicke oder berühre die leuchtenden Knotenpunkte, um Äste & Blüten wachsen zu lassen.'
-      : currentPhase === 'BLOSSOM'
-        ? 'Drücke auf die Knotenpunkte, um Sakurablüten zu erzeugen.'
-        : 'Klicke auf die Blüten, um das Kunstwerk mit Blütenblättern zu füllen.'
-    : activeMode === 'plexus'
-      ? 'Bewege deine Maus/Touch, um leuchtende Partikel-Knoten und Energielinien zu verbinden.'
-      : 'Harmonischer Sakura-Wald. Verbinde Blüten & Plexus zu einem Gesamtkunstwerk.';
+  const instructionBody = isTrunkGrowing
+    ? 'Der Stamm wächst heran... Lehne dich zurück und beobachte den Wuchs.'
+    : activeMode === 'bluten'
+      ? currentPhase === 'BRANCH'
+        ? 'Halte an einem Knotenpunkt die Maus gedrückt und ziehe entlang der Hilfslinie, um einen weiteren Ast wachsen zu lassen.'
+        : currentPhase === 'BLOSSOM'
+          ? 'Drücke auf einen Knotenpunkt, um Sakurablüten zu erzeugen.'
+          : 'Klicke auf die Blüten, um das Kunstwerk mit Blütenblättern zu füllen.'
+      : activeMode === 'plexus'
+        ? 'Bewege deine Maus/Touch, um leuchtende Partikel-Knoten und Energielinien zu verbinden.'
+        : 'Harmonischer Sakura-Wald. Verbinde Blüten & Plexus zu einem Gesamtkunstwerk.';
 
   return (
     <div ref={containerRef} className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c] select-none z-0">
