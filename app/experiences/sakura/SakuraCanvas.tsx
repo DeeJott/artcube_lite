@@ -9,10 +9,9 @@ import type { ExperienceComponentProps } from '../../lib/experience-types';
 // ==========================================
 
 const MAX_PETALS = 600;
-const INITIAL_PETALS = 20;
-const MAX_TRAIL_PARTICLES = 4000;
-const MAX_TOTAL_NODES = 450;
-const MAX_TOTAL_LINES = 1400;
+const MAX_TRAIL_PARTICLES = 2000;
+const MAX_TOTAL_NODES = 350;
+const MAX_TOTAL_LINES = 1000;
 
 function createNoiseTexture(): THREE.DataTexture {
   const size = 256;
@@ -58,7 +57,7 @@ function generatePetalTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-// 1. Background Metallic Fluid Shader with Refraction Wave
+// 1. Background Metallic Fluid Shader
 const bgVertexShader = /* glsl */ `
   varying vec2 vUv;
   void main() {
@@ -255,7 +254,7 @@ const sumiFragmentShader = /* glsl */ `
   }
 `;
 
-// 3. Glowing Orbs & Shiny Blue Rings
+// 3. Glowing Orbs & Ring Shaders
 const orbMeshVertexShader = /* glsl */ `
   varying vec2 vUv;
   void main() {
@@ -310,56 +309,8 @@ const orbFragmentShader = /* glsl */ `
   }
 `;
 
-// 4. Shining Star Particle Trails (4-Pointed Starburst Flares)
-const particleTrailVertexShader = /* glsl */ `
-  attribute float size;
-  attribute vec3 color;
-  attribute float alpha;
-  attribute float rotAngle;
-  varying vec3 vColor;
-  varying float vAlpha;
-  varying float vRot;
-
-  void main() {
-    vColor = color;
-    vAlpha = alpha;
-    vRot = rotAngle;
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = size * (540.0 / -mvPosition.z);
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-
-const particleTrailFragmentShader = /* glsl */ `
-  varying vec3 vColor;
-  varying float vAlpha;
-  varying float vRot;
-
-  void main() {
-    vec2 p = gl_PointCoord - vec2(0.5);
-    float c = cos(vRot);
-    float s = sin(vRot);
-    p = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
-
-    float d = length(p);
-    if (d > 0.5) discard;
-
-    vec2 av = abs(p);
-    float starPattern = max(0.0, 1.0 - (av.x * av.y) * 550.0);
-    starPattern = pow(starPattern, 3.2);
-
-    float core = 1.0 / (1.0 + d * 12.0);
-    core = pow(core, 2.2);
-
-    vec3 finalColor = (vColor * 2.6 + vec3(1.0, 0.95, 1.0) * starPattern * 2.5) * (core + starPattern * 1.5);
-    float finalAlpha = vAlpha * (core * 0.85 + starPattern * 0.95);
-
-    gl_FragColor = vec4(finalColor, finalAlpha);
-  }
-`;
-
 // ==========================================
-// HELPER CLASSES & GEOMETRIES
+// HELPER CLASSES
 // ==========================================
 
 class ImmersiveStroke {
@@ -657,11 +608,17 @@ export function SakuraCanvas({
   const [activeMode, setActiveMode] = useState<'bluten' | 'plexus' | 'wald'>('bluten');
   const [frozenMode, setFrozenMode] = useState<'bluten' | 'plexus' | 'wald' | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [completedArtworksCount, setCompletedArtworksCount] = useState(0);
   const [blutenCounted, setBlutenCounted] = useState(false);
   const [plexusCounted, setPlexusCounted] = useState(false);
   const [waldCounted, setWaldCounted] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Phase & Instruction State
+  const [currentPhase, setCurrentPhase] = useState<'BRANCH' | 'BLOSSOM' | 'PETAL'>('BRANCH');
+  const [currentRound, setCurrentRound] = useState(1);
+  const maxRoundsPerPhase = 5;
 
   const activeModeRef = useRef(activeMode);
   const frozenModeRef = useRef(frozenMode);
@@ -700,18 +657,14 @@ export function SakuraCanvas({
       const visibleWidth = 2 * Math.tan(THREE.MathUtils.degToRad(22.5)) * 16 * aspect;
       const targetCamX = -9.6 + (visibleWidth * 0.48);
       camera.position.set(targetCamX, -0.4, 16);
-      camera.lookAt(targetCamX, -0.4, 0);
+      camera.lookAt(new THREE.Vector3(targetCamX, -0.4, 0));
     } else {
       camera.fov = 60;
       camera.updateProjectionMatrix();
-      const laptopAspect = 16 / 9;
       const widthScale = Math.max(0.35, Math.min(1.0, w / 1440));
-      let baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
-      if (w <= 950 && aspect > laptopAspect) {
-        baseDist *= (aspect / laptopAspect);
-      }
-      camera.position.set(0, 0, baseDist);
-      camera.lookAt(0, 0, 0);
+      const baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
+      camera.position.set(0, 0, baseDist / 3.5);
+      camera.lookAt(new THREE.Vector3(0, 0, 0));
     }
   }, []);
 
@@ -733,8 +686,19 @@ export function SakuraCanvas({
 
   const togglePause = useCallback(() => {
     setIsPaused(p => !p);
+    showToast(!isPaused ? 'Session pausiert' : 'Session fortgesetzt');
     sendInteraction('PAUSE_TOGGLE', { isPaused: !isPaused });
-  }, [isPaused, sendInteraction]);
+  }, [isPaused, sendInteraction, showToast]);
+
+  const toggleAudio = useCallback(() => {
+    setIsAudioMuted(m => !m);
+    showToast(!isAudioMuted ? 'Audio stummgeschaltet' : 'Audio aktiviert');
+  }, [isAudioMuted, showToast]);
+
+  const handleRestart = useCallback(() => {
+    showToast('Kunstwerk zurückgesetzt — Beginn von vorn!');
+    sendInteraction('RESTART_ARTWORK', {});
+  }, [sendInteraction, showToast]);
 
   // Main Three.js Scene Setup
   useEffect(() => {
@@ -754,7 +718,7 @@ export function SakuraCanvas({
     renderer.setSize(width, height);
     renderer.autoClear = false;
 
-    // Background Scene (100% full screen orthographic quad)
+    // Background Scene
     const bgScene = new THREE.Scene();
     const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const noiseTex = createNoiseTexture();
@@ -793,7 +757,7 @@ export function SakuraCanvas({
     mainScene.add(orbGroup);
     mainScene.add(petalGroup);
 
-    // 1. Instanced Sakura Petals (600 Petals with 3D orbital dynamics)
+    // 1. Instanced Sakura Petals (600 Petals)
     const petalGeo = new THREE.PlaneGeometry(0.9, 0.9);
     const petalMat = new THREE.MeshBasicMaterial({
       map: generatePetalTexture(),
@@ -806,7 +770,6 @@ export function SakuraCanvas({
     instancedPetalMesh.matrixAutoUpdate = false;
     petalGroup.add(instancedPetalMesh);
 
-    // Petal physics data arrays
     const petalOriginX = new Float32Array(MAX_PETALS);
     const petalOriginY = new Float32Array(MAX_PETALS);
     const petalRadiusX = new Float32Array(MAX_PETALS);
@@ -828,7 +791,7 @@ export function SakuraCanvas({
       petalScales[i] = 0.4 + Math.random() * 0.6;
     }
 
-    // 2. Trunk & Branches
+    // 2. Main Trunk & Branches
     const startX = -11.9;
     const trunkCurve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(startX, -3.4, 0.0),
@@ -858,7 +821,7 @@ export function SakuraCanvas({
     ];
     activeOrbs.forEach(o => o.setAlpha(0.95));
 
-    // 3. Plexus Web & Star Node Mesh
+    // 3. Plexus Mesh
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
     lineGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
@@ -997,94 +960,164 @@ export function SakuraCanvas({
   const isSakuraUnlocked = blutenCounted && plexusCounted;
   const isCreationUnlocked = completedArtworksCount >= 3;
 
+  // Dynamic Instruction Text Calculation
+  const instructionTitle = activeMode === 'bluten'
+    ? `Sumi-e Blütenkunst (Runde ${currentRound}/${maxRoundsPerPhase})`
+    : activeMode === 'plexus'
+      ? 'Plexus Konstellation'
+      : '🌸 Sakura Kunstwerk';
+
+  const instructionBody = activeMode === 'bluten'
+    ? currentPhase === 'BRANCH'
+      ? 'Halte an einem Knotenpunkt die Maus gedrückt und ziehe entlang der Hilfslinie, um einen weiteren Ast wachsen zu lassen.'
+      : currentPhase === 'BLOSSOM'
+        ? 'Drücke auf einen Knotenpunkt, um Sakurablüten zu erzeugen.'
+        : 'Klicke auf die Blüten, um das Kunstwerk mit Blütenblättern zu füllen.'
+    : activeMode === 'plexus'
+      ? 'Bewege deine Maus/Touch, um leuchtende Partikel-Knoten und Energielinien zu verbinden. Halte gedrückt für 3D-Impuls-Formen.'
+      : 'Harmonischer Sakura-Wald. Verbinde Blüten & Plexus zu einem Gesamtkunstwerk.';
+
   return (
     <div ref={containerRef} className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c] select-none z-0">
       {/* Three.js Fullscreen Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
 
-      {/* Toast Overlay */}
+      {/* Toast Notification Message */}
       {toastMessage && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-black/80 text-white text-sm px-6 py-2.5 rounded-full border border-pink-500/40 backdrop-blur-md shadow-[0_0_20px_rgba(255,0,119,0.3)] animate-pulse z-50 pointer-events-none">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-[#120c1c]/90 text-white text-xs font-semibold tracking-wider px-6 py-2.5 rounded-full border border-[#4ee2ec]/60 backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.5)] animate-pulse z-50 pointer-events-none uppercase">
           {toastMessage}
         </div>
       )}
 
-      {/* Glassmorphic Top Header Banner */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl px-6 py-3 flex flex-col items-center gap-1 z-40 text-center">
-        <h1 className="text-white font-medium text-sm tracking-wide uppercase">
-          Art.Cube — {activeMode === 'bluten' ? 'Blüten Kunstwerk' : activeMode === 'plexus' ? 'Plexus Kunstwerk' : '🌸 Sakura Kunstwerk'}
-          {isPaused && <span className="text-pink-400 font-bold ml-2">(Pausiert)</span>}
-        </h1>
-        <p className="text-white/70 text-xs font-light">
-          {activeMode === 'bluten'
-            ? 'Interactive Sakura Flow & Sumi-e Branches'
-            : activeMode === 'plexus'
-              ? 'Interactive Plexus Star-Cluster Constellations'
-              : 'Harmonious Sakura Forest'}
-        </p>
-      </div>
+      {/* Modern 4-Corner Glassmorphic HUD Layer */}
+      <div className="absolute inset-0 p-8 flex flex-col justify-between pointer-events-none z-40">
+        
+        {/* TOP BAR: Instruction Box (Left) & Control Buttons (Right) */}
+        <div className="flex justify-between items-start w-full">
+          {/* Top Left: Dynamic Instruction Box */}
+          <div className="pointer-events-auto flex flex-col gap-1.5 p-4 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] max-w-[440px]">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d] animate-ping" />
+              <span className="text-[11px] font-bold tracking-[2px] uppercase text-[#ffb4dc]/95">
+                {instructionTitle} {isPaused && '(Pausiert)'}
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-white/90 font-normal">
+              {instructionBody}
+            </p>
+          </div>
 
-      {/* Glassmorphic Bottom Navigation Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 backdrop-blur-xl border border-white/15 rounded-full px-5 py-2.5 shadow-2xl z-40">
-        <button
-          onClick={togglePause}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-all"
-        >
-          <span>{isPaused ? '▶️ Play' : '⏸️ Pause'}</span>
-        </button>
+          {/* Top Right: Sound, Pause, Restart Control Buttons */}
+          <div className="pointer-events-auto flex items-center gap-3">
+            <button
+              onClick={toggleAudio}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
+            >
+              <span>{isAudioMuted ? '🔇' : '🎵'}</span>
+              <span>{isAudioMuted ? 'Sound OFF' : 'Sound ON'}</span>
+            </button>
 
-        <div className="w-[1px] h-6 bg-white/15" />
+            <button
+              onClick={togglePause}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
+            >
+              <span>{isPaused ? '▶️' : '⏸️'}</span>
+              <span>{isPaused ? 'Play' : 'Pause'}</span>
+            </button>
 
-        <button
-          onClick={() => handleSwitchMode('bluten')}
-          className={`px-4 py-2 rounded-full text-xs font-medium transition-all ${
-            activeMode === 'bluten'
-              ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-[0_0_15px_rgba(255,0,119,0.5)]'
-              : 'bg-white/5 hover:bg-white/10 text-white/80'
-          }`}
-        >
-          Blüten
-        </button>
+            <button
+              onClick={handleRestart}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
+            >
+              <span>🔄</span>
+              <span>Restart</span>
+            </button>
+          </div>
+        </div>
 
-        <button
-          onClick={() => handleSwitchMode('plexus')}
-          className={`px-4 py-2 rounded-full text-xs font-medium transition-all ${
-            activeMode === 'plexus'
-              ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-[0_0_15px_rgba(0,240,255,0.5)]'
-              : 'bg-white/5 hover:bg-white/10 text-white/80'
-          }`}
-        >
-          Plexus
-        </button>
+        {/* BOTTOM BAR: Brand Title (Left), Mode Selector (Center), Action Button (Right) */}
+        <div className="flex justify-between items-end w-full">
+          {/* Bottom Left: Brand Title */}
+          <div className="flex flex-col gap-1 select-none">
+            <h1 className="text-2xl font-bold tracking-[4px] uppercase text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] drop-shadow-[0_0_20px_rgba(255,42,157,0.7)]">
+              Sakura: Reborn
+            </h1>
+            <p className="text-[11px] font-medium tracking-[2.5px] uppercase text-[#ffc8eb]/75">
+              Collaborative Artwork Experience
+            </p>
+          </div>
 
-        <button
-          onClick={() => isSakuraUnlocked && handleSwitchMode('wald')}
-          disabled={!isSakuraUnlocked}
-          className={`px-4 py-2 rounded-full text-xs font-medium transition-all ${
-            !isSakuraUnlocked
-              ? 'opacity-40 cursor-not-allowed bg-white/5 text-white/40'
-              : activeMode === 'wald'
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]'
-                : 'bg-white/10 hover:bg-white/20 text-white'
-          }`}
-        >
-          🌸 Sakura {!isSakuraUnlocked && '🔒'}
-        </button>
+          {/* Bottom Center: Mode Selector */}
+          <div className="pointer-events-auto flex flex-col gap-1.5 items-center">
+            <span className="text-[10px] font-semibold tracking-[2px] uppercase text-[#ffb4dc]/70">
+              Artwork Mode
+            </span>
+            <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
+              <button
+                onClick={() => handleSwitchMode('bluten')}
+                className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${
+                  activeMode === 'bluten'
+                    ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_15px_rgba(255,42,157,0.5)]'
+                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                }`}
+              >
+                Blüten
+              </button>
 
-        <div className="w-[1px] h-6 bg-white/15" />
+              <button
+                onClick={() => handleSwitchMode('plexus')}
+                className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${
+                  activeMode === 'plexus'
+                    ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_15px_rgba(0,240,255,0.5)]'
+                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                }`}
+              >
+                Plexus
+              </button>
 
-        <button
-          disabled={!isCreationUnlocked}
-          className={`relative overflow-hidden px-5 py-2 rounded-full text-xs font-semibold transition-all ${
-            isCreationUnlocked
-              ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white shadow-[0_0_20px_rgba(255,0,119,0.6)] animate-bounce cursor-pointer'
-              : 'bg-white/10 text-white/60 cursor-not-allowed'
-          }`}
-        >
-          <span className="relative z-10">
-            Kunstwerk erstellen {isCreationUnlocked ? '(3/3) Bereit!' : `(${completedArtworksCount}/3)`}
-          </span>
-        </button>
+              <button
+                onClick={() => isSakuraUnlocked && handleSwitchMode('wald')}
+                disabled={!isSakuraUnlocked}
+                title={isSakuraUnlocked ? '🌸 Sakura Modus ist bereit!' : 'Spiele zuerst Blüten und Plexus durch'}
+                className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${
+                  !isSakuraUnlocked
+                    ? 'opacity-35 cursor-not-allowed text-[#ffc8eb]/40'
+                    : activeMode === 'wald'
+                      ? 'bg-gradient-to-r from-[#a855f7]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_22px_rgba(78,226,236,0.8)]'
+                      : 'text-[#4ee2ec] border border-[#4ee2ec]/80 hover:bg-[#4ee2ec]/20'
+                }`}
+              >
+                Sakura {!isSakuraUnlocked && '🔒'}
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Right: Creation Action Button */}
+          <div className="pointer-events-auto">
+            <button
+              disabled={!isCreationUnlocked}
+              onClick={handleRestart}
+              className={`relative overflow-hidden px-9 py-4 rounded-full text-xs font-semibold tracking-[2px] uppercase transition-all shadow-2xl flex items-center gap-2.5 ${
+                isCreationUnlocked
+                  ? 'bg-gradient-to-r from-[#ff2a9d]/55 to-[#4ee2ec]/30 text-white border border-[#4ee2ec] shadow-[0_12px_35px_rgba(255,42,157,0.4)] animate-bounce cursor-pointer'
+                  : 'bg-[#120c1c]/85 text-white/50 border border-[#ff69b4]/30 cursor-not-allowed'
+              }`}
+            >
+              {/* Progress Bar Fill */}
+              <div
+                className="absolute inset-0 bg-gradient-to-r from-[#ff2a9d]/25 to-[#4ee2ec]/25 transition-all duration-300 pointer-events-none"
+                style={{ width: `${(completedArtworksCount / 3) * 100}%` }}
+              />
+              <span className="relative z-10 font-mono text-[11px] px-2 py-0.5 bg-white/10 rounded-full text-white/70">
+                {isCreationUnlocked ? '(3/3) Bereit!' : `(${completedArtworksCount}/3)`}
+              </span>
+              <span className="relative z-10">
+                Kunstwerk erstellen
+              </span>
+            </button>
+          </div>
+
+        </div>
       </div>
     </div>
   );
