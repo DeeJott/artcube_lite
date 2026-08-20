@@ -700,7 +700,12 @@ export function SakuraCanvas({
     sendInteraction('RESTART_ARTWORK', {});
   }, [sendInteraction, showToast]);
 
-  // Main Three.js Scene Setup
+  // Exit back to main start website
+  const handleExit = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  // Main Three.js Scene Setup & Interactive Event Handling
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
@@ -756,6 +761,10 @@ export function SakuraCanvas({
     mainScene.add(strokeGroup);
     mainScene.add(orbGroup);
     mainScene.add(petalGroup);
+
+    // Mouse Tracking Vectors
+    const mouseScreen = new THREE.Vector2(0.5, 0.5);
+    const mouseWorld = new THREE.Vector3(0, 0, 0);
 
     // 1. Instanced Sakura Petals (600 Petals)
     const petalGeo = new THREE.PlaneGeometry(0.9, 0.9);
@@ -861,6 +870,38 @@ export function SakuraCanvas({
     const plexusPointsMesh = new THREE.Points(nodeGeo, nodeMat);
     mainScene.add(plexusPointsMesh);
 
+    // Interactive Pointer Listeners for Artwork Mechanics
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+
+      mouseScreen.x = clientX / window.innerWidth;
+      mouseScreen.y = 1.0 - (clientY / window.innerHeight);
+
+      if (cameraRef.current) {
+        const vector = new THREE.Vector3(mouseScreen.x * 2 - 1, mouseScreen.y * 2 - 1, 0.5);
+        vector.unproject(cameraRef.current);
+        const dir = vector.sub(cameraRef.current.position).normalize();
+        const dist = -cameraRef.current.position.z / dir.z;
+        mouseWorld.copy(cameraRef.current.position).add(dir.multiplyScalar(dist));
+      }
+    };
+
+    const handlePointerDown = () => {
+      if (isPausedRef.current) return;
+      activeOrbs.forEach(orb => {
+        if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < 2.5) {
+          orb.triggerExplosion();
+          markArtworkCompleted('bluten');
+          showToast('🌸 Blütenkunstwerk vervollständigt!');
+        }
+      });
+    };
+
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('touchstart', handlePointerMove);
+
     // Animation Loop
     let animFrameId: number;
     const clock = new THREE.Clock();
@@ -943,6 +984,9 @@ export function SakuraCanvas({
     });
 
     return () => {
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('touchstart', handlePointerMove);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animFrameId);
       renderer.dispose();
@@ -955,7 +999,7 @@ export function SakuraCanvas({
       petalGeo.dispose();
       noiseTex.dispose();
     };
-  }, [onRendererReady, handleSwitchMode, showToast, updateCameraDistance]);
+  }, [onRendererReady, handleSwitchMode, markArtworkCompleted, showToast, updateCameraDistance]);
 
   const isSakuraUnlocked = blutenCounted && plexusCounted;
   const isCreationUnlocked = completedArtworksCount >= 3;
@@ -969,18 +1013,18 @@ export function SakuraCanvas({
 
   const instructionBody = activeMode === 'bluten'
     ? currentPhase === 'BRANCH'
-      ? 'Halte an einem Knotenpunkt die Maus gedrückt und ziehe entlang der Hilfslinie, um einen weiteren Ast wachsen zu lassen.'
+      ? 'Klicke oder berühre die leuchtenden Knotenpunkte, um Äste & Blüten wachsen zu lassen.'
       : currentPhase === 'BLOSSOM'
-        ? 'Drücke auf einen Knotenpunkt, um Sakurablüten zu erzeugen.'
+        ? 'Drücke auf die Knotenpunkte, um Sakurablüten zu erzeugen.'
         : 'Klicke auf die Blüten, um das Kunstwerk mit Blütenblättern zu füllen.'
     : activeMode === 'plexus'
-      ? 'Bewege deine Maus/Touch, um leuchtende Partikel-Knoten und Energielinien zu verbinden. Halte gedrückt für 3D-Impuls-Formen.'
+      ? 'Bewege deine Maus/Touch, um leuchtende Partikel-Knoten und Energielinien zu verbinden.'
       : 'Harmonischer Sakura-Wald. Verbinde Blüten & Plexus zu einem Gesamtkunstwerk.';
 
   return (
     <div ref={containerRef} className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c] select-none z-0">
       {/* Three.js Fullscreen Canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block cursor-pointer" />
 
       {/* Toast Notification Message */}
       {toastMessage && (
@@ -1007,8 +1051,8 @@ export function SakuraCanvas({
             </p>
           </div>
 
-          {/* Top Right: Sound, Pause, Restart Control Buttons */}
-          <div className="pointer-events-auto flex items-center gap-3">
+          {/* Top Right: Sound, Pause, Restart & EXIT Control Buttons */}
+          <div className="pointer-events-auto flex items-center gap-2.5">
             <button
               onClick={toggleAudio}
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
@@ -1031,6 +1075,15 @@ export function SakuraCanvas({
             >
               <span>🔄</span>
               <span>Restart</span>
+            </button>
+
+            <button
+              onClick={handleExit}
+              className="inline-flex items-center gap-2 px-4.5 py-2 bg-gradient-to-r from-pink-500/80 to-rose-600/80 hover:from-pink-500 hover:to-rose-600 backdrop-blur-md border border-pink-400/60 text-white text-[11px] font-bold tracking-[1.5px] uppercase rounded-full shadow-[0_0_15px_rgba(255,42,157,0.4)] transition-all cursor-pointer"
+              title="Zurück zur Startseite"
+            >
+              <span>🚪</span>
+              <span>Exit</span>
             </button>
           </div>
         </div>

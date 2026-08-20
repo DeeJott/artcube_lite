@@ -237,10 +237,21 @@ function ArtCubeApp() {
     }
   }, [isHost, myName]);
 
-  // Handle restart
+  // Handle restart & exit
   const handleRestart = useCallback(() => {
     window.location.reload();
   }, []);
+
+  const handleExitToStart = useCallback(() => {
+    setIsRunning(false);
+    setShowStartScreen(true);
+    setShowFinalUI(false);
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  const showParentExperienceBar = isRunning && !showStartScreen && !showFinalUI && selectedExperienceId !== 'sakura';
 
   // Handle switching experience during runtime
   const handleSwitchExperience = useCallback((newId: string) => {
@@ -352,8 +363,9 @@ function ArtCubeApp() {
         onRestart={handleRestart}
       />
 
-      {/* Bottom experience switcher — visible during experience */}
-      {isRunning && !showStartScreen && !showFinalUI && (
+
+
+      {showParentExperienceBar && (
         <ExperienceBar
           experiences={EXPERIENCES}
           selectedId={selectedExperienceId}
