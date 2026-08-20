@@ -309,7 +309,7 @@ const orbFragmentShader = /* glsl */ `
   }
 `;
 
-// 4. 4,000 Particle Trail Shaders (4-Pointed Starburst Flares)
+// 4. 4,000 Particle Trail Shaders
 const particleTrailVertexShader = /* glsl */ `
   attribute float size;
   attribute float alpha;
@@ -354,7 +354,7 @@ const particleTrailFragmentShader = /* glsl */ `
     float diagStar = pow(clamp(1.0 - abs(diagP.x) * 2.0, 0.0, 1.0) * clamp(1.0 - abs(diagP.y) * 2.0, 0.0, 1.0), 4.0);
     
     float softCore = exp(-d * d * 18.0);
-    float totalIntensity = Math.max(starVal * 1.5, Math.max(diagStar * 0.8, softCore * 1.2));
+    float totalIntensity = max(starVal * 1.5, max(diagStar * 0.8, softCore * 1.2));
 
     vec3 finalColor = mix(vColor, vec3(1.0, 1.0, 1.0), softCore * 0.7);
     gl_FragColor = vec4(finalColor, totalIntensity * vAlpha * 0.95);
@@ -834,7 +834,7 @@ export function SakuraCanvas({
     });
     const instancedPetalMesh = new THREE.InstancedMesh(petalGeo, petalMat, MAX_PETALS);
     instancedPetalMesh.matrixAutoUpdate = false;
-    instancedPetalMesh.visible = false; // Hidden until Petal phase!
+    instancedPetalMesh.visible = false;
     petalGroup.add(instancedPetalMesh);
 
     const petalOriginX = new Float32Array(MAX_PETALS);
@@ -883,6 +883,10 @@ export function SakuraCanvas({
 
     const parentInfo = { curve: trunkCurve, stroke: mainTrunkStroke, level: 0, totalLength: trunkCurve.getLength() };
     const activeOrbs: OrbNode[] = [];
+    const growingSubBranches: { stroke: ImmersiveStroke; progress: number; duration: number }[] = [];
+    const growingBlossomClusters: { stroke: ImmersiveStroke; progress: number; duration: number }[] = [];
+    const persistentBlossomStrokes: ImmersiveStroke[] = [];
+    
     let isTrunkGrowthFinished = false;
     let growthProgressVal = 0.0;
     const growthDurationSeconds = 6.0;
@@ -899,6 +903,86 @@ export function SakuraCanvas({
       const orb3 = new OrbNode(orbGroup, parentInfo, 0, roundNum, 0.85, type);
       activeOrbs.push(orb1, orb2, orb3);
       activeOrbs.forEach(o => o.setAlpha(0.95));
+    };
+
+    // Sub-branch extension function
+    const spawnSubBranchFromOrb = (orb: OrbNode) => {
+      if (isPausedRef.current || orb.userDrawn) return;
+      orb.userDrawn = true;
+      orb.setAlpha(0.15);
+
+      const startPos = orb.basePosition.clone();
+      const numPts = 45;
+      const pts = [startPos.clone()];
+      const totalLen = orb.targetChildLength;
+
+      let effectiveGuideDir = orb.guideDir.clone();
+      const normal = new THREE.Vector3(-effectiveGuideDir.y, effectiveGuideDir.x, 0).normalize();
+
+      for (let i = 1; i <= numPts; i++) {
+        const t = i / numPts;
+        const currentDist = totalLen * t;
+        const wave1 = Math.sin(t * Math.PI * 4.0 + orb.seed * 6.0) * 0.48;
+        const wave2 = Math.cos(t * Math.PI * 8.0 + orb.seed * 3.0) * 0.22;
+        const sideOffset = (wave1 + wave2) * (1.0 - t * 0.35);
+
+        const p = startPos.clone()
+          .addScaledVector(effectiveGuideDir, currentDist)
+          .addScaledVector(normal, sideOffset);
+
+        p.z += (Math.sin(t * Math.PI * 2.0 + orb.seed) - 0.5) * 0.3;
+        pts.push(p);
+      }
+
+      const childCurve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+      const childStroke = new ImmersiveStroke(strokeGroup, 0.32, orb.level + 1, 0xf5e4cf);
+      const spacedPts = childCurve.getSpacedPoints(70);
+      for (let i = 0; i <= 70; i++) {
+        const t = i / 70;
+        childStroke.addPoint(spacedPts[i], Math.max(0.15, 1.0 - t * 0.60));
+      }
+
+      growingSubBranches.push({ stroke: childStroke, progress: 0.0, duration: 3.0 });
+    };
+
+    // Blossom cluster generator function
+    const spawnBlossomClusterFromOrb = (orb: OrbNode) => {
+      if (isPausedRef.current || orb.userDrawn) return;
+      orb.userDrawn = true;
+      orb.setAlpha(0.15);
+
+      const centerPos = orb.basePosition.clone();
+      const numLayerStrokes = 2 + Math.floor(Math.random() * 2);
+      const brightPinkColors = [0xffccff, 0xffaae6, 0xff77dd, 0xffeeff, 0xff88ee];
+
+      for (let s = 0; s < numLayerStrokes; s++) {
+        const strokeColor = brightPinkColors[Math.floor(Math.random() * brightPinkColors.length)];
+        const clusterRadius = 0.16 + Math.random() * 0.12;
+        const baseAngle = Math.random() * Math.PI * 2.0;
+        const pts = [];
+
+        for (let i = 0; i <= 20; i++) {
+          const t = i / 20;
+          const angle = baseAngle + t * Math.PI * (1.2 + Math.random() * 0.5);
+          const r = clusterRadius * (0.6 + 0.4 * Math.sin(t * Math.PI * 2.0 + s));
+          pts.push(centerPos.clone().add(new THREE.Vector3(
+            Math.cos(angle) * r,
+            Math.sin(angle) * r,
+            (Math.random() - 0.5) * 0.12
+          )));
+        }
+
+        const clusterCurve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+        const clusterStroke = new ImmersiveStroke(strokeGroup, 0.30 + Math.random() * 0.12, 3, strokeColor);
+        const spacedPts = clusterCurve.getSpacedPoints(35);
+        for (let i = 0; i <= 35; i++) {
+          const t = i / 35;
+          clusterStroke.addPoint(spacedPts[i], 0.6 + 0.8 * Math.sin(t * Math.PI));
+        }
+
+        growingBlossomClusters.push({ stroke: clusterStroke, progress: 0.0, duration: 0.5 });
+        persistentBlossomStrokes.push(clusterStroke);
+      }
     };
 
     // 3. Particle Trail Mesh (4,000 Starburst Flares)
@@ -990,7 +1074,11 @@ export function SakuraCanvas({
         if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < 2.5) {
           orb.triggerExplosion();
 
-          if (currentPhase === 'PETAL') {
+          if (currentPhase === 'BRANCH') {
+            spawnSubBranchFromOrb(orb);
+          } else if (currentPhase === 'BLOSSOM') {
+            spawnBlossomClusterFromOrb(orb);
+          } else if (currentPhase === 'PETAL') {
             instancedPetalMesh.visible = true;
             activePetalCount = Math.min(MAX_PETALS, activePetalCount + 120);
           }
@@ -1020,6 +1108,7 @@ export function SakuraCanvas({
       // Update uniforms
       bgUniforms.iTime.value = totalAnimTime;
       mainTrunkStroke.setTime(totalAnimTime);
+      persistentBlossomStrokes.forEach(s => s.setTime(totalAnimTime));
 
       // Step-by-Step Trunk Growth Animation (0.0 -> 1.0 over 6 seconds)
       if (!isTrunkGrowthFinished) {
@@ -1034,7 +1123,31 @@ export function SakuraCanvas({
         mainTrunkStroke.setProgress(growthProgressVal);
       }
 
-      // Visibility sync
+      // Animate Subbranches (3.0s)
+      for (let i = growingSubBranches.length - 1; i >= 0; i--) {
+        const item = growingSubBranches[i];
+        item.progress += delta / item.duration;
+        if (item.progress > 1.0) item.progress = 1.0;
+        item.stroke.setProgress(item.progress);
+        item.stroke.setTime(totalAnimTime);
+        if (item.progress >= 1.0) {
+          growingSubBranches.splice(i, 1);
+        }
+      }
+
+      // Animate Blossom Clusters (0.5s)
+      for (let i = growingBlossomClusters.length - 1; i >= 0; i--) {
+        const item = growingBlossomClusters[i];
+        item.progress += delta / item.duration;
+        if (item.progress > 1.0) item.progress = 1.0;
+        item.stroke.setProgress(item.progress);
+        item.stroke.setTime(totalAnimTime);
+        if (item.progress >= 1.0) {
+          growingBlossomClusters.splice(i, 1);
+        }
+      }
+
+      // Mode visibility sync
       const showBlüten = activeModeRef.current === 'bluten' || frozenModeRef.current === 'bluten';
       strokeGroup.visible = showBlüten;
       orbGroup.visible = showBlüten;
