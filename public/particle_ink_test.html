@@ -292,6 +292,7 @@ uniform float uParticleSize;
 uniform float uNoiseFreq;
 uniform float uNoiseAmp;
 
+attribute vec3 color;
 attribute vec3 aOriginalPosition;
 
 varying vec3 vColor;
@@ -361,51 +362,33 @@ void main() {
 let points = null;
 let positionsAttr = null;
 
-// Load image and convert to particle cloud
-const image = new Image();
-image.crossOrigin = 'anonymous';
-image.src = '/media/alcohol_ink.jpg';
-
-image.onload = () => {
+// Helper to initialize particles from canvas context
+function initParticlesFromCanvas(tempCtx, width, height) {
   // Hide loader
   loader.style.opacity = '0';
   setTimeout(() => loader.style.display = 'none', 800);
   
-  // Sample pixels on a temporary canvas
-  const tempCanvas = document.createElement('canvas');
-  const tempCtx = tempCanvas.getContext('2d');
-  
-  // High density: 320x180 = 57,600 particles maximum
-  tempCanvas.width = 320;
-  tempCanvas.height = 180;
-  
-  tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
-  const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const imgData = tempCtx.getImageData(0, 0, width, height);
   const pixels = imgData.data;
   
   const tempPos = [];
   const tempCol = [];
   const tempOrig = [];
   
-  const aspect = tempCanvas.width / tempCanvas.height;
+  const aspect = width / height;
   
-  // Loop and keep only colored ink pixels, skip full black background pixels to optimize
-  for (let y = 0; y < tempCanvas.height; y++) {
-    for (let x = 0; x < tempCanvas.width; x++) {
-      const idx = (y * tempCanvas.width + x) * 4;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
       const r = pixels[idx] / 255;
       const g = pixels[idx+1] / 255;
       const b = pixels[idx+2] / 255;
       
-      // Calculate color intensity
       const intensity = r + g + b;
-      
-      // Skip background pixels (near-black threshold)
       if (intensity < 0.05) continue;
       
-      // Coordinate mapping (standardize image size to approx height of 1.0)
-      const posX = (x / tempCanvas.width - 0.5) * aspect * 1.1;
-      const posY = (0.5 - y / tempCanvas.height) * 1.1;
+      const posX = (x / width - 0.5) * aspect * 1.1;
+      const posY = (0.5 - y / height) * 1.1;
       const posZ = 0.0;
       
       tempPos.push(posX, posY, posZ);
@@ -414,7 +397,6 @@ image.onload = () => {
     }
   }
   
-  // Construct geometry
   const geometry = new THREE.BufferGeometry();
   
   positionsAttr = new THREE.BufferAttribute(new Float32Array(tempPos), 3);
@@ -433,7 +415,56 @@ image.onload = () => {
   
   points = new THREE.Points(geometry, material);
   scene.add(points);
+}
+
+// Load image and convert to particle cloud
+const image = new Image();
+image.crossOrigin = 'anonymous';
+
+image.onload = () => {
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = 320;
+  tempCanvas.height = 180;
+  tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+  initParticlesFromCanvas(tempCtx, tempCanvas.width, tempCanvas.height);
 };
+
+image.onerror = () => {
+  console.warn("Could not load image, generating procedural alcohol ink texture...");
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 320;
+  tempCanvas.height = 180;
+  const tempCtx = tempCanvas.getContext('2d');
+
+  const grad = tempCtx.createRadialGradient(160, 90, 10, 160, 90, 120);
+  grad.addColorStop(0, '#e8a0a8');
+  grad.addColorStop(0.4, '#8b1a2b');
+  grad.addColorStop(0.8, '#3d0c18');
+  grad.addColorStop(1, '#000000');
+  tempCtx.fillStyle = grad;
+  tempCtx.fillRect(0, 0, 320, 180);
+
+  const colors = ['#ff6b8b', '#e8a0a8', '#b83b5e', '#6a097d', '#f08a5d'];
+  for (let i = 0; i < 24; i++) {
+    const cx = Math.random() * 320;
+    const cy = Math.random() * 180;
+    const cr = 20 + Math.random() * 50;
+    const blobGrad = tempCtx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+    blobGrad.addColorStop(0, colors[i % colors.length]);
+    blobGrad.addColorStop(1, 'transparent');
+    tempCtx.fillStyle = blobGrad;
+    tempCtx.beginPath();
+    tempCtx.arc(cx, cy, cr, 0, Math.PI * 2);
+    tempCtx.fill();
+  }
+
+  initParticlesFromCanvas(tempCtx, tempCanvas.width, tempCanvas.height);
+};
+
+// Relative image path works both via server and direct file protocol
+image.src = 'media/alcohol_ink.jpg';
+
 
 // UI Element binding
 const sizeSlider = document.getElementById('sizeSlider');

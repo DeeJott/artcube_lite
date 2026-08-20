@@ -3,14 +3,14 @@ import type { ExperienceDefinition } from '../../lib/experience-types';
 
 export const sakuraExperience: ExperienceDefinition = {
   id: 'sakura',
-  title: 'Sakura',
-  description: 'Ein meditatives Kunstwerk über das Erblühen und Verwelken von Kirschblüten, inspiriert durch die fluiden, dunkelpinken Formen des Shibuya Sakura Stage.',
-  duration: 80,
+  title: 'Sakura Stage',
+  description: 'Interaktives Multimedien-Kunstwerk mit Sumi-e Kirschblüten, Plexus 3D-Formen-Transformationen und Shibuya Magenta Metallics.',
+  duration: 120,
   Component: SakuraCanvas,
   getHUDText: (elapsed: number) => {
-    if (elapsed < 20) return 'Wachstum — Der Sakura-Gitterbaum entsteht';
-    if (elapsed < 40) return 'Erblühen — Die Blüten entfalten sich';
-    if (elapsed < 60) return 'Tanz — Blütenblätter im Datenwind';
-    return 'Vergänglichkeit — Rückkehr ins Netzwerk';
+    if (elapsed < 30) return '🌸 Blüten — Wachsen & Entfalten der Kirschblüten';
+    if (elapsed < 60) return '🔮 Plexus — Driftende Partikel & 3D Formen-Morphing';
+    if (elapsed < 90) return '🌀 Vortex — Der Datensturm vereint die Dimensionen';
+    return '🌸 Sakura Stage — Vollendung des kollaborativen Kunstwerks';
   },
 };

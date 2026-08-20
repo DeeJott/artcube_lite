@@ -48,7 +48,8 @@
       width: 100vw;
       height: 100vh;
       z-index: 2;
-      cursor: none; /* Custom user cursor elements used */
+      cursor: none;
+      /* Custom user cursor elements used */
       overflow: hidden;
       opacity: 0;
       pointer-events: none;
@@ -106,9 +107,17 @@
     }
 
     @keyframes cursorClickPulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.45); }
-      100% { transform: scale(1); }
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.45);
+      }
+
+      100% {
+        transform: scale(1);
+      }
     }
 
     .gesture-ring {
@@ -132,6 +141,7 @@
         opacity: 0.95;
         border-width: 3px;
       }
+
       100% {
         width: 110px;
         height: 110px;
@@ -207,8 +217,15 @@
     }
 
     @keyframes lobbyPulseGlow {
-      0%, 100% { box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(255, 42, 157, 0.25); }
-      50% { box-shadow: 0 25px 70px rgba(0, 0, 0, 0.7), 0 0 50px rgba(255, 42, 157, 0.45); }
+
+      0%,
+      100% {
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(255, 42, 157, 0.25);
+      }
+
+      50% {
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.7), 0 0 50px rgba(255, 42, 157, 0.45);
+      }
     }
 
     .lobby-brand {
@@ -290,7 +307,8 @@
       gap: 10px;
     }
 
-    .invite-btn, .guest-toggle-btn {
+    .invite-btn,
+    .guest-toggle-btn {
       flex: 1;
       padding: 12px 14px;
       background: rgba(255, 255, 255, 0.06);
@@ -310,7 +328,43 @@
       transition: all 0.3s ease;
     }
 
-    .invite-btn:hover, .guest-toggle-btn:hover {
+    .join-btn {
+      width: 100%;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.3) 0%, rgba(18, 12, 28, 0.9) 100%);
+      border: 1px solid rgba(78, 226, 236, 0.8);
+      border-radius: 16px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0, 240, 255, 0.35);
+    }
+
+    .join-btn:hover {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.5) 0%, rgba(78, 226, 236, 0.4) 100%);
+      border-color: #4ee2ec;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 240, 255, 0.55);
+    }
+
+    .join-btn.joined {
+      background: linear-gradient(135deg, rgba(0, 255, 163, 0.3) 0%, rgba(18, 12, 28, 0.9) 100%);
+      border-color: #00ffa3;
+      color: #00ffa3;
+      box-shadow: 0 0 15px rgba(0, 255, 163, 0.4);
+    }
+
+    .invite-btn:hover,
+    .guest-toggle-btn:hover {
       background: rgba(78, 226, 236, 0.2);
       border-color: #4ee2ec;
       color: #ffffff;
@@ -447,67 +501,62 @@
       gap: 12px;
     }
 
-    .phase-badge {
-      display: inline-flex;
+    /* Top Left Instruction Box */
+    .instruction-box {
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px 20px;
+      background: rgba(18, 12, 28, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 105, 180, 0.4);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      max-width: 440px;
+    }
+
+    .instruction-header {
+      display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 18px;
-      background: rgba(18, 12, 28, 0.7);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 105, 180, 0.3);
-      border-radius: 20px;
-      color: rgba(255, 180, 220, 0.95);
-      font-size: 11px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      font-weight: 600;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
 
-    .participants-hud-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 18px;
-      background: rgba(18, 12, 28, 0.7);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(78, 226, 236, 0.35);
-      border-radius: 20px;
-      color: rgba(255, 255, 255, 0.95);
-      font-size: 11px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      font-weight: 600;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      transition: all 0.4s ease;
-    }
-
-    .participants-hud-badge.connected {
-      border-color: #00ffa3;
-      box-shadow: 0 0 15px rgba(0, 255, 163, 0.4);
-      color: #ffffff;
-    }
-
-    .phase-dot {
-      width: 7px;
-      height: 7px;
+    .instruction-dot {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background-color: #ff2a9d;
       box-shadow: 0 0 10px #ff2a9d;
       animation: pulsePhase 2s infinite ease-in-out;
     }
 
-    /* Audio Mute/Play Toggle Button Top Right */
-    .audio-toggle-btn {
+    .phase-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: rgba(255, 180, 220, 0.95);
+    }
+
+    .instruction-body {
+      font-size: 13px;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 400;
+    }
+
+    /* Top Right Control Buttons (Sound ON/OFF, Pause/Play, Restart) */
+    .hud-control-btn {
       pointer-events: auto;
       display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 8px 16px;
-      background: rgba(18, 12, 28, 0.8);
+      background: rgba(18, 12, 28, 0.85);
       backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(255, 105, 180, 0.4);
       border-radius: 20px;
       color: #ffffff;
@@ -520,31 +569,15 @@
       transition: all 0.3s ease;
     }
 
-    .audio-toggle-btn:hover {
-      background: rgba(255, 42, 157, 0.25);
+    .hud-control-btn:hover {
+      background: rgba(255, 42, 157, 0.3);
       border-color: #ff2a9d;
+      box-shadow: 0 0 15px rgba(255, 42, 157, 0.5);
       transform: translateY(-1px);
     }
 
-    /* Switch Active User Toggle Button Top Right */
-    .user-switch-toggle {
-      pointer-events: auto;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 18px;
-      background: rgba(18, 12, 28, 0.8);
-      backdrop-filter: blur(14px);
-      border: 1px solid rgba(78, 226, 236, 0.4);
-      border-radius: 20px;
-      color: #ffffff;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-      transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
     }
 
     .user-switch-toggle:hover {
@@ -554,8 +587,17 @@
     }
 
     @keyframes pulsePhase {
-      0%, 100% { opacity: 0.4; transform: scale(0.9); }
-      50% { opacity: 1.0; transform: scale(1.2); }
+
+      0%,
+      100% {
+        opacity: 0.4;
+        transform: scale(0.9);
+      }
+
+      50% {
+        opacity: 1.0;
+        transform: scale(1.2);
+      }
     }
 
     /* Bottom HUD Container */
@@ -670,17 +712,24 @@
     }
 
     @keyframes pulseBtnGlow {
-      0%, 100% { box-shadow: 0 10px 30px rgba(255, 42, 157, 0.3), 0 0 20px rgba(78, 226, 236, 0.2); }
-      50% { box-shadow: 0 14px 40px rgba(255, 42, 157, 0.6), 0 0 30px rgba(78, 226, 236, 0.5); }
+
+      0%,
+      100% {
+        box-shadow: 0 10px 30px rgba(255, 42, 157, 0.3), 0 0 20px rgba(78, 226, 236, 0.2);
+      }
+
+      50% {
+        box-shadow: 0 14px 40px rgba(255, 42, 157, 0.6), 0 0 30px rgba(78, 226, 236, 0.5);
+      }
     }
 
-    /* Bottom Right: 3 Mode Selection Navigation Pill Buttons (Blüten, Plexus, Wald) */
+    /* Bottom Center: 3 Mode Selection Navigation Pill Buttons (Blüten, Plexus, Wald) */
     .mode-selector-container {
       pointer-events: auto;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      align-items: flex-end;
+      align-items: center;
     }
 
     .mode-selector-label {
@@ -744,13 +793,32 @@
     }
 
     @keyframes pulseWaldUnlocked {
-      0%, 100% { box-shadow: 0 0 10px rgba(78, 226, 236, 0.3); }
-      50% { box-shadow: 0 0 22px rgba(78, 226, 236, 0.8); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 10px rgba(78, 226, 236, 0.3);
+      }
+
+      50% {
+        box-shadow: 0 0 22px rgba(78, 226, 236, 0.8);
+      }
+    }
+
+    /* Mobile Landscape Laptop 16:9 Aspect Scaling */
+    @media (max-width: 950px) and (orientation: landscape) {
+
+      #webgl-container canvas,
+      #bg-container canvas {
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        object-fit: contain !important;
+      }
     }
   </style>
 
-  <!-- Three.js Library -->
+  <!-- Three.js & PeerJS WebRTC Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 
 <body>
@@ -778,21 +846,24 @@
       </div>
 
       <div class="lobby-form">
-        <div class="input-group">
+        <div class="input-group" id="hostInputGroup">
           <label for="userNameInput">Dein Name (Host)</label>
           <input type="text" class="name-input" id="userNameInput" placeholder="Dein Name" maxlength="18" />
         </div>
 
         <div class="input-group" id="guestInputGroup" style="display: none;">
-          <label for="guestNameInput">Mitspieler Name (Gast)</label>
+          <label for="guestNameInput">Dein Name (Gast)</label>
           <input type="text" class="name-input" id="guestNameInput" placeholder="Dein Name" maxlength="18" />
         </div>
 
         <div class="invite-group">
-          <label>Session & Mitspieler</label>
+          <label id="inviteLabel">Session & Mitspieler</label>
           <div class="invite-actions">
             <button type="button" class="invite-btn" id="copyInviteBtn" style="width: 100%;">
               <span>🔗 Einladungslink kopieren</span>
+            </button>
+            <button type="button" class="join-btn" id="guestJoinBtn" style="display: none; width: 100%;">
+              <span>✨ Beitreten</span>
             </button>
           </div>
         </div>
@@ -801,7 +872,7 @@
           <div class="participant-item" id="pItem1">
             <span class="p-dot" id="pDot1"></span>
             <span class="p-name" id="pName1">Host</span>
-            <span class="p-status">Bereit</span>
+            <span class="p-status" id="pStatus1">Bereit</span>
           </div>
           <div class="participant-item disabled" id="pItem2">
             <span class="p-dot" id="pDot2"></span>
@@ -833,34 +904,39 @@
 
   <!-- Glassmorphic HUD Layer -->
   <div class="hud-layer" id="hudLayer">
-    <!-- Top Bar: Phase Indicator & Participant Status & User Switcher & Audio Toggle -->
+    <!-- Top Bar: Dynamic Instructions (Top Left) & Session Control Buttons (Top Right) -->
     <div class="top-bar">
-      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-        <div class="phase-badge" id="phaseBadge">
-          <span class="phase-dot"></span>
-          <span id="phaseText">Exploration Phase</span>
+      <!-- Top Left: Dynamic Instruction Textbox for current Artwork & Phase -->
+      <div class="instruction-box" id="instructionBox">
+        <div class="instruction-header">
+          <span class="instruction-dot"></span>
+          <span id="phaseText" class="phase-title">Sumi-e Blütenkunst</span>
         </div>
-        <div class="participants-hud-badge" id="participantsHudBadge">
-          <span id="hudParticipantsText">👤 1 Spieler (Warte auf Gast...)</span>
+        <div id="instructionText" class="instruction-body">
+          Der Stamm wächst heran... Lehne dich zurück und beobachte den Wuchs.
         </div>
       </div>
 
+      <!-- Top Right: Sound ON/OFF, Pause/Play, Restart Buttons -->
       <div class="top-right-group">
-        <!-- Audio Mute/Unmute Toggle Button -->
-        <button class="audio-toggle-btn" id="audioToggleBtn" title="Audio stummschalten / abspielen">
+        <button class="hud-control-btn" id="audioToggleBtn" title="Sound An / Aus">
           <span id="audioIcon">🎵</span>
           <span id="audioLabel">Sound ON</span>
         </button>
 
-        <!-- Quick Switcher for Testing 2-Player Collaboration -->
-        <button class="user-switch-toggle" id="userSwitchBtn">
-          <span>Active User: <strong id="activeUserName">Host (User 1)</strong></span>
-          <span style="opacity: 0.6; font-size: 9px;">[Press TAB]</span>
+        <button class="hud-control-btn" id="pauseToggleBtn" title="Pause / Play (Gilt für alle)">
+          <span id="pauseIcon">⏸️</span>
+          <span id="pauseLabel">Pause</span>
+        </button>
+
+        <button class="hud-control-btn" id="restartArtBtn" title="Kunstwerk neu starten (Gilt für alle)">
+          <span id="restartIcon">🔄</span>
+          <span>Restart</span>
         </button>
       </div>
     </div>
 
-    <!-- Bottom Bar: Title (Left), Action Button (Center), Mode Selector (Right) -->
+    <!-- Bottom Bar: Title (Left), Mode Selector (Center), Action Button (Right) -->
     <div class="bottom-bar">
 
       <!-- Bottom Left: Artwork Title -->
@@ -869,24 +945,25 @@
         <div class="brand-subtitle">Collaborative Artwork Experience</div>
       </div>
 
-      <!-- Bottom Center: Creation Button (Unlocked after 30s) -->
-      <div class="center-action">
-        <button class="create-btn" id="createArtBtn" disabled>
-          <span class="btn-content">
-            <span class="timer-badge" id="timerBadge">30s</span>
-            <span id="btnLabel">Kunstwerk erstellen</span>
-          </span>
-        </button>
-      </div>
-
-      <!-- Bottom Right: 3 Mode Selection Navigation Buttons (Blüten, Plexus, Wald) -->
+      <!-- Bottom Center: 3 Mode Selection Navigation Buttons (Blüten, Plexus, Wald) -->
       <div class="mode-selector-container">
         <div class="mode-selector-label">Artwork Mode</div>
         <div class="mode-selector">
           <button class="mode-btn active" id="btnModeBluten">Blüten</button>
           <button class="mode-btn" id="btnModePlexus">Plexus</button>
-          <button class="mode-btn disabled" id="btnModeWald" disabled title="Spiele zuerst Blüten und Plexus durch">Wald</button>
+          <button class="mode-btn disabled" id="btnModeWald" disabled
+            title="Spiele zuerst Blüten und Plexus durch">Sakura</button>
         </div>
+      </div>
+
+      <!-- Bottom Right: Creation Button (Unlocked after 3/3 completed artworks) -->
+      <div class="center-action">
+        <button class="create-btn" id="createArtBtn" disabled>
+          <span class="btn-content">
+            <span class="timer-badge" id="timerBadge">(0/3)</span>
+            <span id="btnLabel">Kunstwerk erstellen</span>
+          </span>
+        </button>
       </div>
 
     </div>
@@ -922,16 +999,19 @@
       const user1Color = CURSOR_PALETTE_10[colorIndex1];
       const user2Color = CURSOR_PALETTE_10[colorIndex2];
 
-      // Multi-screen & Cross-Tab Real-time BroadcastChannel Synchronization
+      // Real-time Session Networking (PeerJS WebRTC & BroadcastChannel)
       const urlParams = new URLSearchParams(window.location.search);
-      const roomId = urlParams.get('room') || 'sakura-session';
+      const roomId = urlParams.get('room') || `sakura-${Math.floor(1000 + Math.random() * 9000)}`;
+      const urlHostName = urlParams.get('hostName');
       const broadcastChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel(`sakura_channel_${roomId}`) : null;
+      let peer = null;
+      let activePeerConn = null;
 
       const myRole = urlParams.has('room') ? 'guest' : 'host';
       let activeUserIndex = (myRole === 'guest') ? 2 : 1; // 1 = Host (User 1), 2 = Guest (User 2)
-      let user1Name = "Host";
+      let user1Name = (myRole === 'guest' && urlHostName) ? decodeURIComponent(urlHostName) : "Host";
       let user2Name = "Gast";
-      let isGuestJoined = (myRole === 'guest');
+      let isGuestJoined = false;
       let isArtworkStarted = false;
 
       // Active Artwork Mode: 'bluten', 'plexus', 'wald'
@@ -953,11 +1033,6 @@
       const INITIAL_PETALS = 20;    // Reduced initial petals to 20
       const MAX_PETALS = 600;
       const MAX_ORBS = 60;
-
-      // 3D Sideways Whirlwind / Tornado State Variables (8 Seconds Duration)
-      const TORNADO_DURATION = 8.0;
-      let isVortexActive = false;
-      let vortexStartTime = 0.0;
 
       // Persistent Drifting Plexus Constellations (Sakura V2 Engine Architecture)
       let isMouseDown = false;
@@ -997,7 +1072,6 @@
       let audioToggleBtn, audioIcon, audioLabel;
 
       let activePetalCount = INITIAL_PETALS;
-      const activeOrbs = [];
 
       // Sakura Petal 3D Data
       const petalSpawnOriginX = new Float32Array(MAX_PETALS);
@@ -1051,6 +1125,25 @@
       let user2WorldPos = new THREE.Vector3(-120, 80, 0);
 
       // GLSL Background Fluid Shader with Dynamic Kaleidoscope AND Linear Grid Vibe Shader for Plexus Finale!
+      function createNoiseTexture() {
+        const size = 256;
+        const data = new Uint8Array(size * size * 4);
+        for (let i = 0; i < size * size; i++) {
+          const val = Math.floor(Math.random() * 256);
+          data[i * 4] = val;
+          data[i * 4 + 1] = val;
+          data[i * 4 + 2] = val;
+          data[i * 4 + 3] = 255;
+        }
+        const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.needsUpdate = true;
+        return texture;
+      }
+
       const bgVertexShader = `
         varying vec2 vUv;
         void main() {
@@ -1059,139 +1152,264 @@
         }
       `;
 
+      // BACKGROUND SHADER MIT TRANSPARENTER WASSER-LICHTBRECHUNGS-WELLE (AUS TESTBRANCH FÜR ALLE KUNSTWERKE)
       const bgFragmentShader = `
         uniform vec3 iResolution;
         uniform float iTime;
-        uniform float uKaleidoscope; // 0.0 to 1.0 kaleidoscope shimmer blend factor
-        uniform float uGridVibe;      // 0.0 to 1.0 Linear Grid Vibe Shader for 8-Plexus Finale!
+        uniform sampler2D iChannel0;
+        uniform float uKaleidoscope;
+        uniform float uGridVibe;
+        uniform float uRippleActive;
+        uniform float uRippleTime;
+        varying vec2 vUv;
 
-        float hash(vec2 p) {
-            p = fract(p * vec2(123.34, 456.21));
-            p += dot(p, p + 45.32);
-            return fract(p.x * p.y);
+        float noise(in vec2 x) {
+          vec2 p = floor(x);
+          vec2 f = fract(x);
+          f = f * f * (3.0 - 2.0 * f);
+          float a = texture2D(iChannel0, (p + vec2(0.5, 0.5)) / 256.0).x;
+          float b = texture2D(iChannel0, (p + vec2(1.5, 0.5)) / 256.0).x;
+          float c = texture2D(iChannel0, (p + vec2(0.5, 1.5)) / 256.0).x;
+          float d = texture2D(iChannel0, (p + vec2(1.5, 1.5)) / 256.0).x;
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
         }
 
-        float noise(vec2 p) {
-            vec2 i = floor(p);
-            vec2 f = fract(p);
-            f = f*f*(3.0-2.0*f);
-            return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
-                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+        const mat2 mtx = mat2(0.80, 0.60, -0.60, 0.80);
+
+        float fbm(vec2 p) {
+          float f = 0.0;
+          f += 0.500000 * noise(p); p = mtx * p * 2.02;
+          f += 0.250000 * noise(p); p = mtx * p * 2.03;
+          f += 0.125000 * noise(p); p = mtx * p * 2.01;
+          f += 0.062500 * noise(p); p = mtx * p * 2.04;
+          f += 0.031250 * noise(p); p = mtx * p * 2.01;
+          f += 0.015625 * noise(p);
+          return f / 0.96875;
         }
 
-        const mat2 mtx = mat2( 0.80,  0.60, -0.60,  0.80 );
-
-        float fbm( vec2 p ) {
-            float f = 0.0;
-            f += 0.5500*noise( p ); p = mtx*p*2.02;
-            f += 0.2800*noise( p ); p = mtx*p*2.04;
-            f += 0.1400*noise( p );
-            return f;
+        float pattern(in vec2 p, in float t, in vec2 uv) {
+          vec2 q = vec2(fbm(p), fbm(p + vec2(10.0, 1.3)));
+          vec2 r = vec2(fbm(p + 4.0 * q + vec2(t) + vec2(1.7, 9.2)), fbm(p + 4.0 * q + vec2(t) + vec2(8.3, 2.8)));
+          vec2 g = vec2(fbm(p + 2.0 * r + vec2(t * 20.0) + vec2(2.0, 6.0)), fbm(p + 2.0 * r + vec2(t * 10.0) + vec2(5.0, 3.0)));
+          return fbm(p + 5.5 * g + vec2(-t * 7.0));
         }
 
         void main() {
-            vec2 uv = gl_FragCoord.xy / iResolution.xy;
+          vec2 fragCoord = gl_FragCoord.xy;
+          vec2 uv = fragCoord / iResolution.xy;
+          
+          vec2 rippleOffset = vec2(0.0);
+          float waveNormal = 0.0;
+          float waveFade = 0.0;
 
-            // Kaleidoscope Coordinate Symmetry Transformation
-            if (uKaleidoscope > 0.001) {
-                vec2 p = uv - vec2(0.5);
-                float r = length(p);
-                float a = atan(p.y, p.x);
-                float sides = 6.0;
-                float tau = 6.2831853;
-                a = mod(a, tau / sides);
-                a = abs(a - tau / (2.0 * sides));
-                vec2 kUV = vec2(cos(a), sin(a)) * r + vec2(0.5);
-                uv = mix(uv, kUV, uKaleidoscope);
-            }
+          // TRANSPARENTE WASSER-LICHTBRECHUNGS-VERZERRUNG DES HINTERGRUNDS
+          if (uRippleActive > 0.5) {
+            vec2 centerUv = uv - vec2(0.5);
+            centerUv.x *= iResolution.x / iResolution.y;
+            float dist = length(centerUv);
 
-            float t = iTime * 0.06;
-            vec2 q = vec2(fbm(uv * 3.5), fbm(uv * 3.5 + vec2(5.2, 1.3)));
-            vec2 r = vec2(fbm(uv * 3.5 + 3.0 * q + vec2(t)), fbm(uv * 3.5 + 3.0 * q + vec2(4.2, 2.1)));
-            float noiseVal = fbm(uv * 3.5 + 3.5 * r + vec2(-t * 0.7));
+            float waveRadius = (uRippleTime / 2.0) * 1.35;
+            float waveDist = abs(dist - waveRadius);
 
-            vec3 col = mix(vec3(0.10, 0.00, 0.06), vec3(0.78, 0.00, 0.40), smoothstep(0.0, 1.0, noiseVal));
-            col = mix(col, vec3(0.30, 0.00, 0.16), dot(q, q) * 0.8);
-            col = mix(col, vec3(0.85, 0.35, 0.65), 0.25 * r.x);
+            // Physische Wasserwellen-Lichtbrechungs-Normalen
+            float wavePhase = waveDist * 35.0 - uRippleTime * 10.0;
+            waveNormal = cos(wavePhase) * exp(-waveDist * waveDist * 120.0);
+            waveFade = smoothstep(2.0, 1.5, uRippleTime) * smoothstep(0.0, 0.1, uRippleTime);
 
-            if (uKaleidoscope > 0.001) {
-                vec3 colKaleido = vec3(0.95, 0.35, 0.85) * (0.8 + 0.5 * sin(iTime * 1.5 + noiseVal * 6.28));
-                col = mix(col, col * 1.35 + colKaleido * 0.4, uKaleidoscope * 0.7);
-            }
+            // Verzerrungs-Vektor für die Hintergrund-Struktur
+            rippleOffset = normalize(centerUv + vec2(0.0001)) * waveNormal * 0.035 * waveFade;
+          }
 
-            // Linear Grid Vibe Shader Layer (Replaces Kaleidoscope during 8-Plexus Finale!)
-            if (uGridVibe > 0.001) {
-                vec2 gUV = (uv - vec2(0.5)) * vec2(iResolution.x / iResolution.y, 1.0);
+          // Verzerrte Hintergrund-Berechnung durch Wasser-Refraktion
+          vec2 distortedFragCoord = fragCoord + rippleOffset * iResolution.xy;
+          vec2 distortedUv = uv + rippleOffset;
 
-                // Perspective Linear Grid Lines
-                vec2 gridLines = abs(fract(gUV * 18.0 - vec2(0.0, iTime * 0.5)) - 0.5);
-                float lineIntensity = smoothstep(0.46, 0.5, max(gridLines.x, gridLines.y));
+          // Kaleidoscope Coordinate Symmetry Transformation
+          if (uKaleidoscope > 0.001) {
+              vec2 p = distortedUv - vec2(0.5);
+              float r = length(p);
+              float a = atan(p.y, p.x);
+              float sides = 6.0;
+              float tau = 6.2831853;
+              a = mod(a, tau / sides);
+              a = abs(a - tau / (2.0 * sides));
+              vec2 kUV = vec2(cos(a), sin(a)) * r + vec2(0.5);
+              distortedUv = mix(distortedUv, kUV, uKaleidoscope);
+          }
 
-                // Laser Beam Scanline Effect
-                float scanline = sin(gUV.y * 70.0 - iTime * 10.0) * 0.5 + 0.5;
+          float noiseVal = pattern(distortedFragCoord * vec2(0.004), iTime * 0.007, distortedUv);
+          
+          vec3 col = mix(vec3(0.05, 0.00, 0.02), vec3(0.74, 0.00, 0.36), smoothstep(0.0, 1.0, noiseVal));
+          col = mix(col, vec3(0.28, 0.00, 0.13), noiseVal * 0.8);
+          col = mix(col, vec3(0.80, 0.04, 0.44), 0.35 * noiseVal);
+          col = mix(col, vec3(0.48, 0.00, 0.24), smoothstep(0.0, 0.6, 0.6 * noiseVal));
+          col = mix(col, vec3(0.80, 0.36, 0.62), 0.12 * noiseVal);
+          
+          col *= noiseVal * 1.68;
 
-                vec3 gridColor = vec3(1.0, 0.12, 0.70) * lineIntensity * 1.5 + vec3(0.1, 0.85, 1.0) * scanline * lineIntensity * 0.7;
-                col = mix(col, col * 0.75 + gridColor, uGridVibe * 0.85);
-            }
+          if (uKaleidoscope > 0.001) {
+              vec3 colKaleido = vec3(0.95, 0.35, 0.85) * (0.8 + 0.5 * sin(iTime * 1.5 + noiseVal * 6.28));
+              col = mix(col, col * 1.35 + colKaleido * 0.4, uKaleidoscope * 0.7);
+          }
 
-            col *= noiseVal * 1.4 + 0.3;
-            gl_FragColor = vec4(col, 1.0);
+          // Linear Grid Vibe Shader Layer
+          if (uGridVibe > 0.001) {
+              vec2 gUV = (distortedUv - vec2(0.5)) * vec2(iResolution.x / iResolution.y, 1.0);
+              vec2 gridLines = abs(fract(gUV * 18.0 - vec2(0.0, iTime * 0.5)) - 0.5);
+              float lineIntensity = smoothstep(0.46, 0.5, max(gridLines.x, gridLines.y));
+              float scanline = sin(gUV.y * 70.0 - iTime * 10.0) * 0.5 + 0.5;
+              vec3 gridColor = vec3(1.0, 0.12, 0.70) * lineIntensity * 1.5 + vec3(0.1, 0.85, 1.0) * scanline * lineIntensity * 0.7;
+              col = mix(col, col * 0.75 + gridColor, uGridVibe * 0.85);
+          }
+
+          // Subtiler, transparenter Lichtreflex der Wasserwelle
+          if (uRippleActive > 0.5) {
+            col += vec3(0.14, 0.08, 0.18) * waveNormal * waveFade;
+          }
+
+          col *= 0.70 + 0.65 * sqrt(70.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y));
+          
+          gl_FragColor = vec4(col, 1.0);
         }
       `;
 
-      // Shader for Gaseous Organic Smoky Sphere Orbs
-      const orbVertexShader = `
-        attribute float size;
-        attribute vec3 color;
-        varying vec3 vColor;
+      // Sumi-e 3D Ribbon Stroke Shaders
+      const sumiVertexShader = `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        uniform float uTime;
 
         void main() {
-          vColor = color;
-          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * (540.0 / -mvPosition.z);
-          gl_Position = projectionMatrix * mvPosition;
+          vUv = uv;
+          vPosition = position;
+
+          float normX = clamp((position.x + 11.5) / 20.0, 0.0, 1.0);
+          float mainSway = sin(uTime * 1.25) * 0.38;
+          float subSway  = sin(uTime * 0.60) * 0.14;
+          
+          vec3 displacedPos = position;
+          displacedPos.y += (mainSway + subSway) * normX;
+
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPos, 1.0);
+        }
+      `;
+
+      const sumiFragmentShader = `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        uniform vec3 uColor;
+        uniform float uTotalLength;
+        uniform float uProgress;
+
+        vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+        float snoise(vec2 v){
+          const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                   -0.577350269189626, 0.024390243902439);
+          vec2 i  = floor(v + dot(v, C.yy) );
+          vec2 x0 = v -   i + dot(i, C.xx);
+          vec2 i1;
+          i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+          vec4 x12 = x0.xyxy + C.xxzz;
+          x12.xy -= i1;
+          vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+          + i.x + vec3(0.0, i1.x, 1.0 ));
+          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+            dot(x12.zw,x12.zw)), 0.0);
+          m = m*m ;
+          m = m*m ;
+          vec3 x = 2.0 * fract(p * C.www) - 1.0;
+          vec3 h = abs(x) - 0.5;
+          vec3 ox = floor(x + 0.5);
+          vec3 a0 = x - ox;
+          m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+          vec3 g;
+          g.x  = a0.x  * x0.x  + h.x  * x0.y;
+          g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+          return 130.0 * dot(m, g);
+        }
+
+        void main() {
+          float currentLength = uTotalLength * uProgress;
+          if (vUv.y > currentLength) discard;
+
+          float noiseVal = snoise(vec2(vUv.x * 30.0, vUv.y * 8.0));
+          float wave = snoise(vec2(vUv.y * 2.0)) * 0.15;
+          float distortedX = clamp(vUv.x + wave, 0.0, 1.0);
+          float edgeBias = pow(distortedX, 2.0); 
+          float threshold = mix(-1.5, 0.4, edgeBias); 
+          
+          float alpha = 0.95;
+          float erosion = smoothstep(threshold, threshold + 0.6, noiseVal);
+          alpha *= erosion;
+          
+          float distFromStart = vUv.y;
+          float distFromEnd = currentLength - vUv.y;
+          alpha *= smoothstep(0.0, 0.2, distFromStart);
+          alpha *= smoothstep(0.0, 0.25, distFromEnd);
+
+          vec3 sepiaWood = mix(vec3(1.0, 0.96, 0.90), vec3(0.78, 0.60, 0.44), erosion);
+          vec3 finalColor = mix(sepiaWood, uColor, erosion);
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // Thin Shiny Blue Ring Shader for Petal Phase Orbs
+      const ringFragmentShader = `
+        varying vec2 vUv;
+        uniform float uAlpha;
+        uniform float uTime;
+
+        void main() {
+          vec2 p = vUv - vec2(0.5);
+          float r = length(p);
+          
+          float uRadius = 0.38;
+          float dist = abs(r - uRadius);
+          
+          float thinRing = smoothstep(0.018, 0.0, dist);
+          float specularGlow = exp(-dist * dist * 900.0);
+          float softHalo = exp(-dist * 35.0) * 0.25;
+          
+          float totalIntensity = (thinRing * 1.8 + specularGlow * 1.4 + softHalo) * smoothstep(0.50, 0.20, r);
+
+          if (totalIntensity < 0.005) discard;
+
+          float pulse = 0.85 + 0.15 * sin(uTime * 6.0);
+          
+          vec3 shinyCore = vec3(0.90, 0.97, 1.0);
+          vec3 cyanElectric = vec3(0.0, 0.75, 1.0);
+          vec3 finalCol = mix(cyanElectric, shinyCore, specularGlow * 0.85);
+
+          gl_FragColor = vec4(finalCol, totalIntensity * uAlpha * pulse * 0.98);
+        }
+      `;
+
+      // 2D Quad Mesh Shaders for Sumi-e Orb Nodes & Blue Aura Rings
+      const orbMeshVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `;
 
       const orbFragmentShader = `
-        uniform float iTime;
-        varying vec3 vColor;
-
-        float hash(vec2 p) {
-            p = fract(p * vec2(123.34, 456.21));
-            p += dot(p, p + 45.32);
-            return fract(p.x * p.y);
-        }
-
-        float noise(vec2 p) {
-            vec2 i = floor(p);
-            vec2 f = fract(p);
-            f = f * f * (3.0 - 2.0 * f);
-            return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
-                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
-        }
+        varying vec2 vUv;
+        uniform float uAlpha;
+        uniform float uTime;
+        uniform vec3 uColor;
 
         void main() {
-            vec2 p = gl_PointCoord - vec2(0.5);
-            float d = length(p);
+          vec2 p = vUv - vec2(0.5);
+          float r = length(p);
+          if (r > 0.5) discard;
 
-            // Perfectly Round Spherical Outer Mask
-            if (d > 0.49) discard;
-            float circleMask = smoothstep(0.49, 0.08, d);
-
-            // Fast 2-octave gaseous turbulence
-            float n1 = noise(p * 5.0 + vec2(iTime * 0.7, -iTime * 0.5));
-            float n2 = noise(p * 10.0 + vec2(-iTime * 0.4, iTime * 0.6));
-            float smoke = n1 * 0.65 + n2 * 0.35;
-            float coreOrb = smoothstep(0.42, 0.0, d);
-
-            vec3 colHotCore = vec3(1.0, 0.92, 0.98) * pow(smoothstep(0.24, 0.0, d), 1.6);
-            vec3 colSmokyMagenta = vColor * (0.85 + 1.25 * smoke);
-
-            vec3 finalColor = (colSmokyMagenta + colHotCore * 1.6) * circleMask * 1.85;
-            float alpha = (smoke * 0.75 + coreOrb * 0.85) * circleMask;
-
-            gl_FragColor = vec4(finalColor, alpha);
+          float core = smoothstep(0.48, 0.0, r);
+          float glow = pow(smoothstep(0.5, 0.0, r), 1.8);
+          float pulse = 0.85 + 0.15 * sin(uTime * 4.5);
+          vec3 col = mix(uColor, vec3(1.0, 1.0, 1.0), core * 0.85);
+          
+          gl_FragColor = vec4(col, (core * 0.95 + glow * 0.45) * uAlpha * pulse);
         }
       `;
 
@@ -1352,41 +1570,827 @@
       }
 
       function playAudioTrack() {
-        if (!bgAudio) bgAudio = document.getElementById('bgAudio');
+        try {
+          if (!bgAudio) bgAudio = document.getElementById('bgAudio');
 
-        if (bgAudio) {
-          bgAudio.volume = 0.85;
+          if (bgAudio && typeof bgAudio.play === 'function') {
+            bgAudio.volume = 0.85;
 
-          const playPromise = bgAudio.play();
-          if (playPromise !== undefined) {
-            playPromise.then(() => {
-              isAudioMuted = false;
-              if (audioIcon) audioIcon.textContent = "🎵";
-              if (audioLabel) audioLabel.textContent = "Sound ON";
-              console.log("Audio playing successfully!");
-            }).catch(err => {
-              console.warn("Audio autoplay blocked by browser policy, waiting for next user touch/click:", err);
+            const playPromise = bgAudio.play();
+            if (playPromise !== undefined && playPromise.then) {
+              playPromise.then(() => {
+                isAudioMuted = false;
+                if (audioIcon) audioIcon.textContent = "🎵";
+                if (audioLabel) audioLabel.textContent = "Sound ON";
+              }).catch(err => {
+                console.warn("Audio autoplay blocked by browser policy:", err);
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Audio play exception:", e);
+        }
+      }
 
-              // Gesture fallback handler
-              const unlockHandler = () => {
-                if (bgAudio) {
-                  bgAudio.play().then(() => {
-                    isAudioMuted = false;
-                    if (audioIcon) audioIcon.textContent = "🎵";
-                    if (audioLabel) audioLabel.textContent = "Sound ON";
-                  }).catch(e => console.error(e));
-                }
-                document.removeEventListener('click', unlockHandler);
-                document.removeEventListener('keydown', unlockHandler);
-                document.removeEventListener('touchstart', unlockHandler);
-              };
+      // =========================================================================
+      // SUMI-E BRANCH, BLOSSOM & PETAL VORTEX ENGINE
+      // =========================================================================
+      const SCREEN_BOUND_RIGHT = 8.5;
+      const SCREEN_BOUND_LEFT = -9.0;
+      const SCREEN_BOUND_TOP = 4.2;
+      const SCREEN_BOUND_BOTTOM = -4.2;
 
-              document.addEventListener('click', unlockHandler);
-              document.addEventListener('keydown', unlockHandler);
-              document.addEventListener('touchstart', unlockHandler);
+      const MAX_BRANCHES_PER_ROUND = 5;
+      const MAX_CLUSTERS_PER_ROUND = 8;
+      const MAX_SUBBRANCH_EXTENSIONS = 2;
+
+      let roundBranchCount = 0;
+      let roundClusterCount = 0;
+
+      let totalPetalOrbsCount = 0;
+      let clickedPetalOrbsCount = 0;
+      let isVortexActive = false;
+      let vortexTimer = 0.0;
+      const VORTEX_BUILD_TIME = 5.0;
+      const VORTEX_HOLD_TIME = 5.0;
+      const VORTEX_FADE_TIME = 5.0;
+      const VORTEX_TOTAL_DURATION = VORTEX_BUILD_TIME + VORTEX_HOLD_TIME + VORTEX_FADE_TIME; // 15.0s
+      let vortexBlendFactor = 0.0;
+
+      let isRippleActive = false;
+      let rippleTimer = 0.0;
+      const RIPPLE_DURATION = 2.0;
+
+      let isPaused = false;
+
+      let strokeGroup, orbGroup, petalGroup;
+
+      function calculateSwayDisplacement(x, z, t) {
+        const normX = Math.max(0.0, Math.min(1.0, (x + 11.5) / 20.0));
+        const mainSway = Math.sin(t * 1.25) * 0.38;
+        const subSway = Math.sin(t * 0.60) * 0.14;
+        return (mainSway + subSway) * normX;
+      }
+
+      class ImmersiveStroke {
+        constructor(sceneGroup, baseWidth = 0.45, level = 0, colorHex = 0xf5e4cf) {
+          this.maxPoints = 2000;
+          this.pointCount = 0;
+          this.points = [];
+          this.pathLength = 0;
+          this.baseWidth = baseWidth;
+          this.currentWidth = baseWidth;
+          this.level = level;
+          this.seed = Math.random();
+          this.lengthUniform = { value: 0 };
+          this.progressUniform = { value: 0.0 };
+          this.timeUniform = { value: 0.0 };
+
+          this.positions = new Float32Array(this.maxPoints * 2 * 3);
+          this.uvs = new Float32Array(this.maxPoints * 2 * 2);
+          this.indices = new Uint16Array(this.maxPoints * 6);
+
+          this.geometry = new THREE.BufferGeometry();
+          this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+          this.geometry.setAttribute('uv', new THREE.BufferAttribute(this.uvs, 2));
+          this.geometry.setIndex(new THREE.BufferAttribute(this.indices, 1));
+          this.geometry.setDrawRange(0, 0);
+
+          this.material = new THREE.ShaderMaterial({
+            vertexShader: sumiVertexShader,
+            fragmentShader: sumiFragmentShader,
+            uniforms: {
+              uColor: { value: new THREE.Color(colorHex) },
+              uTotalLength: this.lengthUniform,
+              uProgress: this.progressUniform,
+              uTime: this.timeUniform
+            },
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+          });
+
+          this.mesh = new THREE.Mesh(this.geometry, this.material);
+          sceneGroup.add(this.mesh);
+        }
+
+        addPoint(p, widthScale = 1.0) {
+          if (this.pointCount >= this.maxPoints - 1) return;
+
+          let dir = new THREE.Vector3(0, 1, 0);
+          let dist = 0.5;
+
+          if (this.pointCount > 0) {
+            const lastP = this.points[this.pointCount - 1];
+            dir.subVectors(p, lastP);
+            dist = dir.length();
+            if (dist < 0.02) return;
+            dir.normalize();
+          }
+
+          const currentPoint = p.clone();
+          this.points.push(currentPoint);
+          this.pathLength += dist * 0.5;
+
+          const up = new THREE.Vector3(0, 0, 1);
+          let normal = new THREE.Vector3().crossVectors(dir, up).normalize();
+          if (normal.lengthSq() < 0.001) {
+            normal = new THREE.Vector3(1, 0, 0);
+          }
+
+          const normDist = Math.min(1.0, this.pathLength / 8.0);
+          const pressureMod = 1.0 + 0.32 * Math.sin(normDist * Math.PI * 4.5 + this.seed * 7.0) + 0.12 * Math.cos(normDist * Math.PI * 9.0);
+          const finalWidthScale = widthScale * Math.max(0.40, Math.min(1.40, pressureMod));
+
+          const targetWidth = Math.max(0.035, this.baseWidth * finalWidthScale);
+          this.currentWidth += (targetWidth - this.currentWidth) * 0.25;
+          const width = this.currentWidth;
+
+          const left = currentPoint.clone().add(normal.clone().multiplyScalar(width * 0.5));
+          const right = currentPoint.clone().sub(normal.clone().multiplyScalar(width * 0.5));
+
+          const i = this.pointCount * 6;
+          this.positions[i] = left.x;
+          this.positions[i + 1] = left.y;
+          this.positions[i + 2] = left.z;
+
+          this.positions[i + 3] = right.x;
+          this.positions[i + 4] = right.y;
+          this.positions[i + 5] = right.z;
+
+          const u = this.pointCount * 4;
+          this.uvs[u] = 0;
+          this.uvs[u + 1] = this.pathLength;
+          this.uvs[u + 2] = 1;
+          this.uvs[u + 3] = this.pathLength;
+
+          if (this.pointCount > 0) {
+            const idx = (this.pointCount - 1) * 6;
+            const vIdx = (this.pointCount - 1) * 2;
+            this.indices[idx] = vIdx;
+            this.indices[idx + 1] = vIdx + 1;
+            this.indices[idx + 2] = vIdx + 2;
+            this.indices[idx + 3] = vIdx + 1;
+            this.indices[idx + 4] = vIdx + 3;
+            this.indices[idx + 5] = vIdx + 2;
+          }
+
+          this.pointCount++;
+          this.lengthUniform.value = this.pathLength;
+
+          this.geometry.attributes.position.needsUpdate = true;
+          this.geometry.attributes.uv.needsUpdate = true;
+          this.geometry.index.needsUpdate = true;
+          this.geometry.setDrawRange(0, Math.max(0, (this.pointCount - 1) * 6));
+        }
+
+        setProgress(progress) {
+          this.progressUniform.value = progress;
+        }
+
+        setTime(t) {
+          this.timeUniform.value = t;
+        }
+      }
+
+      let trunkCurve;
+      let mainTrunkStroke;
+      const allBranches = [];
+      let currentLeftEdgeX = -11.5;
+
+      function initMainTrunk() {
+        const startX = currentLeftEdgeX - 0.4;
+
+        trunkCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(startX, -3.4, 0.0),
+          new THREE.Vector3(startX + 2.5, -2.2, 0.25),
+          new THREE.Vector3(-5.4, -2.7, -0.20),
+          new THREE.Vector3(-3.4, -1.1, 0.30),
+          new THREE.Vector3(-1.6, -0.4, -0.15),
+          new THREE.Vector3(0.4, 0.8, 0.20),
+          new THREE.Vector3(2.2, 0.1, -0.25),
+          new THREE.Vector3(4.4, 0.7, 0.15),
+          new THREE.Vector3(6.8, -0.4, 0.0)
+        ], false, 'centripetal', 0.5);
+
+        const trunkWidth = 0.58;
+        mainTrunkStroke = new ImmersiveStroke(strokeGroup, trunkWidth, 0, 0xf5e4cf);
+        const pts = trunkCurve.getSpacedPoints(140);
+        for (let i = 0; i <= 140; i++) {
+          const t = i / 140;
+          const widthScale = Math.max(0.18, 1.0 - t * 0.55);
+          mainTrunkStroke.addPoint(pts[i], widthScale);
+        }
+        allBranches.push({ curve: trunkCurve, stroke: mainTrunkStroke, level: 0, totalLength: trunkCurve.getLength() });
+      }
+
+      const activeOrbs = [];
+      const spawnedBlossomClusterPositions = [];
+
+      class OrbNode {
+        constructor(parentBranchInfo, level, roundId, orbT, type = 'branch', customPos = null) {
+          this.basePosition = customPos ? customPos.clone() : parentBranchInfo.curve.getPointAt(orbT).clone();
+          this.position = this.basePosition.clone();
+          this.parentBranchInfo = parentBranchInfo;
+          this.level = level;
+          this.roundId = roundId;
+          this.type = type;
+          this.alpha = 0.0;
+          this.active = false;
+          this.userDrawn = false;
+          this.seed = Math.random();
+
+          this.isExploding = false;
+          this.explosionTimer = 0.0;
+          this.explosionDuration = 0.40;
+
+          const parentLen = parentBranchInfo ? parentBranchInfo.totalLength : 16.0;
+          this.targetChildLength = parentLen * (0.45 + Math.random() * 0.12);
+
+          const sideSign = (Math.random() > 0.5 ? 1 : -1);
+          const angleDeg = sideSign * (20 + Math.random() * 20);
+          this.angleRad = THREE.MathUtils.degToRad(angleDeg);
+          this.guideDir = new THREE.Vector3(Math.cos(this.angleRad), Math.sin(this.angleRad), 0).normalize();
+
+          const planeSize = (this.type === 'petal') ? 1.1 : 2.2;
+          const geom = new THREE.PlaneGeometry(planeSize, planeSize);
+
+          if (this.type === 'petal') {
+            this.material = new THREE.ShaderMaterial({
+              vertexShader: orbMeshVertexShader,
+              fragmentShader: ringFragmentShader,
+              uniforms: {
+                uAlpha: { value: 0.0 },
+                uTime: { value: 0.0 }
+              },
+              transparent: true,
+              depthWrite: false
+            });
+          } else {
+            const orbColor = this.type === 'branch' ? new THREE.Color(0xffb5dc) : new THREE.Color(0xff33cc);
+            this.material = new THREE.ShaderMaterial({
+              vertexShader: orbMeshVertexShader,
+              fragmentShader: orbFragmentShader,
+              uniforms: {
+                uAlpha: { value: 0.0 },
+                uTime: { value: 0.0 },
+                uColor: { value: orbColor }
+              },
+              transparent: true,
+              depthWrite: false
             });
           }
+
+          this.mesh = new THREE.Mesh(geom, this.material);
+          this.mesh.position.copy(this.position);
+          this.mesh.position.z += 0.15;
+          orbGroup.add(this.mesh);
+
+          if (this.type === 'branch') {
+            const hintVectorLength = 0.95;
+            const lineMat = new THREE.LineDashedMaterial({
+              color: 0xffffff,
+              dashSize: 0.22,
+              gapSize: 0.12,
+              transparent: true,
+              opacity: 0.0,
+              depthWrite: false
+            });
+
+            const lineGeom = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(0, 0, 0),
+              new THREE.Vector3().copy(this.guideDir).multiplyScalar(hintVectorLength)
+            ]);
+
+            this.guideLine = new THREE.Line(lineGeom, lineMat);
+            this.guideLine.computeLineDistances();
+            this.mesh.add(this.guideLine);
+          }
         }
+
+        triggerExplosion() {
+          this.isExploding = true;
+          this.userDrawn = true;
+          this.explosionTimer = 0.0;
+        }
+
+        setAlpha(a) {
+          if (!this.isExploding) {
+            this.alpha = a;
+            this.material.uniforms.uAlpha.value = a;
+          }
+          if (this.guideLine) this.guideLine.material.opacity = a * 0.75;
+        }
+
+        update(time, delta = 0.016) {
+          this.material.uniforms.uTime.value = time;
+          const swayY = calculateSwayDisplacement(this.basePosition.x, this.basePosition.z, time);
+          this.position.y = this.basePosition.y + swayY;
+          this.mesh.position.copy(this.position);
+          this.mesh.position.z += 0.15;
+
+          if (this.isExploding) {
+            this.explosionTimer += delta;
+            const t = Math.min(1.0, this.explosionTimer / this.explosionDuration);
+            const easeOut = 1.0 - Math.pow(1.0 - t, 3.0);
+
+            const currentScale = 1.0 + easeOut * 2.2;
+            this.mesh.scale.setScalar(currentScale);
+
+            this.alpha = (1.0 - t) * 0.95;
+            this.material.uniforms.uAlpha.value = this.alpha;
+
+            if (t >= 1.0) {
+              this.active = false;
+              this.mesh.visible = false;
+            }
+          }
+        }
+
+        destroy() {
+          orbGroup.remove(this.mesh);
+        }
+      }
+
+      const growingSubBranches = [];
+      const growingBlossomClusters = [];
+      const persistentBlossomStrokes = [];
+      const floating2DPetals = [];
+
+      function create2DPetalGeometry() {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0);
+
+        shape.bezierCurveTo(0.18, 0.08, 0.28, 0.25, 0.22, 0.45);
+        shape.bezierCurveTo(0.18, 0.58, 0.08, 0.72, -0.08, 0.85);
+
+        shape.bezierCurveTo(-0.14, 0.82, -0.12, 0.75, -0.10, 0.68);
+
+        shape.bezierCurveTo(-0.14, 0.52, -0.06, 0.38, -0.10, 0.22);
+        shape.bezierCurveTo(-0.12, 0.12, -0.06, 0.04, 0, 0);
+
+        return new THREE.ShapeGeometry(shape);
+      }
+
+      const shared2DPetalGeometry = create2DPetalGeometry();
+
+      class Floating2DPetal {
+        constructor(originPos) {
+          this.posX = originPos.x;
+          this.posY = originPos.y;
+          this.baseZ = -3.5 - Math.random() * 1.5;
+          this.targetZ = 2.2 + Math.random() * 1.5;
+          this.posZ = this.baseZ;
+
+          this.seed = Math.random() * 100.0;
+          this.indexNorm = Math.random();
+
+          this.speedX = (Math.random() > 0.5 ? 1 : -1) * (0.6 + Math.random() * 0.8);
+          this.speedY = (Math.random() - 0.5) * 0.4;
+
+          this.amplitudeX = 1.6 + Math.random() * 2.2;
+          this.amplitudeY = 1.2 + Math.random() * 1.8;
+          this.amplitudeZ = 0.8 + Math.random() * 1.2;
+
+          this.freqX = 0.3 + Math.random() * 0.4;
+          this.freqY = 0.25 + Math.random() * 0.35;
+          this.freqZ = 0.4 + Math.random() * 0.5;
+
+          this.phaseX = Math.random() * Math.PI * 2.0;
+          this.phaseY = Math.random() * Math.PI * 2.0;
+          this.phaseZ = Math.random() * Math.PI * 2.0;
+
+          this.age = 0.0;
+          this.fadeInDuration = 0.8;
+
+          const pinkColors = [0xff66cc, 0xff88dd, 0xff44aa, 0xffbbee, 0xff33aa];
+          const color = pinkColors[Math.floor(Math.random() * pinkColors.length)];
+
+          this.material = new THREE.MeshBasicMaterial({
+            color: color,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.0,
+            depthWrite: false
+          });
+
+          this.mesh = new THREE.Mesh(shared2DPetalGeometry, this.material);
+          this.baseScale = 0.525 + Math.random() * 0.15;
+          this.mesh.scale.setScalar(this.baseScale);
+
+          this.mesh.position.set(this.posX, this.posY, this.posZ);
+          petalGroup.add(this.mesh);
+        }
+
+        update(delta, totalElapsedTime) {
+          this.age += delta;
+
+          const fadeFactor = Math.min(1.0, this.age / this.fadeInDuration);
+          this.material.opacity = fadeFactor * 0.92;
+
+          if (!isVortexActive) {
+            this.posX += this.speedX * delta;
+            this.posY += this.speedY * delta;
+          }
+
+          const zMigrationSpeed = 0.45;
+          if (this.posZ < this.targetZ) {
+            this.posZ += zMigrationSpeed * delta;
+          }
+
+          if (this.posX > 15.5) this.posX = -15.5;
+          if (this.posX < -15.5) this.posX = 15.5;
+          if (this.posY < -8.5) this.posY = 8.5;
+          if (this.posY > 8.5) this.posY = -8.5;
+
+          const normalX = this.posX + Math.sin(this.age * this.freqX + this.phaseX) * this.amplitudeX;
+          const normalY = this.posY + Math.cos(this.age * this.freqY + this.phaseY) * this.amplitudeY;
+          const normalZ = this.posZ + Math.sin(this.age * this.freqZ + this.phaseZ) * this.amplitudeZ;
+
+          const normH = this.indexNorm;
+          const rawY = (normH - 0.5) * 18.0;
+
+          const cylinderRadius = 14.0 + Math.sin(normH * Math.PI * 2.0 + this.seed) * 2.5;
+          const spiralAngle = this.seed + totalElapsedTime * 1.8;
+
+          const rawX = Math.cos(spiralAngle) * cylinderRadius;
+          const rawZ = Math.sin(spiralAngle) * cylinderRadius;
+
+          const sideTilt = 0.22;
+          const tornadoX = rawX;
+          const tornadoY = rawY * Math.cos(sideTilt) - rawZ * Math.sin(sideTilt);
+          const tornadoZ = rawY * Math.sin(sideTilt) + rawZ * Math.cos(sideTilt);
+
+          const smoothPower = vortexBlendFactor * vortexBlendFactor * (3.0 - 2.0 * vortexBlendFactor);
+
+          const finalX = normalX * (1.0 - smoothPower) + tornadoX * smoothPower;
+          const finalY = normalY * (1.0 - smoothPower) + tornadoY * smoothPower;
+          const finalZ = normalZ * (1.0 - smoothPower) + tornadoZ * smoothPower;
+
+          this.mesh.position.set(finalX, finalY, finalZ);
+
+          const zScale = Math.max(0.30, Math.min(1.15, 0.45 + (finalZ + 3.5) * 0.14));
+          this.mesh.scale.setScalar(this.baseScale * zScale);
+
+          this.mesh.rotation.x = this.age * 0.4 + this.seed;
+          this.mesh.rotation.y = this.age * 0.5 + this.seed;
+          this.mesh.rotation.z = Math.sin(this.age * 0.6 + this.seed) * 0.8;
+        }
+      }
+
+      function spawnPetalsFromOrb(orb) {
+        if (isPaused) return;
+        if (orb.userDrawn) return;
+
+        orb.triggerExplosion();
+        clickedPetalOrbsCount++;
+
+        const numPetals = 4 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < numPetals; i++) {
+          floating2DPetals.push(new Floating2DPetal(orb.position));
+        }
+
+        if (totalPetalOrbsCount > 0 && clickedPetalOrbsCount >= totalPetalOrbsCount) {
+          isVortexActive = true;
+          vortexTimer = 0.0;
+          markArtworkCompleted('bluten');
+
+          isRippleActive = true;
+          rippleTimer = 0.0;
+          if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 1.0;
+          if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
+        }
+      }
+
+      function spawnBlossomClusterFromOrb(orb) {
+        if (isPaused) return;
+        if (currentPhase !== 'BLOSSOM') return;
+        if (orb.userDrawn) return;
+        if (roundClusterCount >= MAX_CLUSTERS_PER_ROUND) return;
+
+        orb.userDrawn = true;
+        orb.setAlpha(0.15);
+        roundClusterCount++;
+
+        const centerPos = orb.basePosition.clone();
+        spawnedBlossomClusterPositions.push(orb.position.clone());
+
+        const numLayerStrokes = 2 + Math.floor(Math.random() * 2);
+        const brightPinkColors = [0xffccff, 0xffaae6, 0xff77dd, 0xffeeff, 0xff88ee];
+
+        for (let s = 0; s < numLayerStrokes; s++) {
+          const strokeColor = brightPinkColors[Math.floor(Math.random() * brightPinkColors.length)];
+          const clusterRadius = 0.16 + Math.random() * 0.12;
+
+          const baseAngle = Math.random() * Math.PI * 2.0;
+          const pts = [];
+          const numPts = 20;
+
+          for (let i = 0; i <= numPts; i++) {
+            const t = i / numPts;
+            const angle = baseAngle + t * Math.PI * (1.2 + Math.random() * 0.5);
+            const r = clusterRadius * (0.6 + 0.4 * Math.sin(t * Math.PI * 2.0 + s));
+
+            const pt = centerPos.clone().add(new THREE.Vector3(
+              Math.cos(angle) * r,
+              Math.sin(angle) * r,
+              (Math.random() - 0.5) * 0.12
+            ));
+
+            pts.push(pt);
+          }
+
+          const clusterCurve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+          const strokeWidth = 0.30 + Math.random() * 0.12;
+          const clusterStroke = new ImmersiveStroke(strokeGroup, strokeWidth, 3, strokeColor);
+
+          const spacedPts = clusterCurve.getSpacedPoints(35);
+          for (let i = 0; i <= 35; i++) {
+            const t = i / 35;
+            const widthScale = 0.6 + 0.8 * Math.sin(t * Math.PI);
+            clusterStroke.addPoint(spacedPts[i], widthScale);
+          }
+
+          growingBlossomClusters.push({
+            stroke: clusterStroke,
+            progress: 0.0,
+            duration: 0.5
+          });
+
+          persistentBlossomStrokes.push(clusterStroke);
+        }
+      }
+
+      function spawnSubBranchFromOrb(orb) {
+        if (isPaused) return;
+        if (currentPhase !== 'BRANCH') return;
+        if (orb.userDrawn) return;
+        if (roundBranchCount >= MAX_BRANCHES_PER_ROUND) return;
+
+        const nextLevel = orb.level + 1;
+        if (nextLevel > MAX_SUBBRANCH_EXTENSIONS) return;
+
+        orb.userDrawn = true;
+        orb.setAlpha(0.15);
+        roundBranchCount++;
+
+        const baseWidth = nextLevel === 1 ? 0.32 : 0.18;
+
+        const numPts = 45;
+        const startPos = orb.basePosition.clone();
+        const pts = [startPos.clone()];
+        const totalLen = orb.targetChildLength;
+
+        let effectiveGuideDir = orb.guideDir.clone();
+        const projectedEnd = startPos.clone().addScaledVector(effectiveGuideDir, totalLen);
+
+        if (projectedEnd.x > SCREEN_BOUND_RIGHT) {
+          effectiveGuideDir.x -= 0.55;
+        } else if (projectedEnd.x < SCREEN_BOUND_LEFT) {
+          effectiveGuideDir.x += 0.55;
+        }
+        if (projectedEnd.y > SCREEN_BOUND_TOP) {
+          effectiveGuideDir.y -= 0.45;
+        } else if (projectedEnd.y < SCREEN_BOUND_BOTTOM) {
+          effectiveGuideDir.y += 0.45;
+        }
+        effectiveGuideDir.normalize();
+
+        const normal = new THREE.Vector3(-effectiveGuideDir.y, effectiveGuideDir.x, 0).normalize();
+
+        for (let i = 1; i <= numPts; i++) {
+          const t = i / numPts;
+          const currentDist = totalLen * t;
+
+          const wave1 = Math.sin(t * Math.PI * 4.0 + orb.seed * 6.0) * 0.48;
+          const wave2 = Math.cos(t * Math.PI * 8.0 + orb.seed * 3.0) * 0.22;
+          const sideOffset = (wave1 + wave2) * (1.0 - t * 0.35);
+
+          const p = startPos.clone()
+            .addScaledVector(effectiveGuideDir, currentDist)
+            .addScaledVector(normal, sideOffset);
+
+          p.z += (Math.sin(t * Math.PI * 2.0 + orb.seed) - 0.5) * 0.3;
+          pts.push(p);
+        }
+
+        const childCurve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+        const childStroke = new ImmersiveStroke(strokeGroup, baseWidth, nextLevel, 0xf5e4cf);
+
+        const spacedPts = childCurve.getSpacedPoints(70);
+        for (let i = 0; i <= 70; i++) {
+          const t = i / 70;
+          const widthScale = Math.max(0.15, 1.0 - t * 0.60);
+          childStroke.addPoint(spacedPts[i], widthScale);
+        }
+
+        growingSubBranches.push({
+          stroke: childStroke,
+          progress: 0.0,
+          duration: 3.0
+        });
+
+        allBranches.push({
+          curve: childCurve,
+          stroke: childStroke,
+          level: nextLevel,
+          totalLength: totalLen
+        });
+      }
+
+      let currentPhase = 'BRANCH';
+      let currentRound = 0;
+      const maxRoundsPerPhase = 5;
+      let roundTimer = 0.0;
+      let roundState = 'IDLE';
+
+      const ROUND_ACTIVE_TIME_DEFAULT = 5.0;
+      const ROUND_ACTIVE_TIME_PETAL = 30.0;
+      const ROUND_FADE_TIME = 0.5;
+      const ROUND_PAUSE_TIME = 2.0;
+
+      function spawnOrbRound(roundNumber, phase = 'BRANCH') {
+        currentRound = roundNumber;
+        currentPhase = phase;
+        roundTimer = 0.0;
+        roundState = 'ACTIVE';
+
+        roundBranchCount = 0;
+        roundClusterCount = 0;
+
+        activeOrbs.forEach(orb => orb.destroy());
+        activeOrbs.length = 0;
+
+        if (phase === 'PETAL') {
+          totalPetalOrbsCount = 0;
+          clickedPetalOrbsCount = 0;
+          isVortexActive = false;
+          vortexBlendFactor = 0.0;
+          isRippleActive = false;
+          rippleTimer = 0.0;
+          if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
+
+          if (spawnedBlossomClusterPositions.length === 0) {
+            allBranches.forEach(bInfo => {
+              spawnedBlossomClusterPositions.push(bInfo.curve.getPointAt(0.3 + Math.random() * 0.5));
+            });
+          }
+
+          totalPetalOrbsCount = spawnedBlossomClusterPositions.length;
+
+          spawnedBlossomClusterPositions.forEach((pos, idx) => {
+            const orb = new OrbNode(null, 3, roundNumber, 0.5, 'petal', pos);
+            orb.active = true;
+            activeOrbs.push(orb);
+          });
+        } else if (phase === 'BRANCH') {
+          const validBranches = allBranches.filter(b => b.level < MAX_SUBBRANCH_EXTENSIONS);
+          if (validBranches.length === 0 && roundNumber > 1) {
+            spawnOrbRound(1, 'BLOSSOM');
+            return;
+          }
+          validBranches.forEach(bInfo => {
+            const numOrbs = (bInfo.level === 0) ? 2 : 1;
+            for (let i = 0; i < numOrbs; i++) {
+              const t = 0.15 + Math.random() * 0.70;
+              const orb = new OrbNode(bInfo, bInfo.level, roundNumber, t, 'branch');
+              orb.active = true;
+              activeOrbs.push(orb);
+            }
+          });
+        } else if (phase === 'BLOSSOM') {
+          const numTotalBlossoms = Math.min(8, allBranches.length * 2);
+          for (let i = 0; i < numTotalBlossoms; i++) {
+            const bInfo = allBranches[i % allBranches.length];
+            const t = 0.20 + Math.random() * 0.70;
+            const orb = new OrbNode(bInfo, bInfo.level, roundNumber, t, 'blossom');
+            orb.active = true;
+            activeOrbs.push(orb);
+          }
+        }
+
+        updateInstructionUI();
+      }
+
+      function restartAll() {
+        frozenMode = null;
+        completedArtworksCount = 0;
+        blutenCounted = false;
+        plexusCounted = false;
+        waldCounted = false;
+
+        if (btnModeWald) {
+          btnModeWald.disabled = true;
+          btnModeWald.classList.add('disabled');
+          btnModeWald.classList.remove('unlocked');
+          btnModeWald.title = "Spiele zuerst Blüten und Plexus durch";
+        }
+        updateArtworkCounterUI();
+
+        growthProgress = 0.0;
+        trunkCompleted = false;
+        trunkPostDelayTimer = 0.0;
+        isPaused = false;
+        currentPhase = 'BRANCH';
+        currentRound = 0;
+        roundTimer = 0.0;
+        roundState = 'IDLE';
+        roundBranchCount = 0;
+        roundClusterCount = 0;
+
+        totalPetalOrbsCount = 0;
+        clickedPetalOrbsCount = 0;
+        isVortexActive = false;
+        vortexTimer = 0.0;
+        vortexBlendFactor = 0.0;
+
+        isRippleActive = false;
+        rippleTimer = 0.0;
+        if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
+        if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
+
+        if (strokeGroup) {
+          for (let i = strokeGroup.children.length - 1; i >= 0; i--) {
+            const child = strokeGroup.children[i];
+            strokeGroup.remove(child);
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+          }
+        }
+
+        if (petalGroup) {
+          for (let i = petalGroup.children.length - 1; i >= 0; i--) {
+            const child = petalGroup.children[i];
+            petalGroup.remove(child);
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+          }
+        }
+
+        allBranches.length = 0;
+        initMainTrunk();
+
+        activeOrbs.forEach(orb => orb.destroy());
+        activeOrbs.length = 0;
+        spawnedBlossomClusterPositions.length = 0;
+        growingSubBranches.length = 0;
+        growingBlossomClusters.length = 0;
+        persistentBlossomStrokes.length = 0;
+        floating2DPetals.length = 0;
+
+        updateTrunkGrowth(0.001);
+      }
+
+      let growthProgress = 0.0;
+      const growthDuration = 10.0;
+      let trunkCompleted = false;
+      let trunkPostDelayTimer = 0.0;
+      const TRUNK_POST_DELAY = 2.0;
+
+      let instructionBox, instructionText, pauseToggleBtn, pauseIcon, pauseLabel, restartArtBtn;
+
+      function updateInstructionUI() {
+        if (!phaseText || !instructionText) return;
+
+        const pauseSuffix = isPaused ? " (Pausiert)" : "";
+
+        if (activeMode === 'bluten') {
+          if (growthProgress < 1.0) {
+            const percent = Math.floor(growthProgress * 100);
+            phaseText.innerText = "Sumi-e Stammwuchs" + pauseSuffix;
+            instructionText.innerText = `Der Stamm wächst heran (${percent}%)... Lehne dich zurück und beobachte den Wuchs.`;
+          } else if (currentPhase === 'BRANCH') {
+            phaseText.innerText = `Ast-Phase — Runde ${currentRound}/${maxRoundsPerPhase}` + pauseSuffix;
+            instructionText.innerText = "Halte an einem Knotenpunkt die Maus gedrückt und ziehe entlang der Hilfslinie, um einen weiteren Ast wachsen zu lassen.";
+          } else if (currentPhase === 'BLOSSOM') {
+            phaseText.innerText = `Blüten-Phase — Runde ${currentRound}/${maxRoundsPerPhase}` + pauseSuffix;
+            instructionText.innerText = "Drücke auf einen Knotenpunkt, um Sakurablüten zu erzeugen";
+          } else if (currentPhase === 'PETAL') {
+            if (isVortexActive) {
+              phaseText.innerText = "Sakura Vortex Sturm" + pauseSuffix;
+              instructionText.innerText = "Alle Blüten wurden ausgewählt! Der Sakura-Vortex wurde freigesetzt";
+            } else if (roundState === 'IDLE' || roundTimer >= ROUND_ACTIVE_TIME_PETAL) {
+              phaseText.innerText = "Sakura Kunstwerk Vollständig" + pauseSuffix;
+              instructionText.innerText = "Das Blütenkunstwerk ist vollendet! Klicke oben rechts auf 'Restart', wenn du von vorn beginnen möchtest.";
+            } else {
+              phaseText.innerText = "Blütenblatt-Freisetzung" + pauseSuffix;
+              instructionText.innerText = "Klicke auf die Blüten, um das Kunstwerk mit Blütenblättern zu füllen";
+            }
+          }
+        } else if (activeMode === 'plexus') {
+          phaseText.innerText = "Plexus Konstellation" + pauseSuffix;
+          instructionText.innerText = "Bewege deine Maus/Touch, um leuchtende Partikel-Knoten und Energielinien im Raum zu verbinden. Halte gedrückt für Impuls-Sphären.";
+        } else if (activeMode === 'wald') {
+          phaseText.innerText = "Sumi-e Bambuswald" + pauseSuffix;
+          instructionText.innerText = "Zeichne organische Bambusstämme und Blätter durch interaktives Ziehen auf der Leinwand.";
+        }
+      }
+
+      function updateTrunkGrowth(rawProgress) {
+        if (!mainTrunkStroke) return;
+        const p = Math.max(0.0, Math.min(1.0, rawProgress));
+        mainTrunkStroke.setProgress(p);
+        updateInstructionUI();
       }
 
       function initApp() {
@@ -1395,8 +2399,12 @@
         timerBadge = document.getElementById('timerBadge');
         btnLabel = document.getElementById('btnLabel');
         phaseText = document.getElementById('phaseText');
-        userSwitchBtn = document.getElementById('userSwitchBtn');
-        activeUserNameElement = document.getElementById('activeUserName');
+        instructionBox = document.getElementById('instructionBox');
+        instructionText = document.getElementById('instructionText');
+        pauseToggleBtn = document.getElementById('pauseToggleBtn');
+        pauseIcon = document.getElementById('pauseIcon');
+        pauseLabel = document.getElementById('pauseLabel');
+        restartArtBtn = document.getElementById('restartArtBtn');
 
         btnModeBluten = document.getElementById('btnModeBluten');
         btnModePlexus = document.getElementById('btnModePlexus');
@@ -1436,8 +2444,11 @@
         bgUniforms = {
           iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
           iTime: { value: 0 },
+          iChannel0: { value: createNoiseTexture() },
           uKaleidoscope: { value: 0.0 },
-          uGridVibe: { value: 0.0 }
+          uGridVibe: { value: 0.0 },
+          uRippleActive: { value: 0.0 },
+          uRippleTime: { value: 0.0 }
         };
 
         const bgMaterial = new THREE.ShaderMaterial({
@@ -1461,18 +2472,50 @@
         mainRenderer.setClearColor(0x000000, 0);
         document.getElementById('webgl-container').appendChild(mainRenderer.domElement);
 
+        strokeGroup = new THREE.Group();
+        orbGroup = new THREE.Group();
+        petalGroup = new THREE.Group();
+        mainScene.add(strokeGroup);
+        mainScene.add(orbGroup);
+        mainScene.add(petalGroup);
+
+        initMainTrunk();
+
         initPetalPhysics();
         setupInstancedPetals();
-        setupOrbMesh();
         setupParticleTrailMesh();
-                // Lobby Form & User Setup Listeners
+        setupPlexusMesh();
+        // Lobby Form & User Setup Listeners
+        const hostInputGroup = document.getElementById('hostInputGroup');
+        const guestInputGroup = document.getElementById('guestInputGroup');
         const guestNameInput = document.getElementById('guestNameInput');
+        const guestJoinBtn = document.getElementById('guestJoinBtn');
+        const inviteLabel = document.getElementById('inviteLabel');
+
+        if (myRole === 'guest') {
+          if (hostInputGroup) hostInputGroup.style.display = 'none';
+          if (guestInputGroup) guestInputGroup.style.display = 'flex';
+          if (copyInviteBtn) copyInviteBtn.style.display = 'none';
+          if (guestJoinBtn) guestJoinBtn.style.display = 'inline-flex';
+          if (inviteLabel) inviteLabel.textContent = "Gast-Anmeldung";
+
+          if (startArtworkBtn) {
+            startArtworkBtn.innerHTML = '<span>⏳ Warte auf Host-Start...</span>';
+            startArtworkBtn.style.opacity = '0.7';
+            startArtworkBtn.style.cursor = 'default';
+          }
+        } else {
+          if (hostInputGroup) hostInputGroup.style.display = 'flex';
+          if (guestInputGroup) guestInputGroup.style.display = 'none';
+          if (copyInviteBtn) copyInviteBtn.style.display = 'inline-flex';
+          if (guestJoinBtn) guestJoinBtn.style.display = 'none';
+        }
 
         userNameInput.addEventListener('input', (e) => {
           user1Name = e.target.value.trim() || "Host";
-          pName1.textContent = `${user1Name} (Host)`;
-          document.getElementById('cursorName1').textContent = user1Name;
-          activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+          if (activeUserNameElement) {
+            activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+          }
           updateParticipantStatus();
           broadcastState('USER_NAME', { user1Name, user2Name });
         });
@@ -1480,17 +2523,32 @@
         if (guestNameInput) {
           guestNameInput.addEventListener('input', (e) => {
             user2Name = e.target.value.trim() || "Gast";
-            pName2.textContent = `${user2Name} (Gast)`;
-            document.getElementById('cursorName2').textContent = user2Name;
-            activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+            if (activeUserNameElement) {
+              activeUserNameElement.textContent = activeUserIndex === 1 ? `${user1Name} (User 1)` : `${user2Name} (User 2)`;
+            }
             updateParticipantStatus();
             broadcastState('USER_NAME', { user1Name, user2Name });
           });
         }
 
+        if (guestJoinBtn) {
+          guestJoinBtn.addEventListener('click', () => {
+            const enteredName = (guestNameInput && guestNameInput.value.trim()) ? guestNameInput.value.trim() : "Gast";
+            user2Name = enteredName;
+            isGuestJoined = true;
+            updateParticipantStatus();
+
+            guestJoinBtn.classList.add('joined');
+            guestJoinBtn.innerHTML = '<span>✅ Beigetreten (Warte auf Start)</span>';
+            showToast(`Willkommen, ${user2Name}! Du bist beigetreten.`);
+
+            broadcastState('GUEST_JOINED', { user1Name, user2Name });
+          });
+        }
+
         copyInviteBtn.addEventListener('click', () => {
           const currentRoom = roomId || `sakura-${Math.floor(1000 + Math.random() * 9000)}`;
-          const inviteUrl = window.location.origin + window.location.pathname + `?room=${currentRoom}`;
+          const inviteUrl = window.location.origin + window.location.pathname + `?room=${currentRoom}&hostName=${encodeURIComponent(user1Name)}`;
           copyToClipboard(inviteUrl).then(() => {
             showToast("🔗 Einladungslink in Zwischenablage kopiert!");
           }).catch(() => {
@@ -1499,7 +2557,9 @@
         });
 
         startArtworkBtn.addEventListener('click', () => {
-          launchArtworkExperience(true);
+          if (myRole === 'host') {
+            launchArtworkExperience(true);
+          }
         });
 
         audioToggleBtn.addEventListener('click', () => {
@@ -1532,9 +2592,31 @@
           }
         });
 
-        userSwitchBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleActiveUser();
+        pauseToggleBtn.addEventListener('click', () => {
+          isPaused = !isPaused;
+          if (isPaused) {
+            pauseIcon.textContent = "▶️";
+            pauseLabel.textContent = "Play";
+            if (bgAudio && !bgAudio.paused) {
+              bgAudio.pause();
+            }
+            showToast("Session pausiert");
+          } else {
+            pauseIcon.textContent = "⏸️";
+            pauseLabel.textContent = "Pause";
+            if (!isAudioMuted) {
+              playAudioTrack();
+            }
+            showToast("Session fortgesetzt");
+          }
+          updateInstructionUI();
+          broadcastState('PAUSE_TOGGLE', { isPaused });
+        });
+
+        restartArtBtn.addEventListener('click', () => {
+          restartAll();
+          showToast("Kunstwerk zurückgesetzt — Beginn von vorn!");
+          broadcastState('RESTART_ARTWORK', {});
         });
 
         // Mode Switcher Button Listeners
@@ -1546,8 +2628,8 @@
 
         createArtBtn.addEventListener('click', () => {
           if (!createArtBtn.disabled) {
-            phaseText.textContent = "Creation Phase";
-            alert("Willkommen in der Creation Phase von 'Sakura: Reborn'!");
+            restartAll();
+            showToast("Kunstwerk zurückgesetzt — Beginn von vorn!");
           }
         });
 
@@ -1589,11 +2671,19 @@
       }
 
       function updateParticipantStatus() {
+        const pName1 = document.getElementById('pName1');
+        const pName2 = document.getElementById('pName2');
         const pItem2 = document.getElementById('pItem2');
         const pStatus2 = document.getElementById('pStatus2');
         const hudBadge = document.getElementById('participantsHudBadge');
         const hudText = document.getElementById('hudParticipantsText');
-        const cursor2 = document.getElementById('userCursor2');
+        const cursorName1 = document.getElementById('cursorName1');
+        const cursorName2 = document.getElementById('cursorName2');
+
+        if (pName1) pName1.textContent = `${user1Name} (Host)`;
+        if (pName2) pName2.textContent = `${user2Name} (Gast)`;
+        if (cursorName1) cursorName1.textContent = user1Name;
+        if (cursorName2) cursorName2.textContent = user2Name;
 
         if (isGuestJoined) {
           if (pItem2) pItem2.classList.remove('disabled');
@@ -1603,7 +2693,6 @@
           }
           if (hudBadge) hudBadge.classList.add('connected');
           if (hudText) hudText.textContent = `👥 2 Spieler (${user1Name} & ${user2Name})`;
-          if (cursor2) cursor2.classList.add('active');
         } else {
           if (pItem2) pItem2.classList.add('disabled');
           if (pStatus2) {
@@ -1616,90 +2705,180 @@
       }
 
       function broadcastState(type, payload = {}) {
-        if (!broadcastChannel) return;
-        try {
-          broadcastChannel.postMessage({ type, role: myRole, senderIndex: activeUserIndex, ...payload });
-        } catch (e) {}
+        const packet = { type, role: myRole, senderIndex: activeUserIndex, ...payload };
+
+        // 1. Local BroadcastChannel (Same machine / multi-tab fallback)
+        if (broadcastChannel) {
+          try { broadcastChannel.postMessage(packet); } catch (e) { }
+        }
+
+        // 2. PeerJS WebRTC DataChannel (Cross-device / cross-network real time)
+        if (activePeerConn && activePeerConn.open) {
+          try { activePeerConn.send(packet); } catch (e) { }
+        }
+      }
+
+      function initPeerConnection() {
+        if (typeof Peer === 'undefined') return;
+
+        // Clean room ID for PeerJS
+        const cleanRoomId = `artcube-${roomId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+
+        if (myRole === 'host') {
+          try {
+            peer = new Peer(cleanRoomId);
+            peer.on('open', (id) => {
+              console.log('Host PeerJS initialized with ID:', id);
+            });
+            peer.on('connection', (conn) => {
+              activePeerConn = conn;
+              setupPeerConnectionListeners(conn);
+              showToast("WebRTC Mitspieler verbunden!");
+            });
+            peer.on('error', (err) => {
+              console.warn('PeerJS Host Error:', err);
+            });
+          } catch (e) {
+            console.warn('PeerJS init failed:', e);
+          }
+        } else {
+          try {
+            peer = new Peer();
+            peer.on('open', () => {
+              const conn = peer.connect(cleanRoomId);
+              activePeerConn = conn;
+              setupPeerConnectionListeners(conn);
+            });
+            peer.on('error', (err) => {
+              console.warn('PeerJS Guest Error:', err);
+            });
+          } catch (e) {
+            console.warn('PeerJS init failed:', e);
+          }
+        }
+      }
+
+      function setupPeerConnectionListeners(conn) {
+        conn.on('open', () => {
+          isGuestJoined = true;
+          updateParticipantStatus();
+          broadcastState('HELLO', { user1Name, user2Name, role: myRole });
+        });
+
+        conn.on('data', (data) => {
+          handleIncomingNetworkData(data);
+        });
+
+        conn.on('close', () => {
+          activePeerConn = null;
+        });
       }
 
       function setupBroadcastListener() {
-        if (!broadcastChannel) return;
+        if (broadcastChannel) {
+          broadcastChannel.onmessage = (event) => {
+            handleIncomingNetworkData(event.data);
+          };
+        }
 
-        // Auto announce presence when page loads
-        broadcastState('HELLO', { user1Name, user2Name });
+        initPeerConnection();
+        broadcastState('HELLO', { user1Name, user2Name, role: myRole });
+      }
 
-        broadcastChannel.onmessage = (event) => {
-          const data = event.data;
-          if (!data || !data.type) return;
+      function handleIncomingNetworkData(data) {
+        if (!data || !data.type) return;
 
-          if (data.type === 'HELLO') {
-            isGuestJoined = true;
-            if (data.role === 'guest' && data.user2Name) {
-              user2Name = data.user2Name;
-            }
-            updateParticipantStatus();
-            showToast(`Mitspieler ${data.user2Name || 'Gast'} ist beigetreten!`);
+        // Safely update names depending on who sent the packet
+        if (myRole === 'host') {
+          // Host only accepts user2Name from guest
+          if (data.user2Name && (data.role === 'guest' || data.type === 'GUEST_JOINED')) {
+            user2Name = data.user2Name;
+          }
+        } else {
+          // Guest accepts user1Name from host
+          if (data.user1Name && data.role === 'host') {
+            user1Name = data.user1Name;
+          }
+          if (data.user2Name && data.role === 'host') {
+            user2Name = data.user2Name;
+          }
+        }
+
+        if (data.type === 'HELLO' || data.type === 'GUEST_JOINED') {
+          isGuestJoined = true;
+          updateParticipantStatus();
+          if (data.type === 'GUEST_JOINED') {
+            showToast(`Mitspieler ${user2Name} ist beigetreten!`);
+          }
+          if (myRole === 'host') {
             broadcastState('WELCOME', { user1Name, user2Name });
-          } else if (data.type === 'WELCOME') {
+          }
+        } else if (data.type === 'WELCOME') {
+          isGuestJoined = true;
+          updateParticipantStatus();
+        } else if (data.type === 'CURSOR_MOVE') {
+          if (!isGuestJoined) {
             isGuestJoined = true;
-            if (data.user1Name) user1Name = data.user1Name;
-            if (data.user2Name) user2Name = data.user2Name;
             updateParticipantStatus();
-          } else if (data.type === 'CURSOR_MOVE') {
-            if (!isGuestJoined) {
-              isGuestJoined = true;
-              updateParticipantStatus();
-            }
-            const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
-            const cursorElem = document.getElementById(remoteIdx === 1 ? 'userCursor1' : 'userCursor2');
-            if (cursorElem) {
+          }
+          const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
+          const cursorElem = document.getElementById(remoteIdx === 1 ? 'userCursor1' : 'userCursor2');
+          if (cursorElem) {
+            const cX = data.normX * window.innerWidth;
+            const cY = (1.0 - data.normY) * window.innerHeight;
+            cursorElem.style.left = `${cX}px`;
+            cursorElem.style.top = `${cY}px`;
+            if (isArtworkStarted) {
               cursorElem.classList.add('active');
-              const cX = data.normX * window.innerWidth;
-              const cY = (1.0 - data.normY) * window.innerHeight;
-              cursorElem.style.left = `${cX}px`;
-              cursorElem.style.top = `${cY}px`;
+            }
 
-              if (camera) {
-                const vector = new THREE.Vector3(
-                  data.normX * 2 - 1,
-                  data.normY * 2 - 1,
-                  0.5
-                );
-                vector.unproject(camera);
-                const dir = vector.sub(camera.position).normalize();
-                const dist = -camera.position.z / dir.z;
-                if (remoteIdx === 1) {
-                  mouseWorld.copy(camera.position).add(dir.multiplyScalar(dist));
-                } else {
-                  user2WorldPos.copy(camera.position).add(dir.multiplyScalar(dist));
-                }
+            if (camera) {
+              const vector = new THREE.Vector3(data.normX * 2 - 1, data.normY * 2 - 1, 0.5);
+              vector.unproject(camera);
+              const dir = vector.sub(camera.position).normalize();
+              const dist = -camera.position.z / dir.z;
+              if (remoteIdx === 1) {
+                mouseWorld.copy(camera.position).add(dir.multiplyScalar(dist));
+              } else {
+                user2WorldPos.copy(camera.position).add(dir.multiplyScalar(dist));
               }
             }
-          } else if (data.type === 'GESTURE') {
-            const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
-            triggerCursorGesture(remoteIdx, data.gestureType);
-          } else if (data.type === 'USER_NAME') {
-            if (data.user1Name) {
-              user1Name = data.user1Name;
-              pName1.textContent = `${user1Name} (Host)`;
-              document.getElementById('cursorName1').textContent = user1Name;
-            }
-            if (data.user2Name) {
-              user2Name = data.user2Name;
-              pName2.textContent = `${user2Name} (Gast)`;
-              document.getElementById('cursorName2').textContent = user2Name;
-            }
-            updateParticipantStatus();
-          } else if (data.type === 'START_ARTWORK') {
-            if (!isArtworkStarted) {
-              launchArtworkExperience(false);
-            }
-          } else if (data.type === 'MODE_SWITCH') {
-            if (data.mode && data.mode !== activeMode) {
-              switchMode(data.mode, false);
-            }
           }
-        };
+        } else if (data.type === 'GESTURE') {
+          const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
+          triggerCursorGesture(remoteIdx, data.gestureType);
+        } else if (data.type === 'CANVAS_CLICK') {
+          handleRemoteCanvasClick(data);
+        } else if (data.type === 'PLEXUS_CREATE') {
+          handleRemotePlexusCreate(data);
+        } else if (data.type === 'PLEXUS_DRAG') {
+          handleRemotePlexusDrag(data);
+        } else if (data.type === 'USER_NAME') {
+          updateParticipantStatus();
+        } else if (data.type === 'START_ARTWORK') {
+          if (!isArtworkStarted) {
+            launchArtworkExperience(false);
+          }
+        } else if (data.type === 'MODE_SWITCH') {
+          if (data.mode && data.mode !== activeMode) {
+            switchMode(data.mode, false);
+          }
+        } else if (data.type === 'PAUSE_TOGGLE') {
+          if (typeof data.isPaused !== 'undefined') {
+            isPaused = data.isPaused;
+            if (pauseIcon) pauseIcon.textContent = isPaused ? "▶️" : "⏸️";
+            if (pauseLabel) pauseLabel.textContent = isPaused ? "Play" : "Pause";
+            if (isPaused) {
+              if (bgAudio && !bgAudio.paused) bgAudio.pause();
+            } else {
+              if (!isAudioMuted) playAudioTrack();
+            }
+            showToast(isPaused ? "Partner hat die Session pausiert" : "Partner hat die Session fortgesetzt");
+          }
+        } else if (data.type === 'RESTART_ARTWORK') {
+          restartAll();
+          showToast("Partner hat das Kunstwerk zurückgesetzt!");
+        }
       }
 
       function triggerCursorGesture(userIndex, type) {
@@ -1723,7 +2902,25 @@
         }
       }
 
+      function requestLandscapeOrientation() {
+        // Vollbildmodus in der Desktopansicht deaktiviert (nur auf Touch-/Mobilgeräten aktivieren)
+        const isMobileTouch = ('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) || (window.innerWidth <= 950);
+        if (!isMobileTouch) return;
+
+        try {
+          if (document.documentElement && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => { });
+          } else if (document.documentElement && document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+          }
+          if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => { });
+          }
+        } catch (e) { }
+      }
+
       function launchArtworkExperience(shouldBroadcast = true) {
+        requestLandscapeOrientation();
         isArtworkStarted = true;
         clock.start();
 
@@ -1736,6 +2933,14 @@
         if (isGuestJoined) {
           document.getElementById('userCursor2').classList.add('active');
         }
+
+        btnModeBluten.classList.add('active');
+        if (strokeGroup) strokeGroup.visible = true;
+        if (orbGroup) orbGroup.visible = true;
+        if (petalGroup) petalGroup.visible = true;
+
+        updateCameraDistance();
+        restartAll();
 
         if (shouldBroadcast) {
           broadcastState('START_ARTWORK', { user1Name, user2Name, activeMode });
@@ -1764,37 +2969,44 @@
         pDot2.style.boxShadow = `0 0 10px ${user2Color.hex}`;
       }
 
+      let frozenMode = null;
+
       function switchMode(newMode, shouldBroadcast = true) {
         if (activeMode === newMode) return;
+
+        frozenMode = activeMode;
         activeMode = newMode;
 
         btnModeBluten.classList.remove('active');
         btnModePlexus.classList.remove('active');
         btnModeWald.classList.remove('active');
 
+        const showBlüten = (activeMode === 'bluten' || frozenMode === 'bluten');
+        if (strokeGroup) strokeGroup.visible = showBlüten;
+        if (orbGroup) orbGroup.visible = showBlüten;
+        if (petalGroup) petalGroup.visible = showBlüten;
+
+        const showPlexus = (activeMode === 'plexus' || frozenMode === 'plexus' || activeMode === 'wald' || frozenMode === 'wald');
+        if (plexusLinesMesh) plexusLinesMesh.visible = showPlexus;
+        if (plexusPointsMesh) plexusPointsMesh.visible = showPlexus;
+
         if (newMode === 'bluten') {
           btnModeBluten.classList.add('active');
-          instancedPetalMesh.visible = true;
-          orbPointsMesh.visible = true;
-          trailPointsMesh.visible = true;
-          if (plexusLinesMesh) plexusLinesMesh.visible = false;
-          if (plexusPointsMesh) plexusPointsMesh.visible = false;
+          if (instancedPetalMesh) instancedPetalMesh.visible = false;
+          if (trailPointsMesh) trailPointsMesh.visible = true;
         } else if (newMode === 'plexus') {
           btnModePlexus.classList.add('active');
-          instancedPetalMesh.visible = false;
-          orbPointsMesh.visible = false;
-          trailPointsMesh.visible = true;
-          if (plexusLinesMesh) plexusLinesMesh.visible = true;
-          if (plexusPointsMesh) plexusPointsMesh.visible = true;
+          if (instancedPetalMesh) instancedPetalMesh.visible = false;
+          if (trailPointsMesh) trailPointsMesh.visible = true;
         } else if (newMode === 'wald') {
           btnModeWald.classList.add('active');
-          instancedPetalMesh.visible = true;
-          orbPointsMesh.visible = true;
-          trailPointsMesh.visible = true;
-          if (plexusLinesMesh) plexusLinesMesh.visible = true;
-          if (plexusPointsMesh) plexusPointsMesh.visible = true;
-          alert("Wald Modus freigeschaltet! Genieße die symphonische Kombination.");
+          if (instancedPetalMesh) instancedPetalMesh.visible = false;
+          if (trailPointsMesh) trailPointsMesh.visible = true;
+          showToast("Wald Modus freigeschaltet!");
         }
+
+        updateCameraDistance();
+        updateInstructionUI();
 
         if (shouldBroadcast) {
           broadcastState('MODE_SWITCH', { mode: newMode });
@@ -1830,12 +3042,30 @@
         const h = window.innerHeight;
         const aspect = w / h;
 
-        // Responsive scale factor based on width (desktop reference 1440px)
-        const widthScale = Math.max(0.45, Math.min(1.0, w / 1440));
-        const baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
+        if (activeMode === 'bluten' || activeMode === 'wald') {
+          camera.fov = 45;
+          camera.updateProjectionMatrix();
+          const visibleWidth = 2 * Math.tan(THREE.MathUtils.degToRad(22.5)) * 16 * aspect;
+          const targetCamX = -9.6 + (visibleWidth * 0.48);
+          camera.position.set(targetCamX, -0.4, 16);
+          camera.lookAt(targetCamX, -0.4, 0);
+          currentLeftEdgeX = targetCamX - (visibleWidth / 2.0);
+        } else {
+          camera.fov = 60;
+          camera.updateProjectionMatrix();
 
-        camera.position.set(0, 0, baseDist);
-        camera.lookAt(0, 0, 0);
+          // Target Laptop Aspect Ratio (16:9 = ~1.777)
+          const laptopAspect = 16 / 9;
+          const widthScale = Math.max(0.35, Math.min(1.0, w / 1440));
+          let baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
+
+          if (w <= 950 && aspect > laptopAspect) {
+            baseDist *= (aspect / laptopAspect);
+          }
+
+          camera.position.set(0, 0, baseDist);
+          camera.lookAt(0, 0, 0);
+        }
       }
 
       function initPetalPhysics() {
@@ -1890,28 +3120,7 @@
         mainScene.add(instancedPetalMesh);
       }
 
-      function setupOrbMesh() {
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(MAX_ORBS * 3);
-        const colors = new Float32Array(MAX_ORBS * 3);
-        const sizes = new Float32Array(MAX_ORBS);
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-
-        const material = new THREE.ShaderMaterial({
-          uniforms: { iTime: { value: 0 } },
-          vertexShader: orbVertexShader,
-          fragmentShader: orbFragmentShader,
-          transparent: true,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        });
-
-        orbPointsMesh = new THREE.Points(geometry, material);
-        mainScene.add(orbPointsMesh);
-      }
 
       function setupParticleTrailMesh() {
         const geometry = new THREE.BufferGeometry();
@@ -1983,6 +3192,175 @@
         plexusPointsMesh = new THREE.Points(nodeGeo, nodeMat);
         plexusPointsMesh.visible = false;
         mainScene.add(plexusPointsMesh);
+      }
+
+      let completedArtworksCount = 0;
+      let blutenCounted = false;
+      let plexusCounted = false;
+      let waldCounted = false;
+
+      function markArtworkCompleted(type) {
+        if (type === 'bluten' && !blutenCounted) {
+          blutenCounted = true;
+          completedArtworksCount++;
+        } else if (type === 'plexus' && !plexusCounted) {
+          plexusCounted = true;
+          completedArtworksCount++;
+        } else if (type === 'wald' && !waldCounted) {
+          waldCounted = true;
+          completedArtworksCount++;
+        }
+
+        if (blutenCounted && plexusCounted && btnModeWald && btnModeWald.disabled) {
+          btnModeWald.disabled = false;
+          btnModeWald.classList.remove('disabled');
+          btnModeWald.classList.add('unlocked');
+          btnModeWald.title = "Sakura Modus ist bereit!";
+          showToast("🌸 Sakura Modus freigeschaltet!");
+        }
+
+        updateArtworkCounterUI();
+      }
+
+      function updateArtworkCounterUI() {
+        const timerBadge = document.getElementById('timerBadge');
+        const createArtBtn = document.getElementById('createArtBtn');
+        if (!timerBadge || !createArtBtn) return;
+
+        if (completedArtworksCount >= 3) {
+          createArtBtn.disabled = false;
+          createArtBtn.classList.add('active');
+          timerBadge.textContent = '(3/3) Bereit!';
+          createArtBtn.style.setProperty('--progress-width', '100%');
+        } else {
+          createArtBtn.disabled = true;
+          createArtBtn.classList.remove('active');
+          timerBadge.textContent = `(${completedArtworksCount}/3)`;
+          const progressPercent = (completedArtworksCount / 3) * 100;
+          createArtBtn.style.setProperty('--progress-width', `${progressPercent}%`);
+        }
+      }
+
+      function generateShapeNodes(shapeName, count) {
+        const targets = [];
+
+        if (shapeName === 'pyramide') {
+          const h = 42.0;
+          const b = 30.0;
+          const keyVertices = [
+            { tx: 0, ty: h * 0.65, tz: 0 },         // Apex
+            { tx: -b, ty: -h * 0.35, tz: -b },      // Base corners
+            { tx: b, ty: -h * 0.35, tz: -b },
+            { tx: b, ty: -h * 0.35, tz: b },
+            { tx: -b, ty: -h * 0.35, tz: b },
+            { tx: 0, ty: -h * 0.35, tz: -b },       // Base midpoints
+            { tx: b, ty: -h * 0.35, tz: 0 },
+            { tx: 0, ty: -h * 0.35, tz: b },
+            { tx: -b, ty: -h * 0.35, tz: 0 }
+          ];
+          for (let i = 0; i < count; i++) {
+            if (i < keyVertices.length) {
+              targets.push({ ...keyVertices[i], isCore: true });
+            } else {
+              targets.push({ tx: 0, ty: 0, tz: 0, isSurplus: true });
+            }
+          }
+        } else if (shapeName === 'diamant') {
+          const s = 40.0;
+          const keyVertices = [
+            { tx: 0, ty: s, tz: 0 },               // Top apex
+            { tx: 0, ty: -s, tz: 0 },              // Bottom apex
+            { tx: s * 0.85, ty: 0, tz: 0 },         // Equator ring
+            { tx: 0, ty: 0, tz: s * 0.85 },
+            { tx: -s * 0.85, ty: 0, tz: 0 },
+            { tx: 0, ty: 0, tz: -s * 0.85 },
+            { tx: s * 0.4, ty: s * 0.4, tz: s * 0.4 }, // Face midpoints
+            { tx: -s * 0.4, ty: s * 0.4, tz: s * 0.4 },
+            { tx: -s * 0.4, ty: -s * 0.4, tz: s * 0.4 },
+            { tx: s * 0.4, ty: -s * 0.4, tz: s * 0.4 }
+          ];
+          for (let i = 0; i < count; i++) {
+            if (i < keyVertices.length) {
+              targets.push({ ...keyVertices[i], isCore: true });
+            } else {
+              targets.push({ tx: 0, ty: 0, tz: 0, isSurplus: true });
+            }
+          }
+        } else if (shapeName === 'quadrat') {
+          const c = 26.0;
+          const corners = [
+            { tx: -c, ty: -c, tz: -c },
+            { tx: c, ty: -c, tz: -c },
+            { tx: c, ty: c, tz: -c },
+            { tx: -c, ty: c, tz: -c },
+            { tx: -c, ty: -c, tz: c },
+            { tx: c, ty: -c, tz: c },
+            { tx: c, ty: c, tz: c },
+            { tx: -c, ty: c, tz: c }
+          ];
+          const faceCenters = [
+            { tx: 0, ty: 0, tz: c },
+            { tx: 0, ty: 0, tz: -c },
+            { tx: c, ty: 0, tz: 0 },
+            { tx: -c, ty: 0, tz: 0 },
+            { tx: 0, ty: c, tz: 0 },
+            { tx: 0, ty: -c, tz: 0 }
+          ];
+          const keyVertices = [...corners, ...faceCenters];
+          for (let i = 0; i < count; i++) {
+            if (i < keyVertices.length) {
+              targets.push({ ...keyVertices[i], isCore: true });
+            } else {
+              targets.push({ tx: 0, ty: 0, tz: 0, isSurplus: true });
+            }
+          }
+        } else {
+          const radius = 35.0;
+          const phi = (1 + Math.sqrt(5)) / 2;
+          const keyVertices = [];
+          for (let i = 0; i < Math.min(12, count); i++) {
+            const y = 1 - (i / 11) * 2;
+            const r = Math.sqrt(Math.max(0, 1 - y * y)) * radius;
+            const theta = 2 * Math.PI * i / phi;
+            keyVertices.push({
+              tx: Math.cos(theta) * r,
+              ty: y * radius,
+              tz: Math.sin(theta) * r
+            });
+          }
+          for (let i = 0; i < count; i++) {
+            if (i < keyVertices.length) {
+              targets.push({ ...keyVertices[i], isCore: true });
+            } else {
+              targets.push({ tx: 0, ty: 0, tz: 0, isSurplus: true });
+            }
+          }
+        }
+        return targets;
+      }
+
+      function triggerPlexusShapeTransform(cluster, shapeName = null, shouldBroadcast = true) {
+        if (!cluster || !cluster.nodes) return;
+        const shapes = ['kugel', 'pyramide', 'diamant', 'quadrat'];
+        const chosenShape = shapeName || shapes[Math.floor(Math.random() * shapes.length)];
+        const shapeLabels = {
+          kugel: '🔮 Kugel-Form',
+          pyramide: '🔺 Pyramiden-Form',
+          diamant: '💎 Diamanten-Form',
+          quadrat: '🔷 Quadrat-Form'
+        };
+
+        cluster.targetShapeNodes = generateShapeNodes(chosenShape, cluster.nodes.length);
+        cluster.targetShapeName = chosenShape;
+        cluster.isTransforming = true;
+        cluster.transformTimer = 0.0;
+        cluster.transformDuration = 3.0;
+
+        showToast(`Plexus Transformation: ${shapeLabels[chosenShape] || chosenShape}`);
+
+        if (shouldBroadcast) {
+          broadcastState('PLEXUS_SHAPE', { clusterId: cluster.id, shapeName: chosenShape });
+        }
       }
 
       // Reduced size & compact node count (14 to 17 nodes, 15 to 55px radius)
@@ -2089,44 +3467,86 @@
         tpRot[idx] = Math.random() * Math.PI * 2;
       }
 
-      // Mouse Down: Hitbox Detection for Dragging Existing Plexus vs Creating New Plexus!
+      let isDraggingBranch = false;
+      let activeDragBranchOrb = null;
+
+      // Mouse Down: Hitbox Detection for Dragging Existing Plexus vs Sumi-e Branch Extension!
       function onMouseDown(e) {
-        if (!isArtworkStarted) return;
+        if (!isArtworkStarted || isPaused) return;
         if (e.target.closest('.hud-layer') || e.target.closest('button')) return;
 
         triggerCursorGesture(activeUserIndex, 'mousedown');
         broadcastState('GESTURE', { gestureType: 'mousedown' });
 
-        if (activeMode !== 'plexus' && activeMode !== 'wald') return;
-
         const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
 
-        draggedPlexusCluster = null;
-
-        // Check if click point is inside the Hitbox of any existing Plexus (Includes empty space within 75px radius)
-        for (let i = 0; i < activePlexusClusters.length; i++) {
-          const cluster = activePlexusClusters[i];
-          const dx = cluster.centerX - currentPos.x;
-          const dy = cluster.centerY - currentPos.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist <= 75.0) { // Hitbox radius 75px covering full plexus structure
-            draggedPlexusCluster = cluster;
-            dragOffset.set(dx, dy);
-            break;
+        if (activeMode === 'bluten' || activeMode === 'wald') {
+          if (roundState === 'ACTIVE') {
+            if (currentPhase === 'PETAL') {
+              for (let i = 0; i < activeOrbs.length; i++) {
+                const orb = activeOrbs[i];
+                if (orb.active && !orb.userDrawn && orb.type === 'petal' && orb.alpha > 0.2) {
+                  if (currentPos.distanceTo(orb.position) < 1.35) {
+                    spawnPetalsFromOrb(orb);
+                    break;
+                  }
+                }
+              }
+            } else if (currentPhase === 'BLOSSOM') {
+              if (roundClusterCount < MAX_CLUSTERS_PER_ROUND) {
+                for (let i = 0; i < activeOrbs.length; i++) {
+                  const orb = activeOrbs[i];
+                  if (orb.active && !orb.userDrawn && orb.type === 'blossom' && orb.alpha > 0.2) {
+                    if (currentPos.distanceTo(orb.position) < 1.35) {
+                      spawnBlossomClusterFromOrb(orb);
+                      break;
+                    }
+                  }
+                }
+              }
+            } else if (currentPhase === 'BRANCH') {
+              if (roundBranchCount < MAX_BRANCHES_PER_ROUND) {
+                for (let i = 0; i < activeOrbs.length; i++) {
+                  const orb = activeOrbs[i];
+                  if (orb.active && !orb.userDrawn && orb.type === 'branch' && orb.alpha > 0.2 && orb.level < MAX_SUBBRANCH_EXTENSIONS) {
+                    if (currentPos.distanceTo(orb.position) < 1.35) {
+                      isDraggingBranch = true;
+                      activeDragBranchOrb = orb;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
           }
         }
 
-        if (draggedPlexusCluster) {
-          // SELECT & DRAG EXISTING PLEXUS
-          isMouseDown = true;
-        } else {
-          // CREATE NEW PLEXUS
-          isMouseDown = true;
-          plexusHoldTime = 0.0;
-          activeHoldNodes = generateRandomPlexusHoldNodes();
-          plexusOriginX = currentPos.x;
-          plexusOriginY = currentPos.y;
+        if (activeMode === 'plexus' || activeMode === 'wald') {
+          draggedPlexusCluster = null;
+
+          for (let i = 0; i < activePlexusClusters.length; i++) {
+            const cluster = activePlexusClusters[i];
+            const dx = cluster.centerX - currentPos.x;
+            const dy = cluster.centerY - currentPos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist <= 75.0) {
+              draggedPlexusCluster = cluster;
+              dragOffset.set(dx, dy);
+              triggerPlexusShapeTransform(cluster);
+              break;
+            }
+          }
+
+          if (draggedPlexusCluster) {
+            isMouseDown = true;
+          } else {
+            isMouseDown = true;
+            plexusHoldTime = 0.0;
+            activeHoldNodes = generateRandomPlexusHoldNodes();
+            plexusOriginX = currentPos.x;
+            plexusOriginY = currentPos.y;
+          }
         }
       }
 
@@ -2136,11 +3556,18 @@
         triggerCursorGesture(activeUserIndex, 'mouseup');
         broadcastState('GESTURE', { gestureType: 'mouseup' });
 
+        isDraggingBranch = false;
+        activeDragBranchOrb = null;
+
         if (isMouseDown && (activeMode === 'plexus' || activeMode === 'wald')) {
           if (!draggedPlexusCluster) {
-            // Lock in newly generated plexus cluster if held for 2 seconds
             if (plexusHoldTime >= 2.0) {
               createDriftingPlexusCluster(plexusOriginX, plexusOriginY, 0.0, activeHoldNodes);
+
+              const normX = mouseScreen.x;
+              const normY = mouseScreen.y;
+              broadcastState('PLEXUS_CREATE', { normX, normY, customNodes: activeHoldNodes });
+
               if (!isPlexusCompleted) {
                 isPlexusCompleted = true;
                 checkUnlockWald();
@@ -2152,54 +3579,64 @@
         draggedPlexusCluster = null;
       }
 
-      // First Gesture Interaction: Spawning Magenta Orbs & Collaborative 3-Way Branching
-      function onCanvasClick(e) {
-        if (!isArtworkStarted) return;
-        if (e.target === createArtBtn || e.target.closest('#createArtBtn') || e.target === userSwitchBtn || e.target.closest('#userSwitchBtn') || e.target.closest('.mode-selector-container')) return;
-
-        triggerCursorGesture(activeUserIndex, 'click');
-        broadcastState('GESTURE', { gestureType: 'click' });
+      function handleRemoteCanvasClick(data) {
+        if (!isArtworkStarted || isPaused) return;
+        const remoteUserIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
+        triggerCursorGesture(remoteUserIdx, 'click');
 
         if (activeMode !== 'bluten' && activeMode !== 'wald') return;
 
-        const totalTime = clock.getElapsedTime();
-        const currentClickUser = activeUserIndex === 1 ? 'User 1' : 'User 2';
+        let clickPos = new THREE.Vector3();
+        if (camera && data.normX !== undefined) {
+          const vector = new THREE.Vector3(data.normX * 2 - 1, data.normY * 2 - 1, 0.5);
+          vector.unproject(camera);
+          const dir = vector.sub(camera.position).normalize();
+          const dist = -camera.position.z / dir.z;
+          clickPos.copy(camera.position).add(dir.multiplyScalar(dist));
+        }
 
-        const clickPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
-
-        // 1. Check if an existing orb was clicked within 2 seconds!
-        let clickedOrb = null;
-        for (let i = 0; i < activeOrbs.length; i++) {
-          const orb = activeOrbs[i];
-          if (totalTime - orb.spawnTime <= 2.0) {
-            const dx = orb.x - clickPos.x;
-            const dy = orb.y - clickPos.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 110.0) {
-              clickedOrb = orb;
-              break;
+        if (roundState === 'ACTIVE') {
+          for (let i = 0; i < activeOrbs.length; i++) {
+            const orb = activeOrbs[i];
+            if (orb.active && !orb.userDrawn && orb.alpha > 0.2) {
+              if (clickPos.distanceTo(orb.position) < 1.35) {
+                if (orb.type === 'petal') spawnPetalsFromOrb(orb);
+                else if (orb.type === 'blossom') spawnBlossomClusterFromOrb(orb);
+                else if (orb.type === 'branch') spawnSubBranchFromOrb(orb);
+                break;
+              }
             }
           }
         }
+      }
 
-        if (clickedOrb) {
-          // SECOND CLICK WITHIN 2 SECONDS: Record boost type, orb stays at exact position until 2.0s timer completes!
-          if (clickedOrb.clickCount < 2) {
-            clickedOrb.clickCount = 2;
-            clickedOrb.secondClickUser = currentClickUser;
+      function onCanvasClick(e) {
+        if (!isArtworkStarted || isPaused) return;
+        if (e.target === createArtBtn || e.target.closest('#createArtBtn') || e.target === userSwitchBtn || e.target.closest('#userSwitchBtn') || e.target.closest('.mode-selector-container')) return;
+
+        const normX = e.clientX / window.innerWidth;
+        const normY = 1.0 - (e.clientY / window.innerHeight);
+
+        triggerCursorGesture(activeUserIndex, 'click');
+        broadcastState('GESTURE', { gestureType: 'click' });
+        broadcastState('CANVAS_CLICK', { normX, normY });
+
+        if (activeMode !== 'bluten' && activeMode !== 'wald') return;
+
+        const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
+
+        if (roundState === 'ACTIVE') {
+          for (let i = 0; i < activeOrbs.length; i++) {
+            const orb = activeOrbs[i];
+            if (orb.active && !orb.userDrawn && orb.alpha > 0.2) {
+              if (currentPos.distanceTo(orb.position) < 1.35) {
+                if (orb.type === 'petal') spawnPetalsFromOrb(orb);
+                else if (orb.type === 'blossom') spawnBlossomClusterFromOrb(orb);
+                else if (orb.type === 'branch') spawnSubBranchFromOrb(orb);
+                break;
+              }
+            }
           }
-        } else {
-          // FIRST CLICK: CREATE SMOKY SPHERE ORB!
-          activeOrbs.push({
-            id: Math.random(),
-            x: clickPos.x,
-            y: clickPos.y,
-            z: 0.0,
-            spawnTime: totalTime,
-            owner: currentClickUser,
-            clickCount: 1,
-            secondClickUser: null
-          });
         }
       }
 
@@ -2269,13 +3706,15 @@
         // Position current local user cursor element
         const activeCursor = document.getElementById(activeUserIndex === 1 ? 'userCursor1' : 'userCursor2');
         if (activeCursor) {
-          activeCursor.classList.add('active');
           activeCursor.style.left = `${event.clientX}px`;
           activeCursor.style.top = `${event.clientY}px`;
+          if (isArtworkStarted) {
+            activeCursor.classList.add('active');
+          }
         }
 
-        // Ensure both cursors are active and visible when guest is connected or active
-        if (isGuestJoined || myRole === 'guest') {
+        // Ensure both cursors are active and visible ONLY when artwork is started
+        if (isArtworkStarted && (isGuestJoined || myRole === 'guest')) {
           const cursor1 = document.getElementById('userCursor1');
           const cursor2 = document.getElementById('userCursor2');
           if (cursor1) cursor1.classList.add('active');
@@ -2297,6 +3736,32 @@
             mouseWorld.copy(pos);
           } else {
             user2WorldPos.copy(pos);
+          }
+        }
+
+        // Update dragged plexus cluster position and broadcast drag position
+        if (isMouseDown && draggedPlexusCluster && (activeMode === 'plexus' || activeMode === 'wald')) {
+          const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
+          draggedPlexusCluster.centerX = currentPos.x + dragOffset.x;
+          draggedPlexusCluster.centerY = currentPos.y + dragOffset.y;
+          broadcastState('PLEXUS_DRAG', { clusterId: draggedPlexusCluster.id, normX, normY });
+        }
+
+        // Check if dragging a Sumi-e branch orb in branch phase
+        if ((activeMode === 'bluten' || activeMode === 'wald') && currentPhase === 'BRANCH' && isDraggingBranch && activeDragBranchOrb && !activeDragBranchOrb.userDrawn) {
+          const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
+          const dragVec = new THREE.Vector3().subVectors(currentPos, activeDragBranchOrb.position);
+          const dist = dragVec.length();
+
+          if (dist > 0.40) {
+            const dragDir = dragVec.clone().normalize();
+            const dot = dragDir.dot(activeDragBranchOrb.guideDir);
+
+            if (dot > 0.15) {
+              spawnSubBranchFromOrb(activeDragBranchOrb);
+              isDraggingBranch = false;
+              activeDragBranchOrb = null;
+            }
           }
         }
 
@@ -2322,23 +3787,36 @@
         }
       }
 
+      let activeAnimTime = 0.0;
+
       function animate() {
         requestAnimationFrame(animate);
 
-        const delta = clock.getDelta();
-        const totalTime = clock.getElapsedTime();
+        const realDelta = clock.getDelta();
+        if (isPaused) {
+          updateInstructionUI();
+          bgRenderer.render(bgScene, bgCamera);
+          if (mainRenderer && mainScene && camera) {
+            mainRenderer.render(mainScene, camera);
+          }
+          return;
+        }
+
+        const delta = realDelta;
+        activeAnimTime += delta;
+        const totalTime = activeAnimTime;
 
         // 1. Background Metallic Shibuya Magenta Shader
         bgUniforms.iTime.value = totalTime;
 
         let targetKaleido = 0.0;
-        if (activePetalCount >= 50 || isVortexActive) {
+        if (activeMode !== 'bluten' && (activePetalCount >= 50 || isVortexActive)) {
           targetKaleido = Math.min(1.0, (activePetalCount - 50) / 25.0 + 0.5);
           if (isVortexActive) targetKaleido = 1.0;
         }
         bgUniforms.uKaleidoscope.value += (targetKaleido - bgUniforms.uKaleidoscope.value) * 0.05;
 
-        let targetGridVibe = isPlexusSphereActive ? 1.0 : 0.0;
+        let targetGridVibe = (activeMode !== 'bluten' && isPlexusSphereActive) ? 1.0 : 0.0;
         bgUniforms.uGridVibe.value += (targetGridVibe - bgUniforms.uGridVibe.value) * 0.05;
 
         bgRenderer.render(bgScene, bgCamera);
@@ -2346,224 +3824,143 @@
         // If artwork has not been started from lobby overlay, do not update 3D physics!
         if (!isArtworkStarted) return;
 
-        // 2. 30-Second Countdown & Creation Button Unlock Mechanics
-        if (totalTime < UNLOCK_DURATION) {
-          const remainingSeconds = Math.ceil(UNLOCK_DURATION - totalTime);
-          timerBadge.textContent = `${remainingSeconds}s`;
-          const progressPercent = ((totalTime / UNLOCK_DURATION) * 100).toFixed(1);
-          createArtBtn.style.setProperty('--progress-width', `${progressPercent}%`);
-        } else if (createArtBtn.disabled) {
-          createArtBtn.disabled = false;
-          createArtBtn.classList.add('active');
-          timerBadge.textContent = 'Bereit';
-          createArtBtn.style.setProperty('--progress-width', '100%');
-        }
+        // 2. Artwork Completion Counter UI Update (0/3 to 3/3)
+        updateArtworkCounterUI();
 
-        // 3. Trigger 8-Second Wide 3D Sideways Whirlwind / Tornado Event when Active Petals Reach >= 50
-        if (activePetalCount >= 50 && !isVortexActive && (activeMode === 'bluten' || activeMode === 'wald')) {
-          isVortexActive = true;
-          vortexStartTime = totalTime;
-        }
-
-        // 4. Update Orbs (Exact 2-Second Timer Check: Dissolves at exact location into 5 Petals)
-        for (let i = activeOrbs.length - 1; i >= 0; i--) {
-          const orb = activeOrbs[i];
-          const age = totalTime - orb.spawnTime;
-
-          if (age >= 2.0) {
-            triggerOrbBurst(orb);
-            activeOrbs.splice(i, 1);
+        // 2. Sumi-e Branch, Blossom & Petal Physics Update (Only active if activeMode === 'bluten')
+        if (activeMode === 'bluten') {
+          if (!isPaused && isRippleActive) {
+            rippleTimer += delta;
+            if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = rippleTimer;
+            if (rippleTimer >= RIPPLE_DURATION) {
+              isRippleActive = false;
+              if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
+            }
           }
-        }
 
-        // Update Orb Mesh Positions & Gaseous Smoky Sphere Shaders
-        const orbPosAttr = orbPointsMesh.geometry.attributes.position;
-        const orbColAttr = orbPointsMesh.geometry.attributes.color;
-        const orbSizeAttr = orbPointsMesh.geometry.attributes.size;
+          // Animiere Sumi-e Branch Strokes (Main Trunk & Subbranches)
+          allBranches.forEach(bInfo => {
+            if (bInfo.stroke) bInfo.stroke.setTime(totalTime);
+          });
+          persistentBlossomStrokes.forEach(stroke => {
+            stroke.setTime(totalTime);
+          });
 
-        const orbPositions = orbPosAttr.array;
-        const orbColors = orbColAttr.array;
-        const orbSizes = orbSizeAttr.array;
+          // Stammwuchs
+          if (growthProgress < 1.0) {
+            growthProgress += delta / growthDuration;
+            if (growthProgress > 1.0) growthProgress = 1.0;
+            updateTrunkGrowth(growthProgress);
+          }
 
-        for (let i = 0; i < MAX_ORBS; i++) {
-          if (i < activeOrbs.length && (activeMode === 'bluten' || activeMode === 'wald')) {
-            const orb = activeOrbs[i];
-            orbPositions[i * 3] = orb.x;
-            orbPositions[i * 3 + 1] = orb.y;
-            orbPositions[i * 3 + 2] = orb.z;
-
-            if (orb.clickCount === 2) {
-              if (orb.secondClickUser === orb.owner) {
-                orbColors[i * 3] = 0.95;
-                orbColors[i * 3 + 1] = 0.05;
-                orbColors[i * 3 + 2] = 0.45;
-              } else {
-                orbColors[i * 3] = 1.0;
-                orbColors[i * 3 + 1] = 0.85;
-                orbColors[i * 3 + 2] = 0.95;
+          if (growthProgress >= 1.0) {
+            if (!trunkCompleted) {
+              trunkCompleted = true;
+              trunkPostDelayTimer = 0.0;
+            } else if (currentRound === 0 && roundState === 'IDLE') {
+              trunkPostDelayTimer += delta;
+              if (trunkPostDelayTimer >= TRUNK_POST_DELAY) {
+                spawnOrbRound(1, 'BRANCH');
               }
-            } else {
-              orbColors[i * 3] = 1.0;
-              orbColors[i * 3 + 1] = 0.15;
-              orbColors[i * 3 + 2] = 0.65;
             }
-
-            const age = totalTime - orb.spawnTime;
-            const dissolveFactor = age > 1.7 ? Math.max(0.0, (2.0 - age) / 0.3) : 1.0;
-            orbSizes[i] = (120.0 + 20.0 * Math.sin(totalTime * 6.0)) * Math.min(1.0, age * 5.0) * dissolveFactor;
-          } else {
-            orbSizes[i] = 0;
-          }
-        }
-
-        orbPosAttr.needsUpdate = true;
-        orbColAttr.needsUpdate = true;
-        orbSizeAttr.needsUpdate = true;
-        if (orbPointsMesh.material.uniforms) {
-          orbPointsMesh.material.uniforms.iTime.value = totalTime;
-        }
-
-        // 5. 3D Concentric Petal Motion OR Unified 8-Second Wide Sideways 3D Tornado Whirlwind Storm!
-        const bounds = getVisibleBounds();
-
-        let vortexProgress = 0.0;
-        let vortexDissolveFactor = 1.0;
-
-        if (isVortexActive) {
-          const vortexAge = totalTime - vortexStartTime;
-          vortexProgress = Math.min(1.0, vortexAge / TORNADO_DURATION);
-
-          if (vortexAge >= TORNADO_DURATION) {
-            // EXACTLY 8 SECONDS REACHED: TORNADO DISSOLVES, PETALS DISAPPEAR, AND BLÜTEN MODE MARKS COMPLETED!
-            isVortexActive = false;
-            activePetalCount = INITIAL_PETALS;
-            initPetalPhysics();
-
-            isBlütenCompleted = true;
-            checkUnlockWald();
-          } else if (vortexAge > 6.2) {
-            vortexDissolveFactor = Math.max(0.0, (TORNADO_DURATION - vortexAge) / 1.8);
-          }
-        }
-
-        for (let i = 0; i < MAX_PETALS; i++) {
-          if (i >= activePetalCount || activeMode === 'plexus') {
-            dummyObject.scale.set(0, 0, 0);
-            dummyObject.updateMatrix();
-            instancedPetalMesh.setMatrixAt(i, dummyObject.matrix);
-            continue;
           }
 
-          petalOrbitalAngle[i] += (isVortexActive ? petalOrbitalSpeed[i] * 1.8 : petalOrbitalSpeed[i]) * delta;
-          const ang = petalOrbitalAngle[i];
-
-          const rx = petalOrbitalRadiusX[i];
-          const ry = petalOrbitalRadiusY[i];
-
-          let bx = Math.cos(ang) * rx;
-          let by = Math.sin(ang) * ry;
-          let bz = Math.sin(ang * 1.4 + petalPhaseZ[i]) * 160.0;
-
-          let rotated = rotateConcentric3D({ x: bx, y: by, z: bz }, petalTiltX[i], petalTiltY[i], 0);
-
-          let currentX = petalSpawnOriginX[i];
-          let currentY = petalSpawnOriginY[i];
-          let currentZ = 0;
-
-          if (petalSpawnTime[i] > 0) {
-            const tSpawn = Math.max(0.0, totalTime - petalSpawnTime[i]);
-            const blowAwayProgress = Math.min(1.0, tSpawn / 1.4);
-            const smoothBlow = Math.pow(blowAwayProgress, 0.7);
-
-            currentX += rotated.x * smoothBlow;
-            currentY += rotated.y * smoothBlow;
-            currentZ = rotated.z * smoothBlow;
-
-            const maxPX = bounds.maxX * 0.88;
-            const maxPY = bounds.maxY * 0.88;
-
-            if (Math.abs(currentX) > maxPX) {
-              petalSpawnOriginX[i] *= 0.94;
-              currentX = Math.sign(currentX) * maxPX;
+          // Animiere Subbranches (3.0s)
+          for (let i = growingSubBranches.length - 1; i >= 0; i--) {
+            const item = growingSubBranches[i];
+            item.progress += delta / item.duration;
+            if (item.progress > 1.0) item.progress = 1.0;
+            item.stroke.setProgress(item.progress);
+            if (item.progress >= 1.0) {
+              growingSubBranches.splice(i, 1);
             }
-            if (Math.abs(currentY) > maxPY) {
-              petalSpawnOriginY[i] *= 0.94;
-              currentY = Math.sign(currentY) * maxPY;
-            }
-
-            var spawnScaleFactor = Math.min(1.0, Math.max(0.18, blowAwayProgress * 1.1));
-          } else {
-            currentX += rotated.x;
-            currentY += rotated.y;
-            currentZ = rotated.z;
-
-            const maxPX = bounds.maxX * 0.88;
-            const maxPY = bounds.maxY * 0.88;
-
-            if (Math.abs(currentX) > maxPX) {
-              petalSpawnOriginX[i] *= 0.94;
-              currentX = Math.sign(currentX) * maxPX;
-            }
-            if (Math.abs(currentY) > maxPY) {
-              petalSpawnOriginY[i] *= 0.94;
-              currentY = Math.sign(currentY) * maxPY;
-            }
-
-            var spawnScaleFactor = 1.0;
           }
 
-          // Unified Wide 3D Sideways Whirlwind / Tornado Physics
+          // Animiere Blüten-Cluster (0.5s)
+          for (let i = growingBlossomClusters.length - 1; i >= 0; i--) {
+            const item = growingBlossomClusters[i];
+            item.progress += delta / item.duration;
+            if (item.progress > 1.0) item.progress = 1.0;
+            item.stroke.setProgress(item.progress);
+            if (item.progress >= 1.0) {
+              growingBlossomClusters.splice(i, 1);
+            }
+          }
+
+          // Vortex Interpolation (5s Aufbau, 5s Wirbel, 5s Abbau)
           if (isVortexActive) {
-            const swirlPower = Math.pow(vortexProgress, 1.1);
+            vortexTimer += delta;
+            if (vortexTimer < VORTEX_BUILD_TIME) {
+              vortexBlendFactor = vortexTimer / VORTEX_BUILD_TIME;
+            } else if (vortexTimer <= (VORTEX_BUILD_TIME + VORTEX_HOLD_TIME)) {
+              vortexBlendFactor = 1.0;
+            } else if (vortexTimer <= VORTEX_TOTAL_DURATION) {
+              vortexBlendFactor = 1.0 - ((vortexTimer - (VORTEX_BUILD_TIME + VORTEX_HOLD_TIME)) / VORTEX_FADE_TIME);
+            } else {
+              isVortexActive = false;
+              vortexBlendFactor = 0.0;
 
-            const normH = i / activePetalCount;
-            const rawY = (normH - 0.5) * 480.0;
-
-            const coneRadius = 90.0 + Math.pow(normH, 1.25) * 390.0;
-
-            const spiralAngle = ang + totalTime * (7.5 + (1.0 - normH) * 5.5);
-
-            const rawX = Math.cos(spiralAngle) * coneRadius;
-            const rawZ = Math.sin(spiralAngle) * coneRadius;
-
-            const sideTilt = 0.38;
-            const tornadoX = rawX;
-            const tornadoY_tilted = rawY * Math.cos(sideTilt) - rawZ * Math.sin(sideTilt);
-            const tornadoZ_tilted = rawY * Math.sin(sideTilt) + rawZ * Math.cos(sideTilt);
-
-            currentX = currentX * (1.0 - swirlPower) + tornadoX * swirlPower;
-            currentY = currentY * (1.0 - swirlPower) + tornadoY_tilted * swirlPower;
-            currentZ = currentZ * (1.0 - swirlPower) + tornadoZ_tilted * swirlPower;
-
-            petalRotZ[i] += delta * 7.5;
-            spawnScaleFactor *= vortexDissolveFactor;
+              if (!isBlütenCompleted) {
+                isBlütenCompleted = true;
+                checkUnlockWald();
+              }
+            }
+          } else {
+            vortexBlendFactor = 0.0;
           }
 
-          petalRotX[i] += petalRotSpeedX[i];
-          petalRotY[i] += petalRotSpeedY[i];
-          petalRotZ[i] += petalRotSpeedZ[i];
+          floating2DPetals.forEach(petal => petal.update(delta, totalTime));
 
-          const depthScale = (currentZ + 800) / 800;
-          const finalScale = Math.min(1.15, Math.max(0.001, petalBaseScales[i] * depthScale * spawnScaleFactor));
+          // Round State Machine
+          if (roundState !== 'IDLE') {
+            roundTimer += delta;
+            const activeTimeLimit = (currentPhase === 'PETAL') ? ROUND_ACTIVE_TIME_PETAL : ROUND_ACTIVE_TIME_DEFAULT;
 
-          dummyObject.position.set(currentX, currentY, currentZ);
-          dummyObject.rotation.set(petalRotX[i], petalRotY[i], petalRotZ[i]);
-          dummyObject.scale.set(finalScale, finalScale, finalScale);
-          dummyObject.updateMatrix();
+            if (currentPhase === 'PETAL') {
+              updateTrunkGrowth(1.0);
+            }
 
-          instancedPetalMesh.setMatrixAt(i, dummyObject.matrix);
+            if (roundState === 'ACTIVE') {
+              activeOrbs.forEach(orb => {
+                if (orb.roundId === currentRound && !orb.userDrawn && !orb.isExploding) {
+                  orb.setAlpha(Math.min(1.0, orb.alpha + delta * 3.0));
+                }
+                orb.update(totalTime, delta);
+              });
 
-          // Emit Shining Star Trail Particles for Special Petals
-          if (petalType[i] > 0 && finalScale > 0.05 && (activeMode === 'bluten' || activeMode === 'wald')) {
-            emitStarParticle(
-              currentX, currentY, currentZ,
-              petalColorsR[i], petalColorsG[i], petalColorsB[i],
-              finalScale
-            );
+              if (roundTimer >= activeTimeLimit) {
+                roundState = 'FADING';
+                roundTimer = 0.0;
+              }
+            } else if (roundState === 'FADING') {
+              activeOrbs.forEach(orb => {
+                if (orb.roundId === currentRound && !orb.isExploding) {
+                  orb.setAlpha(Math.max(0.0, orb.alpha - delta * 2.0));
+                }
+                orb.update(totalTime, delta);
+              });
+
+              if (roundTimer >= ROUND_FADE_TIME) {
+                roundState = 'PAUSE';
+                roundTimer = 0.0;
+              }
+            } else if (roundState === 'PAUSE') {
+              if (roundTimer >= ROUND_PAUSE_TIME) {
+                if (currentRound < maxRoundsPerPhase && currentPhase !== 'PETAL') {
+                  spawnOrbRound(currentRound + 1, currentPhase);
+                } else {
+                  if (currentPhase === 'BRANCH') {
+                    spawnOrbRound(1, 'BLOSSOM');
+                  } else if (currentPhase === 'BLOSSOM') {
+                    spawnOrbRound(1, 'PETAL');
+                  } else {
+                    roundState = 'IDLE';
+                  }
+                }
+              }
+            }
           }
         }
-
-        instancedPetalMesh.instanceMatrix.needsUpdate = true;
 
         // 6. Persistent Drifting Glowing Star Plexus Constellations (Implosion & Supernova Explosion Event!)
         if (activeMode === 'plexus' || activeMode === 'wald') {
@@ -2629,8 +4026,8 @@
           }
 
           // Update & drift active persistent Plexus clusters across screen
-          const safeMarginX = bounds.maxX * 0.70;
-          const safeMarginY = bounds.maxY * 0.70;
+          const safeMarginX = 350.0;
+          const safeMarginY = 220.0;
 
           for (let c = 0; c < activePlexusClusters.length; c++) {
             const cluster = activePlexusClusters[c];
@@ -2662,18 +4059,66 @@
               }
             }
 
+            // Shape Transformation Lerp Calculation (3 Seconds)
+            let isTransformActive = false;
+            let blendFactor = 0.0;
+            let spinAngle = 0.0;
+
+            if (cluster.isTransforming && cluster.targetShapeNodes) {
+              cluster.transformTimer += delta;
+              const totalDur = cluster.transformDuration || 3.0;
+              if (cluster.transformTimer >= totalDur) {
+                cluster.isTransforming = false;
+                cluster.transformTimer = 0.0;
+              } else {
+                isTransformActive = true;
+                const p = cluster.transformTimer / totalDur;
+                if (p < 0.16) blendFactor = p / 0.16;
+                else if (p > 0.84) blendFactor = (1.0 - p) / 0.16;
+                else blendFactor = 1.0;
+                blendFactor = blendFactor * blendFactor * (3.0 - 2.0 * blendFactor);
+                spinAngle = cluster.transformTimer * 1.8;
+              }
+            }
+
+            const cosY = Math.cos(spinAngle);
+            const sinY = Math.sin(spinAngle);
+
             for (let i = 0; i < cluster.nodes.length; i++) {
               const node = cluster.nodes[i];
               node.rot += delta * node.rotSpeed;
 
-              const wx = cluster.centerX + node.dx + Math.sin(totalTime * node.freq + node.phase) * 12.0;
-              const wy = cluster.centerY + node.dy + Math.cos(totalTime * node.freq + node.phase) * 12.0;
-              const wz = cluster.centerZ + node.dz + Math.sin(totalTime * 0.9 + node.phase * 1.5) * 18.0;
+              let offsetDx = node.dx;
+              let offsetDy = node.dy;
+              let offsetDz = node.dz;
+              let nodeSize = 15.0;
+
+              if (isTransformActive && cluster.targetShapeNodes[i]) {
+                const target = cluster.targetShapeNodes[i];
+                const rx = target.tx * cosY - target.tz * sinY;
+                const rz = target.tx * sinY + target.tz * cosY;
+                const ry = target.ty;
+
+                offsetDx = THREE.MathUtils.lerp(node.dx, rx, blendFactor);
+                offsetDy = THREE.MathUtils.lerp(node.dy, ry, blendFactor);
+                offsetDz = THREE.MathUtils.lerp(node.dz, rz, blendFactor);
+
+                if (target.isSurplus) {
+                  nodeSize = THREE.MathUtils.lerp(15.0, 0.0, blendFactor);
+                } else {
+                  nodeSize = THREE.MathUtils.lerp(15.0, 18.0, blendFactor);
+                }
+              }
+
+              const wobbleFactor = 1.0 - blendFactor;
+              const wx = cluster.centerX + offsetDx + wobbleFactor * Math.sin(totalTime * node.freq + node.phase) * 12.0;
+              const wy = cluster.centerY + offsetDy + wobbleFactor * Math.cos(totalTime * node.freq + node.phase) * 12.0;
+              const wz = cluster.centerZ + offsetDz + wobbleFactor * Math.sin(totalTime * 0.9 + node.phase * 1.5) * 18.0;
 
               allWorldNodes.push({
                 x: wx, y: wy, z: wz,
                 r: cluster.r, g: cluster.g, b: cluster.b,
-                size: 15.0,
+                size: nodeSize,
                 rot: node.rot,
                 clusterId: cluster.id
               });
@@ -2748,6 +4193,7 @@
             isPlexusSphereActive = true;
             plexusSphereStartTime = totalTime;
             hasExplodedThisFrame = false;
+            markArtworkCompleted('plexus');
           }
 
           // Execute 3D Sphere Transformation -> IMPLOSION -> GIANT SUPERNOVA EXPLOSION!
