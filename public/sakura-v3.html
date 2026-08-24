@@ -2475,9 +2475,12 @@
         strokeGroup = new THREE.Group();
         orbGroup = new THREE.Group();
         petalGroup = new THREE.Group();
+        gridTreeGroup = new THREE.Group();
         mainScene.add(strokeGroup);
         mainScene.add(orbGroup);
         mainScene.add(petalGroup);
+        mainScene.add(gridTreeGroup);
+        gridTreeGroup.visible = false;
 
         initMainTrunk();
 
@@ -2995,6 +2998,10 @@
         if (plexusLinesMesh) plexusLinesMesh.visible = showPlexus;
         if (plexusPointsMesh) plexusPointsMesh.visible = showPlexus;
 
+        const showSakuraParticles = (activeMode === 'wald');
+        if (ambientSparkleMesh) ambientSparkleMesh.visible = showSakuraParticles;
+        if (gridTreeGroup) gridTreeGroup.visible = showSakuraParticles;
+
         if (newMode === 'bluten') {
           btnModeBluten.classList.add('active');
           if (instancedPetalMesh) instancedPetalMesh.visible = false;
@@ -3200,36 +3207,56 @@
       }
 
       // ==========================================
-      // AMBIENT SPARKLE PARTICLES & GRID TREE SYSTEM
+      // AMBIENT SPARKLE PARTICLES & DRIFTING GRID TREE SYSTEM
       // ==========================================
       const NUM_AMBIENT_SPARKLES = 600;
       let ambientSparkleMesh = null;
-      const ambientPositions = new Float32Array(NUM_AMBIENT_SPARKLES * 3);
+      let gridTreeGroup = null;
+
+      const ambientBasePositions = new Float32Array(NUM_AMBIENT_SPARKLES * 3);
+      const ambientCurrentPositions = new Float32Array(NUM_AMBIENT_SPARKLES * 3);
       const ambientVelocities = new Float32Array(NUM_AMBIENT_SPARKLES * 3);
-      const ambientColors = new Float32Array(NUM_AMBIENT_SPARKLES * 3);
+      const ambientDefaultColors = new Float32Array(NUM_AMBIENT_SPARKLES * 3);
+      const ambientCurrentColors = new Float32Array(NUM_AMBIENT_SPARKLES * 3);
       const ambientSizes = new Float32Array(NUM_AMBIENT_SPARKLES);
 
       function setupAmbientSparkles() {
         const geo = new THREE.BufferGeometry();
         for (let i = 0; i < NUM_AMBIENT_SPARKLES; i++) {
-          ambientPositions[i * 3] = (Math.random() - 0.5) * 40;
-          ambientPositions[i * 3 + 1] = (Math.random() - 0.5) * 25;
-          ambientPositions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+          const bx = (Math.random() - 0.5) * 40;
+          const by = (Math.random() - 0.5) * 25;
+          const bz = (Math.random() - 0.5) * 20;
+
+          ambientBasePositions[i * 3] = bx;
+          ambientBasePositions[i * 3 + 1] = by;
+          ambientBasePositions[i * 3 + 2] = bz;
+
+          ambientCurrentPositions[i * 3] = bx;
+          ambientCurrentPositions[i * 3 + 1] = by;
+          ambientCurrentPositions[i * 3 + 2] = bz;
 
           ambientVelocities[i * 3] = (Math.random() - 0.5) * 0.3;
           ambientVelocities[i * 3 + 1] = (Math.random() - 0.5) * 0.3 + 0.1;
           ambientVelocities[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
 
-          // Sparkling Pink / Magenta colors
-          ambientColors[i * 3] = 1.0;
-          ambientColors[i * 3 + 1] = 0.35 + Math.random() * 0.4;
-          ambientColors[i * 3 + 2] = 0.75 + Math.random() * 0.25;
+          // Sparkling Pink / Magenta default colors
+          const cr = 1.0;
+          const cg = 0.35 + Math.random() * 0.4;
+          const cb = 0.75 + Math.random() * 0.25;
+
+          ambientDefaultColors[i * 3] = cr;
+          ambientDefaultColors[i * 3 + 1] = cg;
+          ambientDefaultColors[i * 3 + 2] = cb;
+
+          ambientCurrentColors[i * 3] = cr;
+          ambientCurrentColors[i * 3 + 1] = cg;
+          ambientCurrentColors[i * 3 + 2] = cb;
 
           ambientSizes[i] = 1.2 + Math.random() * 2.5;
         }
 
-        geo.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
-        geo.setAttribute('color', new THREE.BufferAttribute(ambientColors, 3));
+        geo.setAttribute('position', new THREE.BufferAttribute(ambientCurrentPositions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(ambientCurrentColors, 3));
         geo.setAttribute('size', new THREE.BufferAttribute(ambientSizes, 1));
 
         const mat = new THREE.ShaderMaterial({
@@ -3254,7 +3281,7 @@
               float dist = length(coord);
               if (dist > 0.5) discard;
               float intensity = pow(1.0 - (dist / 0.5), 2.0);
-              gl_FragColor = vec4(vColor, intensity * 0.9);
+              gl_FragColor = vec4(vColor, intensity * 0.95);
             }
           `,
           transparent: true,
@@ -3263,40 +3290,81 @@
         });
 
         ambientSparkleMesh = new THREE.Points(geo, mat);
+        ambientSparkleMesh.visible = (activeMode === 'wald');
         mainScene.add(ambientSparkleMesh);
       }
 
       function updateAmbientSparkles(delta, time) {
-        if (!ambientSparkleMesh) return;
+        if (!ambientSparkleMesh || activeMode !== 'wald') return;
         const positions = ambientSparkleMesh.geometry.attributes.position.array;
+        const colors = ambientSparkleMesh.geometry.attributes.color.array;
         const targetPos = (activeUserIndex === 1) ? mouseWorld : user2WorldPos;
 
         for (let i = 0; i < NUM_AMBIENT_SPARKLES; i++) {
+          // Base Ambient Drift Movement
+          ambientBasePositions[i * 3] += ambientVelocities[i * 3] * delta;
+          ambientBasePositions[i * 3 + 1] += ambientVelocities[i * 3 + 1] * delta;
+          ambientBasePositions[i * 3 + 2] += ambientVelocities[i * 3 + 2] * delta;
+
+          if (ambientBasePositions[i * 3] > 25) ambientBasePositions[i * 3] = -25;
+          if (ambientBasePositions[i * 3] < -25) ambientBasePositions[i * 3] = 25;
+          if (ambientBasePositions[i * 3 + 1] > 15) ambientBasePositions[i * 3 + 1] = -15;
+          if (ambientBasePositions[i * 3 + 1] < -15) ambientBasePositions[i * 3 + 1] = 15;
+
           let px = positions[i * 3];
           let py = positions[i * 3 + 1];
           let pz = positions[i * 3 + 2];
 
-          px += ambientVelocities[i * 3] * delta;
-          py += ambientVelocities[i * 3 + 1] * delta;
-          pz += ambientVelocities[i * 3 + 2] * delta;
+          const bx = ambientBasePositions[i * 3];
+          const by = ambientBasePositions[i * 3 + 1];
+          const bz = ambientBasePositions[i * 3 + 2];
 
-          if (px > 25) px = -25;
-          if (px < -25) px = 25;
-          if (py > 15) py = -15;
-          if (py < -15) py = 15;
+          let targetX = bx;
+          let targetY = by;
+          let targetZ = bz;
 
-          // Cursor Attraction Physics: Particles concentrate loosely denser around cursor pointer
+          let targetR = ambientDefaultColors[i * 3];
+          let targetG = ambientDefaultColors[i * 3 + 1];
+          let targetB = ambientDefaultColors[i * 3 + 2];
+
           if (targetPos) {
             const dx = targetPos.x - px;
             const dy = targetPos.y - py;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < 6.0 && dist > 0.2) {
-              const pull = ((6.0 - dist) / 6.0) * 2.2 * delta;
-              px += (dx / dist) * pull;
-              py += (dy / dist) * pull;
+            if (isMouseDown) {
+              // 1. Mouse HOLDing: Cursor strongly ATTRACTS nearby particles & SHIFTS into vibrant rainbow colors!
+              if (dist < 12.0) {
+                const pullForce = Math.max(0, (12.0 - dist) / 12.0) * 8.5;
+                targetX = targetPos.x - (dx / Math.max(0.1, dist)) * (1.0 - pullForce * 0.08);
+                targetY = targetPos.y - (dy / Math.max(0.1, dist)) * (1.0 - pullForce * 0.08);
+              }
+
+              // Dynamic shifting rainbow colors while holding
+              if (dist < 10.0) {
+                const hue = (time * 5.0 + i * 0.15) % (Math.PI * 2);
+                targetR = (0.5 + 0.5 * Math.sin(hue)) * 1.3;
+                targetG = (0.5 + 0.5 * Math.sin(hue + 2.094)) * 1.3;
+                targetB = (0.5 + 0.5 * Math.sin(hue + 4.188)) * 1.3;
+              }
+            } else {
+              // 2. Normal Hover (not holding): Dezent WEGBEWEGEN (Repulsion) when cursor is near. Return when cursor leaves!
+              if (dist < 5.5) {
+                const repelForce = Math.max(0, (5.5 - dist) / 5.5) * 4.0;
+                targetX = bx - (dx / Math.max(0.1, dist)) * repelForce;
+                targetY = by - (dy / Math.max(0.1, dist)) * repelForce;
+              }
             }
           }
+
+          // Smooth position & color interpolation (Return smoothly when cursor leaves)
+          px += (targetX - px) * 0.08;
+          py += (targetY - py) * 0.08;
+          pz += (targetZ - pz) * 0.08;
+
+          colors[i * 3] += (targetR - colors[i * 3]) * 0.08;
+          colors[i * 3 + 1] += (targetG - colors[i * 3 + 1]) * 0.08;
+          colors[i * 3 + 2] += (targetB - colors[i * 3 + 2]) * 0.08;
 
           positions[i * 3] = px;
           positions[i * 3 + 1] = py;
@@ -3304,16 +3372,24 @@
         }
 
         ambientSparkleMesh.geometry.attributes.position.needsUpdate = true;
+        ambientSparkleMesh.geometry.attributes.color.needsUpdate = true;
         ambientSparkleMesh.material.uniforms.uTime.value = time;
       }
 
-      // 3D Grid-Tree (Gitterbaum) Class
+      // 3D Drifting Grid-Tree (Gitterbaum) Class
       let activeGridTrees = [];
 
       class GridTree {
         constructor(originPos) {
           this.group = new THREE.Group();
           this.origin = originPos.clone();
+          this.group.position.copy(this.origin);
+
+          // Random 3D drift velocity across screen
+          this.driftX = (Math.random() - 0.5) * 2.2;
+          this.driftY = (Math.random() - 0.5) * 1.5;
+          this.driftZ = (Math.random() - 0.5) * 1.0;
+
           this.growthProgress = 0.0;
           this.duration = 1.8;
 
@@ -3327,8 +3403,8 @@
           const segments = 8;
 
           for (let s = 0; s < segments; s++) {
-            const y0 = this.origin.y + (s / segments) * trunkHeight;
-            const y1 = this.origin.y + ((s + 1) / segments) * trunkHeight;
+            const y0 = (s / segments) * trunkHeight;
+            const y1 = ((s + 1) / segments) * trunkHeight;
             const r0 = trunkRadius * (1.0 - (s / segments) * 0.4);
             const r1 = trunkRadius * (1.0 - ((s + 1) / segments) * 0.4);
 
@@ -3343,21 +3419,21 @@
               const nextC = (c + 1) % 4;
 
               linePositions.push(
-                this.origin.x + corners[c][0] * r0, y0, this.origin.z + corners[c][1] * r0,
-                this.origin.x + corners[c][0] * r1, y1, this.origin.z + corners[c][1] * r1
+                corners[c][0] * r0, y0, corners[c][1] * r0,
+                corners[c][0] * r1, y1, corners[c][1] * r1
               );
 
               linePositions.push(
-                this.origin.x + corners[c][0] * r0, y0, this.origin.z + corners[c][1] * r0,
-                this.origin.x + corners[nextC][0] * r1, y1, this.origin.z + corners[nextC][1] * r1
+                corners[c][0] * r0, y0, corners[c][1] * r0,
+                corners[nextC][0] * r1, y1, corners[nextC][1] * r1
               );
 
               linePositions.push(
-                this.origin.x + corners[c][0] * r0, y0, this.origin.z + corners[c][1] * r0,
-                this.origin.x + corners[nextC][0] * r0, y0, this.origin.z + corners[nextC][1] * r0
+                corners[c][0] * r0, y0, corners[c][1] * r0,
+                corners[nextC][0] * r0, y0, corners[nextC][1] * r0
               );
 
-              nodePositions.push(this.origin.x + corners[c][0] * r0, y0, this.origin.z + corners[c][1] * r0);
+              nodePositions.push(corners[c][0] * r0, y0, corners[c][1] * r0);
             }
           }
 
@@ -3365,19 +3441,19 @@
           for (let b = 0; b < numBranches; b++) {
             const angle = (b / numBranches) * Math.PI * 2.0 + Math.random() * 0.4;
             const branchLen = 3.5 + Math.random() * 1.5;
-            const startY = this.origin.y + trunkHeight * 0.7;
+            const startY = trunkHeight * 0.7;
 
             for (let step = 0; step < 5; step++) {
               const t0 = step / 5;
               const t1 = (step + 1) / 5;
 
-              const p0x = this.origin.x + Math.cos(angle) * branchLen * t0;
+              const p0x = Math.cos(angle) * branchLen * t0;
               const p0y = startY + Math.sin(t0 * Math.PI * 0.5) * branchLen * t0;
-              const p0z = this.origin.z + Math.sin(angle) * branchLen * t0;
+              const p0z = Math.sin(angle) * branchLen * t0;
 
-              const p1x = this.origin.x + Math.cos(angle) * branchLen * t1;
+              const p1x = Math.cos(angle) * branchLen * t1;
               const p1y = startY + Math.sin(t1 * Math.PI * 0.5) * branchLen * t1;
-              const p1z = this.origin.z + Math.sin(angle) * branchLen * t1;
+              const p1z = Math.sin(angle) * branchLen * t1;
 
               linePositions.push(p0x, p0y, p0z, p1x, p1y, p1z);
               nodePositions.push(p1x, p1y, p1z);
@@ -3421,15 +3497,39 @@
           this.group.add(this.nodesMesh);
 
           this.group.scale.set(0.01, 0.01, 0.01);
-          mainScene.add(this.group);
+          if (gridTreeGroup) {
+            gridTreeGroup.add(this.group);
+          } else {
+            mainScene.add(this.group);
+          }
         }
 
         update(delta) {
+          // 1. Growth Scaling (1.8 Seconds)
           if (this.growthProgress < 1.0) {
             this.growthProgress += delta / this.duration;
             if (this.growthProgress > 1.0) this.growthProgress = 1.0;
             const s = Math.sin(this.growthProgress * Math.PI * 0.5);
             this.group.scale.set(s, s, s);
+          }
+
+          // 2. Drift Motion across screen (Gitterbäume driften über das Bild)
+          this.group.position.x += this.driftX * delta;
+          this.group.position.y += this.driftY * delta;
+          this.group.position.z += this.driftZ * delta;
+
+          // Bounce off screen boundaries
+          if (Math.abs(this.group.position.x) > 22.0) {
+            this.driftX *= -1.0;
+            this.group.position.x = Math.sign(this.group.position.x) * 22.0;
+          }
+          if (Math.abs(this.group.position.y) > 13.0) {
+            this.driftY *= -1.0;
+            this.group.position.y = Math.sign(this.group.position.y) * 13.0;
+          }
+          if (Math.abs(this.group.position.z) > 15.0) {
+            this.driftZ *= -1.0;
+            this.group.position.z = Math.sign(this.group.position.z) * 15.0;
           }
         }
       }
