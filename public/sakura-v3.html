@@ -3552,10 +3552,16 @@
       }
 
       function spawnGridTreeAt(worldPos) {
+        if (activeMode !== 'wald') return;
         const tree = new GridTree(worldPos);
         activeGridTrees.push(tree);
-        markArtworkCompleted('wald');
+
         showToast("✨ Gitterbaum erschaffen!");
+
+        if (activeGridTrees.length >= 3 && !waldCounted) {
+          markArtworkCompleted('wald');
+          showToast("🎉 Alle 3 Kunstwerke vollendet!");
+        }
       }
 
       let completedArtworksCount = 0;
@@ -3928,7 +3934,7 @@
         activeDragBranchOrb = null;
 
         const holdSecs = (performance.now() - generalHoldStartTime) / 1000.0;
-        if (isMouseDown && holdSecs >= 2.0) {
+        if (isMouseDown && holdSecs >= 2.0 && activeMode === 'wald') {
           const spawnPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
           spawnGridTreeAt(spawnPos);
           broadcastState('SPAWN_GRID_TREE', { x: spawnPos.x, y: spawnPos.y, z: spawnPos.z });
@@ -3942,11 +3948,6 @@
               const normX = mouseScreen.x;
               const normY = mouseScreen.y;
               broadcastState('PLEXUS_CREATE', { normX, normY, customNodes: activeHoldNodes });
-
-              if (!isPlexusCompleted) {
-                isPlexusCompleted = true;
-                checkUnlockWald();
-              }
             }
           }
         }

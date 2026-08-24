@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 export default function Home() {
-  const [srcUrl, setSrcUrl] = useState('sakura-v3.html?v=3.5');
+  const [srcUrl, setSrcUrl] = useState('sakura-v3.html?v=3.6');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -11,7 +11,7 @@ export default function Home() {
       const search = window.location.search;
       const isGitHubPages = path.includes('/artcube_lite');
       const base = isGitHubPages ? '/artcube_lite' : '';
-      const versionParam = search ? `${search}&v=3.5` : '?v=3.5';
+      const versionParam = search ? `${search}&v=3.6` : '?v=3.6';
       setSrcUrl(`${base}/sakura-v3.html${versionParam}`);
     }
   }, []);
