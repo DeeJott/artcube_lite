@@ -2988,12 +2988,12 @@
         btnModePlexus.classList.remove('active');
         btnModeWald.classList.remove('active');
 
-        const showBlüten = (activeMode === 'bluten' || activeMode === 'wald');
+        const showBlüten = (activeMode === 'bluten');
         if (strokeGroup) strokeGroup.visible = showBlüten;
         if (orbGroup) orbGroup.visible = showBlüten;
         if (petalGroup) petalGroup.visible = showBlüten;
 
-        const showPlexus = (activeMode === 'plexus' || activeMode === 'wald');
+        const showPlexus = (activeMode === 'plexus');
         if (plexusLinesMesh) plexusLinesMesh.visible = showPlexus;
         if (plexusPointsMesh) plexusPointsMesh.visible = showPlexus;
 
@@ -3332,14 +3332,14 @@
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (isMouseDown) {
-              // 1. Mouse HOLDing: Particles assemble into a 3D CONCENTRIC SPHERICAL VOLUME around the cursor!
-              if (dist < 14.0) {
+              // 1. Mouse HOLDing: Particles assemble into an 80% SMALLER 3D concentric sphere around cursor (within 100px / ~2.5 3D units)!
+              if (dist < 2.5) {
                 const phi = (i * 137.5 * Math.PI / 180.0) % (Math.PI * 2);
                 const theta = Math.acos(1.0 - 2.0 * ((i % 100) / 100.0));
-                const shellRadius = 2.4 + (i % 3) * 0.8;
+                const shellRadius = 0.48 + (i % 3) * 0.16; // 80% smaller concentric spherical shell!
 
-                const sphereOffsetX = Math.sin(theta) * Math.cos(phi + time * 2.2) * shellRadius;
-                const sphereOffsetY = Math.sin(theta) * Math.sin(phi + time * 2.2) * shellRadius;
+                const sphereOffsetX = Math.sin(theta) * Math.cos(phi + time * 2.5) * shellRadius;
+                const sphereOffsetY = Math.sin(theta) * Math.sin(phi + time * 2.5) * shellRadius;
                 const sphereOffsetZ = Math.cos(theta) * shellRadius;
 
                 targetX = targetPos.x + sphereOffsetX;
@@ -3381,7 +3381,7 @@
         ambientSparkleMesh.material.uniforms.uTime.value = time;
       }
 
-      // 3D Drifting Shibuya Sakura Stage Grid-Tree (Gitterbaum) Class
+      // 3D Drifting Shibuya Sakura Stage Grid-Tree (Gitterbaum) Class — Slim & Subtle
       let activeGridTrees = [];
 
       class GridTree {
@@ -3403,9 +3403,9 @@
           const nodePositions = [];
           const nodeColors = [];
 
-          // 1. Shibuya Sakura Stage Central Metallic Column (Trunk)
-          const trunkHeight = 6.0 + Math.random() * 2.0;
-          const trunkRadius = 0.45;
+          // 1. Shibuya Sakura Stage Slender Central Metallic Column (Trunk)
+          const trunkHeight = 5.5 + Math.random() * 1.5;
+          const trunkRadius = 0.15; // Slim & subtle pillar
           const pillarCorners = [
             [Math.cos(0), Math.sin(0)],
             [Math.cos(Math.PI / 2), Math.sin(Math.PI / 2)],
@@ -3432,16 +3432,16 @@
               );
 
               nodePositions.push(pillarCorners[c][0] * trunkRadius, y0, pillarCorners[c][1] * trunkRadius);
-              nodeColors.push(0.9, 0.9, 1.0);
+              nodeColors.push(0.95, 0.95, 1.0);
             }
           }
 
-          // 2. Shibuya Sakura Stage Architectural 3D Cubic Grid Matrix Canopy (At Top)
+          // 2. Shibuya Sakura Stage Architectural 3D Cubic Grid Matrix Canopy (At Top) — Subtle & Slim
           const canopyY = trunkHeight;
           const gridSizeX = 4;
           const gridSizeZ = 4;
           const gridLevels = 3;
-          const stepSize = 1.2;
+          const stepSize = 0.75; // Slim, subtle grid spacing
 
           const halfX = ((gridSizeX - 1) * stepSize) / 2.0;
           const halfZ = ((gridSizeZ - 1) * stepSize) / 2.0;
@@ -3453,9 +3453,9 @@
                 const py = canopyY + gy * stepSize;
                 const pz = gz * stepSize - halfZ;
 
-                // Glowing Light Bulb Node at every grid intersection!
+                // Subtle Glowing Light Bulb Node at grid intersections
                 nodePositions.push(px, py, pz);
-                nodeColors.push(1.0, 0.45, 0.9);
+                nodeColors.push(1.0, 0.5, 0.88);
 
                 // Connect X beam
                 if (gx < gridSizeX - 1) {
@@ -3476,9 +3476,9 @@
           for (let i = 0; i < linePositions.length / 3; i++) {
             const ratio = i / (linePositions.length / 3);
             lineColors.push(
-              0.4 + 0.6 * Math.sin(ratio * Math.PI),
-              0.5 + 0.5 * Math.cos(ratio * Math.PI),
-              0.95
+              0.5 + 0.5 * Math.sin(ratio * Math.PI),
+              0.6 + 0.4 * Math.cos(ratio * Math.PI),
+              0.98
             );
           }
           for (let i = 0; i < nodePositions.length / 3; i++) {
