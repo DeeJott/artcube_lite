@@ -1339,7 +1339,7 @@ export function SakuraCanvas({
           {/* Bottom Center: Mode Selector */}
           <div className="pointer-events-auto flex flex-col gap-1.5 items-center">
             <span className="text-[10px] font-semibold tracking-[2px] uppercase text-[#ffb4dc]/70">
-              Artwork Mode
+              Test Mode
             </span>
             <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
               <button
