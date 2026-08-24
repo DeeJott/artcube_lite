@@ -2053,7 +2053,6 @@
         if (totalPetalOrbsCount > 0 && clickedPetalOrbsCount >= totalPetalOrbsCount) {
           isVortexActive = true;
           vortexTimer = 0.0;
-          markArtworkCompleted('bluten');
 
           isRippleActive = true;
           rippleTimer = 0.0;
@@ -3333,15 +3332,21 @@
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (isMouseDown) {
-              // 1. Mouse HOLDing: Cursor strongly ATTRACTS nearby particles & SHIFTS into vibrant rainbow colors!
-              if (dist < 12.0) {
-                const pullForce = Math.max(0, (12.0 - dist) / 12.0) * 8.5;
-                targetX = targetPos.x - (dx / Math.max(0.1, dist)) * (1.0 - pullForce * 0.08);
-                targetY = targetPos.y - (dy / Math.max(0.1, dist)) * (1.0 - pullForce * 0.08);
-              }
+              // 1. Mouse HOLDing: Particles assemble into a 3D CONCENTRIC SPHERICAL VOLUME around the cursor!
+              if (dist < 14.0) {
+                const phi = (i * 137.5 * Math.PI / 180.0) % (Math.PI * 2);
+                const theta = Math.acos(1.0 - 2.0 * ((i % 100) / 100.0));
+                const shellRadius = 2.4 + (i % 3) * 0.8;
 
-              // Dynamic shifting rainbow colors while holding
-              if (dist < 10.0) {
+                const sphereOffsetX = Math.sin(theta) * Math.cos(phi + time * 2.2) * shellRadius;
+                const sphereOffsetY = Math.sin(theta) * Math.sin(phi + time * 2.2) * shellRadius;
+                const sphereOffsetZ = Math.cos(theta) * shellRadius;
+
+                targetX = targetPos.x + sphereOffsetX;
+                targetY = targetPos.y + sphereOffsetY;
+                targetZ = targetPos.z + sphereOffsetZ;
+
+                // Dynamic shifting rainbow colors while holding
                 const hue = (time * 5.0 + i * 0.15) % (Math.PI * 2);
                 targetR = (0.5 + 0.5 * Math.sin(hue)) * 1.3;
                 targetG = (0.5 + 0.5 * Math.sin(hue + 2.094)) * 1.3;
@@ -3376,7 +3381,7 @@
         ambientSparkleMesh.material.uniforms.uTime.value = time;
       }
 
-      // 3D Drifting Grid-Tree (Gitterbaum) Class
+      // 3D Drifting Shibuya Sakura Stage Grid-Tree (Gitterbaum) Class
       let activeGridTrees = [];
 
       class GridTree {
@@ -3398,71 +3403,83 @@
           const nodePositions = [];
           const nodeColors = [];
 
-          const trunkHeight = 5.0 + Math.random() * 2.0;
-          const trunkRadius = 0.6;
-          const segments = 8;
+          // 1. Shibuya Sakura Stage Central Metallic Column (Trunk)
+          const trunkHeight = 6.0 + Math.random() * 2.0;
+          const trunkRadius = 0.45;
+          const pillarCorners = [
+            [Math.cos(0), Math.sin(0)],
+            [Math.cos(Math.PI / 2), Math.sin(Math.PI / 2)],
+            [Math.cos(Math.PI), Math.sin(Math.PI)],
+            [Math.cos(3 * Math.PI / 2), Math.sin(3 * Math.PI / 2)],
+          ];
 
-          for (let s = 0; s < segments; s++) {
-            const y0 = (s / segments) * trunkHeight;
-            const y1 = ((s + 1) / segments) * trunkHeight;
-            const r0 = trunkRadius * (1.0 - (s / segments) * 0.4);
-            const r1 = trunkRadius * (1.0 - ((s + 1) / segments) * 0.4);
-
-            const corners = [
-              [Math.cos(0), Math.sin(0)],
-              [Math.cos(Math.PI / 2), Math.sin(Math.PI / 2)],
-              [Math.cos(Math.PI), Math.sin(Math.PI)],
-              [Math.cos(3 * Math.PI / 2), Math.sin(3 * Math.PI / 2)],
-            ];
+          const segs = 6;
+          for (let s = 0; s < segs; s++) {
+            const y0 = (s / segs) * trunkHeight;
+            const y1 = ((s + 1) / segs) * trunkHeight;
 
             for (let c = 0; c < 4; c++) {
               const nextC = (c + 1) % 4;
 
               linePositions.push(
-                corners[c][0] * r0, y0, corners[c][1] * r0,
-                corners[c][0] * r1, y1, corners[c][1] * r1
+                pillarCorners[c][0] * trunkRadius, y0, pillarCorners[c][1] * trunkRadius,
+                pillarCorners[c][0] * trunkRadius, y1, pillarCorners[c][1] * trunkRadius
               );
 
               linePositions.push(
-                corners[c][0] * r0, y0, corners[c][1] * r0,
-                corners[nextC][0] * r1, y1, corners[nextC][1] * r1
+                pillarCorners[c][0] * trunkRadius, y0, pillarCorners[c][1] * trunkRadius,
+                pillarCorners[nextC][0] * trunkRadius, y0, pillarCorners[nextC][1] * trunkRadius
               );
 
-              linePositions.push(
-                corners[c][0] * r0, y0, corners[c][1] * r0,
-                corners[nextC][0] * r0, y0, corners[nextC][1] * r0
-              );
-
-              nodePositions.push(corners[c][0] * r0, y0, corners[c][1] * r0);
+              nodePositions.push(pillarCorners[c][0] * trunkRadius, y0, pillarCorners[c][1] * trunkRadius);
+              nodeColors.push(0.9, 0.9, 1.0);
             }
           }
 
-          const numBranches = 5;
-          for (let b = 0; b < numBranches; b++) {
-            const angle = (b / numBranches) * Math.PI * 2.0 + Math.random() * 0.4;
-            const branchLen = 3.5 + Math.random() * 1.5;
-            const startY = trunkHeight * 0.7;
+          // 2. Shibuya Sakura Stage Architectural 3D Cubic Grid Matrix Canopy (At Top)
+          const canopyY = trunkHeight;
+          const gridSizeX = 4;
+          const gridSizeZ = 4;
+          const gridLevels = 3;
+          const stepSize = 1.2;
 
-            for (let step = 0; step < 5; step++) {
-              const t0 = step / 5;
-              const t1 = (step + 1) / 5;
+          const halfX = ((gridSizeX - 1) * stepSize) / 2.0;
+          const halfZ = ((gridSizeZ - 1) * stepSize) / 2.0;
 
-              const p0x = Math.cos(angle) * branchLen * t0;
-              const p0y = startY + Math.sin(t0 * Math.PI * 0.5) * branchLen * t0;
-              const p0z = Math.sin(angle) * branchLen * t0;
+          for (let gx = 0; gx < gridSizeX; gx++) {
+            for (let gy = 0; gy < gridLevels; gy++) {
+              for (let gz = 0; gz < gridSizeZ; gz++) {
+                const px = gx * stepSize - halfX;
+                const py = canopyY + gy * stepSize;
+                const pz = gz * stepSize - halfZ;
 
-              const p1x = Math.cos(angle) * branchLen * t1;
-              const p1y = startY + Math.sin(t1 * Math.PI * 0.5) * branchLen * t1;
-              const p1z = Math.sin(angle) * branchLen * t1;
+                // Glowing Light Bulb Node at every grid intersection!
+                nodePositions.push(px, py, pz);
+                nodeColors.push(1.0, 0.45, 0.9);
 
-              linePositions.push(p0x, p0y, p0z, p1x, p1y, p1z);
-              nodePositions.push(p1x, p1y, p1z);
+                // Connect X beam
+                if (gx < gridSizeX - 1) {
+                  linePositions.push(px, py, pz, px + stepSize, py, pz);
+                }
+                // Connect Y vertical strut
+                if (gy < gridLevels - 1) {
+                  linePositions.push(px, py, pz, px, py + stepSize, pz);
+                }
+                // Connect Z beam
+                if (gz < gridSizeZ - 1) {
+                  linePositions.push(px, py, pz, px, py, pz + stepSize);
+                }
+              }
             }
           }
 
           for (let i = 0; i < linePositions.length / 3; i++) {
             const ratio = i / (linePositions.length / 3);
-            lineColors.push(0.3 + 0.7 * ratio, 0.8 - 0.5 * ratio, 0.9 + 0.1 * ratio);
+            lineColors.push(
+              0.4 + 0.6 * Math.sin(ratio * Math.PI),
+              0.5 + 0.5 * Math.cos(ratio * Math.PI),
+              0.95
+            );
           }
           for (let i = 0; i < nodePositions.length / 3; i++) {
             nodeColors.push(1.0, 0.3, 0.85);
@@ -4260,6 +4277,7 @@
 
               if (!isBlütenCompleted) {
                 isBlütenCompleted = true;
+                markArtworkCompleted('bluten');
                 checkUnlockWald();
               }
             }
@@ -4546,12 +4564,10 @@
             }
           }
 
-          // TRIGGER CONDITION: Only trigger sphere formation when ALL 8 plexus clusters are in ONE SINGLE connected graph!
           if (maxConnectedComponentSize >= 8 && !isPlexusSphereActive && (activeMode === 'plexus' || activeMode === 'wald')) {
             isPlexusSphereActive = true;
             plexusSphereStartTime = totalTime;
             hasExplodedThisFrame = false;
-            markArtworkCompleted('plexus');
           }
 
           // Execute 3D Sphere Transformation -> IMPLOSION -> GIANT SUPERNOVA EXPLOSION!
@@ -4563,6 +4579,7 @@
               isPlexusSphereActive = false;
               activePlexusClusters.length = 0;
               isPlexusCompleted = true;
+              markArtworkCompleted('plexus');
               checkUnlockWald();
             } else {
               let sphereRadius = 145.0;
