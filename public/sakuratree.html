@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shibuya Sakura Stage — 3D Gitterbaum Replika</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #08000d;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #fff;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .hud-title {
+      position: absolute;
+      top: 24px;
+      left: 28px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .hud-title h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, #fff 0%, #ff80df 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .hud-title p {
+      font-size: 13px;
+      color: rgba(255, 200, 240, 0.7);
+      letter-spacing: 0.5px;
+    }
+    .controls-panel {
+      position: absolute;
+      bottom: 24px;
+      left: 28px;
+      z-index: 10;
+      background: rgba(18, 8, 25, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 128, 223, 0.25);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    .ctrl-btn {
+      background: rgba(255, 128, 223, 0.12);
+      border: 1px solid rgba(255, 128, 223, 0.35);
+      color: #ffd8f6;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .ctrl-btn:hover {
+      background: rgba(255, 128, 223, 0.28);
+      border-color: rgba(255, 128, 223, 0.6);
+      transform: translateY(-1px);
+    }
+    .ctrl-btn.active {
+      background: linear-gradient(135deg, #ff40bf 0%, #d80090 100%);
+      border-color: #ff80df;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(255, 64, 191, 0.4);
+    }
+  </style>
+  <!-- Three.js & OrbitControls from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="hud-title">
+    <h1>SHIBUYA SAKURA STAGE — GITTERBAUM REPLIKA</h1>
+    <p>1:1 3D Architectural Lattice Grid Tree Model (Three.js)</p>
+  </div>
+
+  <div class="controls-panel">
+    <button class="ctrl-btn active" id="btnRotate">Auto-Rotation: AN</button>
+    <button class="ctrl-btn" id="btnWireframe">Modus: Solid Beams</button>
+    <button class="ctrl-btn" id="btnColorTheme">Farbe: Sakura Pink</button>
+    <button class="ctrl-btn" id="btnResetCam">Kamera zurücksetzen</button>
+  </div>
+
+  <script>
+    // --- 1. Scene, Camera & Renderer Setup ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x08000d, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(18, 12, 24);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.05; // Don't go far below ground
+    controls.target.set(0, 7, 0);
+
+    // --- 2. Lighting Setup ---
+    const ambientLight = new THREE.AmbientLight(0xffd0f0, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(15, 30, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    scene.add(dirLight);
+
+    const pinkSpotLight = new THREE.PointLight(0xff33aa, 3.5, 45);
+    pinkSpotLight.position.set(0, 10, 0);
+    scene.add(pinkSpotLight);
+
+    // Ground Reflection Disk (Shibuya Sakura Stage Plaza Floor)
+    const groundGeo = new THREE.CylinderGeometry(16, 16, 0.2, 64);
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0x12081a,
+      roughness: 0.25,
+      metalness: 0.6,
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.position.y = -0.1;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const ringGeo = new THREE.RingGeometry(7.8, 8.1, 64);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xff40bf,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.8
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.02;
+    scene.add(ring);
+
+    // --- 3. Shibuya Sakura Stage Gitterbaum 1:1 Architecture ---
+    const treeGroup = new THREE.Group();
+    scene.add(treeGroup);
+
+    // Materials
+    let isWireframe = false;
+    let colorTheme = 0; // 0 = Pink, 1 = Cyan, 2 = Warm White
+
+    const beamMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffd6f3,
+      metalness: 0.8,
+      roughness: 0.2,
+      emissive: 0x660044,
+      emissiveIntensity: 0.3
+    });
+
+    const pillarMaterial = new THREE.MeshStandardMaterial({
+      color: 0xe0e0e0,
+      metalness: 0.95,
+      roughness: 0.08,
+    });
+
+    const bulbMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xff66cc,
+      emissiveIntensity: 2.2,
+      roughness: 0.1
+    });
+
+    // A. Metallic Mirror Pillar (Trunk)
+    const trunkHeight = 7.5;
+    const trunkRadius = 0.22;
+    const pillarGeo = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight, 32);
+    const pillar = new THREE.Mesh(pillarGeo, pillarMaterial);
+    pillar.position.y = trunkHeight / 2;
+    pillar.castShadow = true;
+    pillar.receiveShadow = true;
+    treeGroup.add(pillar);
+
+    // Base Flange Collar
+    const collarGeo = new THREE.CylinderGeometry(trunkRadius * 1.6, trunkRadius * 1.8, 0.3, 32);
+    const collar = new THREE.Mesh(collarGeo, pillarMaterial);
+    collar.position.y = 0.15;
+    treeGroup.add(collar);
+
+    // B. Architectural 3D Cubic Grid Canopy Matrix (Multi-Tiered Lattice)
+    const beamThickness = 0.055;
+    const unitStep = 0.85; // Distance between grid vertices
+    const bulbRadius = 0.075;
+
+    // Canopy Grid Tiers Definition: [levelY, startGx, endGx, startGz, endGz]
+    // Replicating the Shibuya Sakura Stage stepped cascading horizontal canopy cloud!
+    const gridTiers = [
+      // Tier 0: Attachment layer at column top (3x3 grid)
+      { y: 0, minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
+      // Tier 1: Main lower expanding canopy (7x7 grid)
+      { y: 1, minX: -3, maxX: 3, minZ: -3, maxZ: 3 },
+      // Tier 2: Middle wide stepped canopy cloud (7x7 grid with central expansion)
+      { y: 2, minX: -3, maxX: 3, minZ: -3, maxZ: 3 },
+      // Tier 3: Upper crowning canopy tier (5x5 grid)
+      { y: 3, minX: -2, maxX: 2, minZ: -2, maxZ: 2 },
+      // Tier 4: Top pinnacle accent tier (3x3 grid)
+      { y: 4, minX: -1, maxX: 1, minZ: -1, maxZ: 1 }
+    ];
+
+    const canopyBaseY = trunkHeight;
+
+    // Sets to keep track of created vertices and beams (avoid duplicates)
+    const verticesMap = new Map();
+    const beamsList = [];
+
+    function getKey(gx, gy, gz) {
+      return `${gx},${gy},${gz}`;
+    }
+
+    // 1. Build Grid Vertices & Horizontal/Vertical Connections
+    gridTiers.forEach((tier) => {
+      const gy = tier.y;
+      for (let gx = tier.minX; gx <= tier.maxX; gx++) {
+        for (let gz = tier.minZ; gz <= tier.maxZ; gz++) {
+          // Omit outer corner cutouts for organic stepped architectural shape
+          if (Math.abs(gx) === tier.maxX && Math.abs(gz) === tier.maxZ && tier.maxX > 2) continue;
+
+          const key = getKey(gx, gy, gz);
+          if (!verticesMap.has(key)) {
+            const posX = gx * unitStep;
+            const posY = canopyBaseY + gy * unitStep;
+            const posZ = gz * unitStep;
+            verticesMap.set(key, { gx, gy, gz, x: posX, y: posY, z: posZ });
+          }
+        }
+      }
+    });
+
+    // 2. Generate Interlocking X, Y, Z Beams between neighboring vertices
+    const bulbGeo = new THREE.SphereGeometry(bulbRadius, 16, 16);
+    const bulbInstanced = new THREE.InstancedMesh(bulbGeo, bulbMaterial, verticesMap.size);
+
+    let bulbIdx = 0;
+    const dummy = new THREE.Object3D();
+
+    verticesMap.forEach((v, key) => {
+      // Place LED Bulb at vertex
+      dummy.position.set(v.x, v.y, v.z);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      bulbInstanced.setMatrixAt(bulbIdx++, dummy.matrix);
+
+      // Check Neighbor +X
+      const keyX = getKey(v.gx + 1, v.gy, v.gz);
+      if (verticesMap.has(keyX)) {
+        beamsList.push({
+          x: v.x + unitStep / 2, y: v.y, z: v.z,
+          sx: unitStep, sy: beamThickness, sz: beamThickness
+        });
+      }
+
+      // Check Neighbor +Y (Vertical Struts)
+      const keyY = getKey(v.gx, v.gy + 1, v.gz);
+      if (verticesMap.has(keyY)) {
+        beamsList.push({
+          x: v.x, y: v.y + unitStep / 2, z: v.z,
+          sx: beamThickness, sy: unitStep, sz: beamThickness
+        });
+      }
+
+      // Check Neighbor +Z
+      const keyZ = getKey(v.gx, v.gy, v.gz + 1);
+      if (verticesMap.has(keyZ)) {
+        beamsList.push({
+          x: v.x, y: v.y, z: v.z + unitStep / 2,
+          sx: beamThickness, sy: beamThickness, sz: unitStep
+        });
+      }
+    });
+
+    treeGroup.add(bulbInstanced);
+
+    // Create 3D Solid Square Beams Mesh
+    const beamBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const beamInstanced = new THREE.InstancedMesh(beamBoxGeo, beamMaterial, beamsList.length);
+
+    beamsList.forEach((b, i) => {
+      dummy.position.set(b.x, b.y, b.z);
+      dummy.scale.set(b.sx, b.sy, b.sz);
+      dummy.updateMatrix();
+      beamInstanced.setMatrixAt(i, dummy.matrix);
+    });
+
+    beamInstanced.castShadow = true;
+    beamInstanced.receiveShadow = true;
+    treeGroup.add(beamInstanced);
+
+    // --- 4. Interactive HUD Button Logic ---
+    let autoRotate = true;
+    const btnRotate = document.getElementById('btnRotate');
+    const btnWireframe = document.getElementById('btnWireframe');
+    const btnColorTheme = document.getElementById('btnColorTheme');
+    const btnResetCam = document.getElementById('btnResetCam');
+
+    btnRotate.addEventListener('click', () => {
+      autoRotate = !autoRotate;
+      btnRotate.classList.toggle('active', autoRotate);
+      btnRotate.textContent = `Auto-Rotation: ${autoRotate ? 'AN' : 'AUS'}`;
+    });
+
+    btnWireframe.addEventListener('click', () => {
+      isWireframe = !isWireframe;
+      beamMaterial.wireframe = isWireframe;
+      btnWireframe.classList.toggle('active', isWireframe);
+      btnWireframe.textContent = `Modus: ${isWireframe ? 'Wireframe' : 'Solid Beams'}`;
+    });
+
+    btnColorTheme.addEventListener('click', () => {
+      colorTheme = (colorTheme + 1) % 3;
+      if (colorTheme === 0) {
+        // Sakura Pink
+        beamMaterial.color.setHex(0xffd6f3);
+        beamMaterial.emissive.setHex(0x660044);
+        bulbMaterial.emissive.setHex(0xff66cc);
+        pinkSpotLight.color.setHex(0xff33aa);
+        ringMat.color.setHex(0xff40bf);
+        btnColorTheme.textContent = "Farbe: Sakura Pink";
+      } else if (colorTheme === 1) {
+        // Neon Cyan
+        beamMaterial.color.setHex(0xc2f8ff);
+        beamMaterial.emissive.setHex(0x004466);
+        bulbMaterial.emissive.setHex(0x00e5ff);
+        pinkSpotLight.color.setHex(0x00bfff);
+        ringMat.color.setHex(0x00e5ff);
+        btnColorTheme.textContent = "Farbe: Neon Cyan";
+      } else {
+        // Warm White Gold
+        beamMaterial.color.setHex(0xfff5e6);
+        beamMaterial.emissive.setHex(0x553300);
+        bulbMaterial.emissive.setHex(0xffcc66);
+        pinkSpotLight.color.setHex(0xffaa33);
+        ringMat.color.setHex(0xffbb44);
+        btnColorTheme.textContent = "Farbe: Warm Gold";
+      }
+    });
+
+    btnResetCam.addEventListener('click', () => {
+      camera.position.set(18, 12, 24);
+      controls.target.set(0, 7, 0);
+      controls.update();
+    });
+
+    // --- 5. Animation Loop & Responsive Resize ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const time = clock.getElapsedTime();
+
+      if (autoRotate) {
+        treeGroup.rotation.y += delta * 0.25;
+      }
+
+      // Subtle breathing light pulse for bulb nodes
+      bulbMaterial.emissiveIntensity = 2.0 + Math.sin(time * 3.0) * 0.4;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
