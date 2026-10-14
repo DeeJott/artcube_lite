@@ -2,7 +2,7 @@ name: Deploy Next.js site to Pages
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "dawda-new-experience"]
   workflow_dispatch:
 
 permissions:

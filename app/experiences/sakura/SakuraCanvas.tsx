@@ -10,8 +10,8 @@ import type { ExperienceComponentProps } from '../../lib/experience-types';
 
 const MAX_PETALS = 600;
 const MAX_TRAIL_PARTICLES = 2000;
-const MAX_TOTAL_NODES = 350;
-const MAX_TOTAL_LINES = 1000;
+const MAX_TOTAL_NODES = 600;
+const MAX_TOTAL_LINES = 2500;
 
 function createNoiseTexture(): THREE.DataTexture {
   const size = 256;
@@ -38,12 +38,12 @@ function generatePetalTexture(): THREE.CanvasTexture {
   c.height = 64;
   const ctx = c.getContext('2d');
   if (ctx) {
-    ctx.filter = 'drop-shadow(0px 0px 8px rgba(255, 180, 235, 0.9))';
+    ctx.filter = 'drop-shadow(0px 0px 8px rgba(255, 255, 255, 0.9))';
     const grad = ctx.createLinearGradient(0, 0, 64, 64);
     grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.3, '#ffccf2');
-    grad.addColorStop(0.7, '#ff66cc');
-    grad.addColorStop(1, '#ff1a8c');
+    grad.addColorStop(0.3, '#f5f5f5');
+    grad.addColorStop(0.7, '#e0e0e0');
+    grad.addColorStop(1, '#c0c0c0');
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(32, 4);
@@ -52,6 +52,61 @@ function generatePetalTexture(): THREE.CanvasTexture {
     ctx.bezierCurveTo(4, 32, 14, 12, 32, 4);
     ctx.fill();
   }
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function generateStarCrossTexture(hexColorStr: string): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    const cx = 64, cy = 64;
+
+    // Soft radial glow aura
+    const rad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 56);
+    rad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    rad.addColorStop(0.25, hexColorStr + 'bb');
+    rad.addColorStop(0.55, hexColorStr + '33');
+    rad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = rad;
+    ctx.fillRect(0, 0, 128, 128);
+
+    // Starburst cross flares rotated at 45deg and -45deg
+    const angles = [Math.PI / 4, -Math.PI / 4];
+    const half = 52;
+
+    for (let i = 0; i < angles.length; i++) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angles[i]);
+
+      const flareGrad = ctx.createLinearGradient(-half, 0, half, 0);
+      flareGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      flareGrad.addColorStop(0.5, '#ffffff');
+      flareGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.shadowColor = hexColorStr;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = flareGrad;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-half, 0);
+      ctx.lineTo(half, 0);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Central core glint dot
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   const tex = new THREE.CanvasTexture(c);
   tex.needsUpdate = true;
   return tex;
@@ -74,6 +129,11 @@ const bgFragmentShader = /* glsl */ `
   uniform float uGridVibe;
   uniform float uRippleActive;
   uniform float uRippleTime;
+  uniform vec3 uBgColor1;
+  uniform vec3 uBgColor2;
+  uniform vec3 uBgColor3;
+  uniform vec3 uRippleCrest;
+  uniform float uBgBlend;
   varying vec2 vUv;
 
   float noise(in vec2 x) {
@@ -100,7 +160,7 @@ const bgFragmentShader = /* glsl */ `
     return f / 0.96875;
   }
 
-  float pattern(in vec2 p, in float t) {
+  float pattern(in vec2 p, in float t, in vec2 uv) {
     vec2 q = vec2(fbm(p), fbm(p + vec2(10.0, 1.3)));
     vec2 r = vec2(fbm(p + 4.0 * q + vec2(t) + vec2(1.7, 9.2)), fbm(p + 4.0 * q + vec2(t) + vec2(8.3, 2.8)));
     vec2 g = vec2(fbm(p + 2.0 * r + vec2(t * 20.0) + vec2(2.0, 6.0)), fbm(p + 2.0 * r + vec2(t * 10.0) + vec2(5.0, 3.0)));
@@ -114,20 +174,23 @@ const bgFragmentShader = /* glsl */ `
     vec2 rippleOffset = vec2(0.0);
     float waveNormal = 0.0;
     float waveFade = 0.0;
+    float insideWave = 0.0;
 
+    // Transparente Wasser-Lichtbrechungs-Verzerrung & Farbtransformation
     if (uRippleActive > 0.5) {
       vec2 centerUv = uv - vec2(0.5);
       centerUv.x *= iResolution.x / iResolution.y;
       float dist = length(centerUv);
 
-      float waveRadius = (uRippleTime / 2.0) * 1.35;
+      float waveRadius = (uRippleTime / 3.0) * 1.8;
       float waveDist = abs(dist - waveRadius);
 
-      float wavePhase = waveDist * 35.0 - uRippleTime * 10.0;
-      waveNormal = cos(wavePhase) * exp(-waveDist * waveDist * 120.0);
-      waveFade = smoothstep(2.0, 1.5, uRippleTime) * smoothstep(0.0, 0.1, uRippleTime);
+      float wavePhase = waveDist * 32.0 - uRippleTime * 9.0;
+      waveNormal = cos(wavePhase) * exp(-waveDist * waveDist * 110.0);
+      waveFade = smoothstep(3.0, 2.2, uRippleTime) * smoothstep(0.0, 0.1, uRippleTime);
 
-      rippleOffset = normalize(centerUv + vec2(0.0001)) * waveNormal * 0.035 * waveFade;
+      insideWave = smoothstep(waveRadius + 0.15, waveRadius - 0.15, dist) * waveFade;
+      rippleOffset = normalize(centerUv + vec2(0.0001)) * waveNormal * 0.045 * waveFade;
     }
 
     vec2 distortedFragCoord = fragCoord + rippleOffset * iResolution.xy;
@@ -145,35 +208,33 @@ const bgFragmentShader = /* glsl */ `
       distortedUv = mix(distortedUv, kUV, uKaleidoscope);
     }
 
-    float noiseVal = pattern(distortedFragCoord * vec2(0.004), iTime * 0.007);
+    float noiseVal = pattern(distortedFragCoord * vec2(0.004), iTime * 0.007, distortedUv);
     
-    vec3 col = mix(vec3(0.05, 0.00, 0.02), vec3(0.74, 0.00, 0.36), smoothstep(0.0, 1.0, noiseVal));
-    col = mix(col, vec3(0.28, 0.00, 0.13), noiseVal * 0.8);
-    col = mix(col, vec3(0.80, 0.04, 0.44), 0.35 * noiseVal);
-    col = mix(col, vec3(0.48, 0.00, 0.24), smoothstep(0.0, 0.6, 0.6 * noiseVal));
-    col = mix(col, vec3(0.80, 0.36, 0.62), 0.12 * noiseVal);
+    float effectiveBlend = clamp(max(uBgBlend, insideWave), 0.0, 1.0);
+    vec3 baseC1 = mix(vec3(0.05, 0.00, 0.02), uBgColor1, effectiveBlend);
+    vec3 baseC2 = mix(vec3(0.74, 0.00, 0.36), uBgColor2, effectiveBlend);
+    vec3 baseC3 = mix(vec3(0.80, 0.04, 0.44), uBgColor3, effectiveBlend);
+
+    vec3 col = mix(baseC1, baseC2, smoothstep(0.0, 1.0, noiseVal));
+    col = mix(col, baseC1 * 2.2, noiseVal * 0.8);
+    col = mix(col, baseC3, 0.35 * noiseVal);
+    col = mix(col, baseC2 * 0.7, smoothstep(0.0, 0.6, 0.6 * noiseVal));
+    col = mix(col, baseC3 * 1.1, 0.12 * noiseVal);
     
     col *= noiseVal * 1.68;
 
     if (uKaleidoscope > 0.001) {
-      vec3 colKaleido = vec3(0.95, 0.35, 0.85) * (0.8 + 0.5 * sin(iTime * 1.5 + noiseVal * 6.28));
+      vec3 colKaleido = mix(baseC3, vec3(1.0), 0.3) * (0.8 + 0.5 * sin(iTime * 1.5 + noiseVal * 6.28));
       col = mix(col, col * 1.35 + colKaleido * 0.4, uKaleidoscope * 0.7);
     }
 
-    if (uGridVibe > 0.001) {
-      vec2 gUV = (distortedUv - vec2(0.5)) * vec2(iResolution.x / iResolution.y, 1.0);
-      vec2 gridLines = abs(fract(gUV * 18.0 - vec2(0.0, iTime * 0.5)) - 0.5);
-      float lineIntensity = smoothstep(0.46, 0.5, max(gridLines.x, gridLines.y));
-      float scanline = sin(gUV.y * 70.0 - iTime * 10.0) * 0.5 + 0.5;
-      vec3 gridColor = vec3(1.0, 0.12, 0.70) * lineIntensity * 1.5 + vec3(0.1, 0.85, 1.0) * scanline * lineIntensity * 0.7;
-      col = mix(col, col * 0.75 + gridColor, uGridVibe * 0.85);
-    }
+    // Grid removed: uGridVibe is always 0.0
 
     if (uRippleActive > 0.5) {
-      col += vec3(0.14, 0.08, 0.18) * waveNormal * waveFade;
+      col += uRippleCrest * waveNormal * waveFade * 0.65;
     }
 
-    col *= 0.70 + 0.65 * sqrt(70.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y));
+    col *= 0.80 * (0.70 + 0.65 * sqrt(70.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y)));
     
     gl_FragColor = vec4(col, 1.0);
   }
@@ -200,12 +261,114 @@ const sumiVertexShader = /* glsl */ `
   }
 `;
 
+export type BlossomColorId = 'pink' | 'red' | 'blue' | 'green' | 'yellow';
+
+export interface BlossomColorConfig {
+  id: BlossomColorId;
+  name: string;
+  uiColor: string;
+  glow: string;
+  shades: number[];
+  vortexTint: number;
+}
+
+export const BLOSSOM_PALETTES: Record<BlossomColorId, BlossomColorConfig> = {
+  pink: {
+    id: 'pink',
+    name: 'Pink',
+    uiColor: '#ff4da6',
+    glow: 'rgba(255, 77, 166, 0.7)',
+    shades: [0xffaae6, 0xff77dd, 0xff55cc, 0xff88ee, 0xffccee],
+    vortexTint: 0xff66cc
+  },
+  red: {
+    id: 'red',
+    name: 'Rot',
+    uiColor: '#ff2a4b',
+    glow: 'rgba(255, 42, 75, 0.7)',
+    shades: [0xff3366, 0xff5577, 0xff2a55, 0xff7088, 0xff4466],
+    vortexTint: 0xff2a4b
+  },
+  blue: {
+    id: 'blue',
+    name: 'Blau',
+    uiColor: '#00c3ff',
+    glow: 'rgba(0, 195, 255, 0.7)',
+    shades: [0x38bdf8, 0x0ea5e9, 0x60a5fa, 0x0284c7, 0x7dd3fc],
+    vortexTint: 0x00c3ff
+  },
+  green: {
+    id: 'green',
+    name: 'Grün',
+    uiColor: '#10e782',
+    glow: 'rgba(16, 231, 130, 0.7)',
+    shades: [0x34d399, 0x10b981, 0x059669, 0x6ee7b7, 0x00f59b],
+    vortexTint: 0x10e782
+  },
+  yellow: {
+    id: 'yellow',
+    name: 'Gelb',
+    uiColor: '#ffd000',
+    glow: 'rgba(255, 208, 0, 0.7)',
+    shades: [0xfbbf24, 0xf59e0b, 0xfde047, 0xfacc15, 0xffea00],
+    vortexTint: 0xffd000
+  }
+};
+
+export const PALETTE_RGB_CACHE: Record<BlossomColorId, { r: number; g: number; b: number }[]> = {
+  pink: BLOSSOM_PALETTES.pink.shades.map(s => { const c = new THREE.Color(s); return { r: c.r, g: c.g, b: c.b }; }),
+  red: BLOSSOM_PALETTES.red.shades.map(s => { const c = new THREE.Color(s); return { r: c.r, g: c.g, b: c.b }; }),
+  blue: BLOSSOM_PALETTES.blue.shades.map(s => { const c = new THREE.Color(s); return { r: c.r, g: c.g, b: c.b }; }),
+  green: BLOSSOM_PALETTES.green.shades.map(s => { const c = new THREE.Color(s); return { r: c.r, g: c.g, b: c.b }; }),
+  yellow: BLOSSOM_PALETTES.yellow.shades.map(s => { const c = new THREE.Color(s); return { r: c.r, g: c.g, b: c.b }; }),
+};
+
+export const BG_COLOR_PALETTES = {
+  default: {
+    c1: new THREE.Vector3(0.05, 0.00, 0.02),
+    c2: new THREE.Vector3(0.74, 0.00, 0.36),
+    c3: new THREE.Vector3(0.80, 0.04, 0.44),
+    crest: new THREE.Vector3(1.0, 0.4, 0.8)
+  },
+  pink: {
+    c1: new THREE.Vector3(0.06, 0.00, 0.03),
+    c2: new THREE.Vector3(0.82, 0.02, 0.46),
+    c3: new THREE.Vector3(0.95, 0.18, 0.65),
+    crest: new THREE.Vector3(1.0, 0.45, 0.85)
+  },
+  red: {
+    c1: new THREE.Vector3(0.07, 0.00, 0.01),
+    c2: new THREE.Vector3(0.85, 0.03, 0.15),
+    c3: new THREE.Vector3(1.00, 0.15, 0.25),
+    crest: new THREE.Vector3(1.0, 0.3, 0.35)
+  },
+  blue: {
+    c1: new THREE.Vector3(0.00, 0.02, 0.08),
+    c2: new THREE.Vector3(0.00, 0.48, 0.88),
+    c3: new THREE.Vector3(0.12, 0.72, 1.00),
+    crest: new THREE.Vector3(0.3, 0.85, 1.0)
+  },
+  green: {
+    c1: new THREE.Vector3(0.00, 0.06, 0.02),
+    c2: new THREE.Vector3(0.00, 0.72, 0.38),
+    c3: new THREE.Vector3(0.18, 0.95, 0.58),
+    crest: new THREE.Vector3(0.35, 1.0, 0.65)
+  },
+  yellow: {
+    c1: new THREE.Vector3(0.07, 0.04, 0.00),
+    c2: new THREE.Vector3(0.88, 0.58, 0.00),
+    c3: new THREE.Vector3(1.00, 0.82, 0.12),
+    crest: new THREE.Vector3(1.0, 0.9, 0.4)
+  }
+};
+
 const sumiFragmentShader = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vPosition;
   uniform vec3 uColor;
   uniform float uTotalLength;
   uniform float uProgress;
+  uniform float uAlpha;
 
   vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
   float snoise(vec2 v){
@@ -245,12 +408,13 @@ const sumiFragmentShader = /* glsl */ `
     
     float distFromStart = vUv.y;
     float distFromEnd = currentLength - vUv.y;
-    alpha *= smoothstep(0.0, 0.2, distFromStart);
-    alpha *= smoothstep(0.0, 0.25, distFromEnd);
+    float startFade = smoothstep(0.0, min(0.12, currentLength * 0.35), distFromStart);
+    float endFade = smoothstep(0.0, min(0.15, currentLength * 0.35), distFromEnd);
+    alpha *= clamp(startFade * endFade + 0.15, 0.0, 1.0);
 
-    vec3 sepiaWood = mix(vec3(1.0, 0.96, 0.90), vec3(0.78, 0.60, 0.44), erosion);
-    vec3 finalColor = mix(sepiaWood, uColor, erosion);
-    gl_FragColor = vec4(finalColor, alpha);
+    vec3 greyWhiteBase = mix(vec3(0.97, 0.97, 0.98), vec3(0.78, 0.80, 0.84), erosion);
+    vec3 finalColor = mix(greyWhiteBase, uColor, erosion * 0.90);
+    gl_FragColor = vec4(finalColor, alpha * uAlpha);
   }
 `;
 
@@ -289,7 +453,8 @@ const ringFragmentShader = /* glsl */ `
   }
 `;
 
-const orbFragmentShader = /* glsl */ `
+// Dedicated Sakura / Blüten Branch & Petal Guide Orb Shader (Pure delicate Sakura pink/magenta glow, no noise distortion, no green spectral color cycling)
+const sakuraOrbFragmentShader = /* glsl */ `
   varying vec2 vUv;
   uniform float uAlpha;
   uniform float uTime;
@@ -300,16 +465,480 @@ const orbFragmentShader = /* glsl */ `
     float r = length(p);
     if (r > 0.5) discard;
 
-    float core = smoothstep(0.48, 0.0, r);
-    float glow = pow(smoothstep(0.5, 0.0, r), 1.8);
-    float pulse = 0.85 + 0.15 * sin(uTime * 4.5);
-    vec3 col = mix(uColor, vec3(1.0, 1.0, 1.0), core * 0.85);
-    
-    gl_FragColor = vec4(col, (core * 0.95 + glow * 0.45) * uAlpha * pulse);
+    float core = exp(-r * r * 45.0);
+    float glow = exp(-r * 7.5) * 0.75;
+    float pulse = 0.88 + 0.12 * sin(uTime * 5.0);
+    float intensity = (core * 1.6 + glow) * pulse;
+
+    vec3 col = mix(uColor, vec3(1.0, 0.95, 0.98), core * 0.75);
+    float alpha = intensity * uAlpha * smoothstep(0.5, 0.22, r);
+
+    if (alpha < 0.005) discard;
+    gl_FragColor = vec4(col, alpha);
   }
 `;
 
-// 4. 4,000 Particle Trail Shaders
+// Dedicated Volumetric Fractal Energy Orb Shaders
+const fractalOrbVertexShader = /* glsl */ `
+  varying vec3 vLocalPosition;
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+
+  void main() {
+    vLocalPosition = position;
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPosition.xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const fractalOrbFragmentShader = /* glsl */ `
+  uniform float uTime;
+  uniform vec3 uLocalCamPos;
+  uniform vec3 uPrimaryColor;
+  uniform vec3 uSecondaryColor;
+  uniform float uDensity;
+  uniform float uAlpha;
+  
+  // Fractal specific uniforms
+  uniform float uFractalIters;
+  uniform float uFractalScale;
+  uniform float uFractalDecay;
+  uniform float uInternalAnim;
+  uniform float uSmoothness;
+  uniform float uAsymmetry;
+  uniform float uRadius;
+  
+  varying vec3 vLocalPosition;
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+
+  float evaluateStructure(vec3 pos) {
+    float densityAcc = 0.0;
+    vec3 anchor = pos;
+    
+    float animTime = uTime * uInternalAnim;
+    float s = sin(animTime);
+    float c = cos(animTime);
+    mat2 rotAnim = mat2(c, s, -s, c);
+
+    float a = 0.5 * uAsymmetry;
+    mat2 rotAsym1 = mat2(cos(a), sin(a), -sin(a), cos(a));
+    float b = 0.3 * uAsymmetry;
+    mat2 rotAsym2 = mat2(cos(b), sin(b), -sin(b), cos(b));
+    
+    for (int step = 0; step < 12; ++step) {
+      if (float(step) >= uFractalIters) break;
+      
+      pos.xy *= rotAnim;
+      pos.yz *= rotAnim;
+      
+      pos.xz *= rotAsym1;
+      pos.yz *= rotAsym2;
+      pos += vec3(0.05, -0.02, 0.03) * uAsymmetry;
+      
+      vec3 foldedPos = sqrt(pos * pos + uSmoothness);
+      float magnitudeSq = dot(foldedPos, foldedPos);
+      magnitudeSq = max(magnitudeSq, 0.00001); 
+      
+      pos = (uFractalScale * foldedPos / magnitudeSq) - uFractalScale;
+      
+      float ySq = pos.y * pos.y;
+      float zSq = pos.z * pos.z;
+      float yz2 = 2.0 * pos.y * pos.z;
+      pos.yz = vec2(ySq - zSq, yz2);
+      
+      pos = vec3(pos.z, pos.x, pos.y);
+      
+      densityAcc += exp(uFractalDecay * abs(dot(pos, anchor)));
+    }
+    
+    return densityAcc * 0.5;
+  }
+
+  vec2 getVolumeBounds(vec3 origin, vec3 dir, float radius) {
+    float b = dot(origin, dir);
+    float c = dot(origin, origin) - radius * radius;
+    float discriminant = b * b - c;
+    
+    if (discriminant < 0.0) {
+      return vec2(-1.0);
+    }
+    
+    float root = sqrt(discriminant);
+    return vec2(-b - root, -b + root);
+  }
+
+  vec3 traceEnergy(vec3 origin, vec3 dir, vec2 limits, float radius) {
+    float currentDepth = limits.x;
+    float marchStep = (limits.y - limits.x) / 48.0;
+    vec3 finalEnergy = vec3(0.0);
+    float fieldVal = 0.0;
+    float normScale = 2.0 / radius;
+    
+    for(int i = 0; i < 48; i++) {
+      currentDepth += marchStep * exp(-1.5 * fieldVal);
+      if(currentDepth > limits.y) break;
+      
+      vec3 samplePoint = origin + currentDepth * dir;
+      vec3 normSample = samplePoint * normScale;
+      fieldVal = evaluateStructure(normSample);
+      
+      float vSq = fieldVal * fieldVal;
+      float gradientBlend = smoothstep(0.0, 0.4, fieldVal);
+      vec3 currentGradient = mix(uSecondaryColor, uPrimaryColor, gradientBlend);
+      
+      vec3 emission = currentGradient * (fieldVal * 1.8 + vSq * 1.0);
+      finalEnergy = 0.99 * finalEnergy + (0.08 * uDensity) * emission;
+    }
+    
+    return finalEnergy;
+  }
+
+  void main() {
+    if (uAlpha < 0.005) discard;
+    
+    vec3 rayOrig = uLocalCamPos;
+    vec3 rayDir = normalize(vLocalPosition - uLocalCamPos);
+    
+    float t = uTime * 0.1;
+    float s = sin(t);
+    float c = cos(t);
+    mat2 rotXZ = mat2(c, s, -s, c);
+    rayOrig.xz *= rotXZ;
+    rayDir.xz *= rotXZ;
+
+    vec2 limits = getVolumeBounds(rayOrig, rayDir, uRadius);
+    
+    if (limits.x < 0.0) {
+      discard;
+    }
+    
+    vec3 volumeColor = traceEnergy(rayOrig, rayDir, limits, uRadius);
+    
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(vViewPosition);
+    float facingRatio = max(dot(normal, viewDir), 0.0);
+    
+    float edgeAA = smoothstep(0.0, 0.08, facingRatio);
+    vec3 finalColor = 0.5 * log(1.0 + volumeColor);
+    finalColor = clamp(finalColor, 0.0, 1.0) * edgeAA;
+    
+    float maxLuma = max(finalColor.r, max(finalColor.g, finalColor.b));
+    float alpha = clamp(maxLuma * 1.6, 0.0, 1.0) * edgeAA * uAlpha;
+    
+    if (alpha < 0.005) discard;
+    gl_FragColor = vec4(finalColor * 1.35, alpha);
+  }
+`;
+
+const atmosphereVertexShader = /* glsl */ `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPosition.xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const atmosphereFragmentShader = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uGlow;
+  uniform float uLevel;
+  uniform float uAlpha;
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    if (uAlpha < 0.005) discard;
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(vViewPosition);
+    float vdn = max(dot(normal, viewDir), 0.0);
+    
+    float edgeFade = smoothstep(0.0, 0.15, vdn);
+    float innerFadePoint = clamp(1.0 - uLevel, 0.0, 0.99);
+    float centerFade = smoothstep(1.0, innerFadePoint, vdn);
+    
+    float alpha = edgeFade * centerFade * uGlow * uAlpha;
+    if (alpha < 0.005) discard;
+    
+    gl_FragColor = vec4(uColor * 1.4, alpha);
+  }
+`;
+
+const FRACTAL_ORB_PRESETS: Record<BlossomColorId, {
+  primary: string;
+  secondary: string;
+  density: number;
+  speed: number;
+  fractalIters: number;
+  fractalScale: number;
+  fractalDecay: number;
+  smoothness: number;
+  asymmetry: number;
+  atmosphereGlow: number;
+  atmosphereLevel: number;
+  atmosphereScale: number;
+}> = {
+  pink: {
+    primary: '#ff1a8c',
+    secondary: '#ff99e6',
+    density: 2.2,
+    speed: 0.55,
+    fractalIters: 4,
+    fractalScale: 0.92,
+    fractalDecay: -16.5,
+    smoothness: 0.031,
+    asymmetry: 0.48,
+    atmosphereGlow: 0.22,
+    atmosphereLevel: 1.0,
+    atmosphereScale: 1.03
+  },
+  red: {
+    primary: '#ff2244',
+    secondary: '#ff8800',
+    density: 2.0,
+    speed: 0.55,
+    fractalIters: 4,
+    fractalScale: 0.86,
+    fractalDecay: -18.0,
+    smoothness: 0.035,
+    asymmetry: 0.40,
+    atmosphereGlow: 0.22,
+    atmosphereLevel: 1.0,
+    atmosphereScale: 1.03
+  },
+  blue: {
+    primary: '#00b3ff',
+    secondary: '#6e00ff',
+    density: 2.2,
+    speed: 0.55,
+    fractalIters: 4,
+    fractalScale: 0.95,
+    fractalDecay: -16.7,
+    smoothness: 0.031,
+    asymmetry: 0.52,
+    atmosphereGlow: 0.22,
+    atmosphereLevel: 1.0,
+    atmosphereScale: 1.03
+  },
+  green: {
+    primary: '#00e676',
+    secondary: '#0062ff',
+    density: 1.8,
+    speed: 0.60,
+    fractalIters: 4,
+    fractalScale: 0.89,
+    fractalDecay: -20.0,
+    smoothness: 0.05,
+    asymmetry: 0.30,
+    atmosphereGlow: 0.22,
+    atmosphereLevel: 1.0,
+    atmosphereScale: 1.03
+  },
+  yellow: {
+    primary: '#ffbb00',
+    secondary: '#2eff9d',
+    density: 2.1,
+    speed: 0.55,
+    fractalIters: 3,
+    fractalScale: 0.72,
+    fractalDecay: -14.5,
+    smoothness: 0.015,
+    asymmetry: 0.35,
+    atmosphereGlow: 0.22,
+    atmosphereLevel: 1.0,
+    atmosphereScale: 1.03
+  }
+};
+
+// Dedicated Plexus Finale Grand Network Shader (The Universe Within multi-layer parallax network)
+const plexusFinaleVertexShader = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.999, 1.0);
+  }
+`;
+
+const plexusFinaleFragmentShader = /* glsl */ `
+  #define S(a, b, t) smoothstep(a, b, t)
+
+  varying vec2 vUv;
+  uniform vec3 iResolution;
+  uniform float iTime;
+  uniform vec2 iMouse;
+  uniform float uAlpha;
+  uniform vec3 uColor1;
+  uniform vec3 uColor2;
+  uniform vec3 uColor3;
+
+  float N21(vec2 p) {
+    vec3 a = fract(vec3(p.xyx) * vec3(213.897, 653.453, 253.098));
+    a += dot(a, a.yzx + 79.76);
+    return fract((a.x + a.y) * a.z);
+  }
+
+  vec2 GetPos(vec2 id, vec2 offs, float t) {
+    float n = N21(id + offs);
+    float n1 = fract(n * 10.0);
+    float n2 = fract(n * 100.0);
+    float a = t + n;
+    return offs + vec2(sin(a * n1), cos(a * n2)) * 0.4;
+  }
+
+  float df_line(in vec2 a, in vec2 b, in vec2 p) {
+    vec2 pa = p - a, ba = b - a;
+    float denom = dot(ba, ba);
+    if (denom < 0.00001) return length(pa);
+    float h = clamp(dot(pa, ba) / denom, 0.0, 1.0);	
+    return length(pa - ba * h);
+  }
+
+  float line(vec2 a, vec2 b, vec2 uv) {
+    float d = df_line(a, b, uv);
+    float d2 = length(a - b);
+    float fade = S(1.6, 0.35, d2);
+    
+    // Razor-sharp line filament with crisp laser edge
+    float coreLine = smoothstep(0.009, 0.001, d);
+    float glow = exp(-d * 50.0) * 0.45;
+    
+    return (coreLine * 1.8 + glow) * fade;
+  }
+
+  float NetLayer(vec2 st, float n, float t) {
+    vec2 id = floor(st) + n;
+    st = fract(st) - 0.5;
+   
+    vec2 p0 = GetPos(id, vec2(-1.0, -1.0), t);
+    vec2 p1 = GetPos(id, vec2( 0.0, -1.0), t);
+    vec2 p2 = GetPos(id, vec2( 1.0, -1.0), t);
+    vec2 p3 = GetPos(id, vec2(-1.0,  0.0), t);
+    vec2 p4 = GetPos(id, vec2( 0.0,  0.0), t);
+    vec2 p5 = GetPos(id, vec2( 1.0,  0.0), t);
+    vec2 p6 = GetPos(id, vec2(-1.0,  1.0), t);
+    vec2 p7 = GetPos(id, vec2( 0.0,  1.0), t);
+    vec2 p8 = GetPos(id, vec2( 1.0,  1.0), t);
+    
+    float m = 0.0;
+    float sparkle = 0.0;
+    
+    // Star hub lines from center p4 to all neighbors
+    m += line(p4, p0, st);
+    m += line(p4, p1, st);
+    m += line(p4, p2, st);
+    m += line(p4, p3, st);
+    m += line(p4, p5, st);
+    m += line(p4, p6, st);
+    m += line(p4, p7, st);
+    m += line(p4, p8, st);
+
+    // Cross perimeter links
+    m += line(p1, p3, st);
+    m += line(p1, p5, st);
+    m += line(p7, p5, st);
+    m += line(p7, p3, st);
+
+    // Brilliant pinpoint star nuclei & sparkling flares
+    vec2 pts[9];
+    pts[0] = p0; pts[1] = p1; pts[2] = p2;
+    pts[3] = p3; pts[4] = p4; pts[5] = p5;
+    pts[6] = p6; pts[7] = p7; pts[8] = p8;
+
+    for(int j = 0; j < 9; j++) {
+      vec2 diff = st - pts[j];
+      float d = length(diff);
+      
+      // Pinpoint nucleus (crystal sharp)
+      float nucleus = exp(-d * d * 400.0);
+      float halo = exp(-d * 24.0) * 0.35;
+      
+      // 4-pointed micro cross star flare
+      vec2 ad = abs(diff);
+      float flare = max(0.0, 1.0 - (ad.x * ad.y) * 450.0);
+      flare = pow(flare, 4.0) * S(0.35, 0.02, d);
+      
+      float pulse = clamp(sin((fract(pts[j].x) + fract(pts[j].y) + t) * 5.0) * 0.45 + 0.55, 0.0, 1.0);
+      pulse = pow(pulse, 12.0);
+      
+      sparkle += (nucleus * 2.5 + halo + flare * 1.8) * pulse;
+    }
+    
+    float sPhase = (sin(t + n) + sin(t * 0.1)) * 0.25 + 0.5;
+    sPhase += pow(clamp(sin(t * 0.1) * 0.5 + 0.5, 0.0, 1.0), 30.0) * 4.0;
+    m += sparkle * sPhase;
+    
+    return m;
+  }
+
+  void main() {
+    if (uAlpha < 0.001) discard;
+
+    vec2 res = max(iResolution.xy, vec2(1.0, 1.0));
+    vec2 fragCoord = vUv * res;
+    vec2 uv = (fragCoord - res * 0.5) / res.y;
+    vec2 M = (iMouse.xy / res) - 0.5;
+    
+    float m = 0.0;
+    
+    // 3D orbital rotation of network shells around the center (where the orbs orbit)
+    for(int layer = 0; layer < 4; layer++) {
+      float fi = float(layer);
+      
+      // Distinct 3D orbital speed, tilt, and yaw for each layer revolving around center
+      float yaw = iTime * 0.35 + fi * 0.785;
+      float pitch = sin(iTime * 0.22 + fi * 0.6) * 0.38 + 0.22;
+      float roll = iTime * 0.12 + fi * 0.4;
+      
+      float cy = cos(yaw), sy = sin(yaw);
+      float cx = cos(pitch), sx = sin(pitch);
+      float cz = cos(roll), sz = sin(roll);
+
+      // Coordinate from center with slight 3D spherical radius offset per layer
+      vec3 p = vec3(uv - M * (0.15 * (fi + 1.0)), (fi - 1.5) * 0.25);
+
+      // 3D Rotation Matrix (Yaw -> Pitch -> Roll) around center (0,0,0)
+      vec3 pRot;
+      pRot.x = p.x * cy - p.z * sy;
+      pRot.z = p.x * sy + p.z * cy;
+      pRot.y = p.y;
+      
+      float y2 = pRot.y * cx - pRot.z * sx;
+      float z2 = pRot.y * sx + pRot.z * cx;
+      pRot.y = y2;
+      pRot.z = z2;
+
+      float x3 = pRot.x * cz - pRot.y * sz;
+      float y3 = pRot.x * sz + pRot.y * cz;
+      pRot.x = x3;
+      pRot.y = y3;
+
+      // Perspective projection mapping rotating 3D spherical surface onto grid
+      float layerScale = 3.2 + fi * 1.4;
+      vec2 st = pRot.xy * layerScale;
+      
+      float depthFade = 0.85 + 0.15 * pRot.z;
+      m += depthFade * NetLayer(st, fi * 0.25, iTime * 0.7);
+    }
+    
+    float colCycle = sin(iTime * 0.4) * 0.5 + 0.5;
+    vec3 baseCol = mix(uColor1, uColor2, colCycle);
+    baseCol = mix(baseCol, uColor3, sin(iTime * 0.25 + uv.x * 2.0 + uv.y * 1.2) * 0.5 + 0.5);
+    
+    // Sharp core highlighting & laser filament glow
+    vec3 col = baseCol * m * 1.8;
+    col += vec3(1.0, 0.96, 1.0) * pow(clamp(m * 0.7, 0.0, 1.0), 3.0) * 1.2;
+    col *= 1.0 - dot(uv * 0.5, uv * 0.5);
+    
+    float alphaVal = clamp(m * 1.25, 0.0, 1.0) * uAlpha;
+    gl_FragColor = vec4(col * uAlpha, alphaVal);
+  }
+`;
+
+// 4. Particle Trail Shaders
 const particleTrailVertexShader = /* glsl */ `
   attribute float size;
   attribute float alpha;
@@ -377,6 +1006,7 @@ class ImmersiveStroke {
   lengthUniform = { value: 0 };
   progressUniform = { value: 0.0 };
   timeUniform = { value: 0.0 };
+  alphaUniform = { value: 1.0 };
   positions: Float32Array;
   uvs: Float32Array;
   indices: Uint16Array;
@@ -406,7 +1036,8 @@ class ImmersiveStroke {
         uColor: { value: new THREE.Color(colorHex) },
         uTotalLength: this.lengthUniform,
         uProgress: this.progressUniform,
-        uTime: this.timeUniform
+        uTime: this.timeUniform,
+        uAlpha: this.alphaUniform
       },
       transparent: true,
       side: THREE.DoubleSide,
@@ -494,6 +1125,10 @@ class ImmersiveStroke {
   setTime(t: number) {
     this.timeUniform.value = t;
   }
+
+  setAlpha(alpha: number) {
+    this.alphaUniform.value = alpha;
+  }
 }
 
 class OrbNode {
@@ -559,7 +1194,7 @@ class OrbNode {
       const orbColor = this.type === 'branch' ? new THREE.Color(0xffb5dc) : new THREE.Color(0xff33cc);
       this.material = new THREE.ShaderMaterial({
         vertexShader: orbMeshVertexShader,
-        fragmentShader: orbFragmentShader,
+        fragmentShader: sakuraOrbFragmentShader,
         uniforms: {
           uAlpha: { value: 0.0 },
           uTime: { value: 0.0 },
@@ -610,7 +1245,7 @@ class OrbNode {
     if (this.guideLine) (this.guideLine.material as THREE.LineDashedMaterial).opacity = a * 0.75;
   }
 
-  update(time: number, delta = 0.016) {
+  update(time: number, delta = 0.016, modeFadeAlpha = 1.0) {
     this.material.uniforms.uTime.value = time;
     const normX = Math.max(0.0, Math.min(1.0, (this.basePosition.x + 11.5) / 20.0));
     const mainSway = Math.sin(time * 1.25) * 0.38;
@@ -628,12 +1263,15 @@ class OrbNode {
       const currentScale = 1.0 + easeOut * 2.2;
       this.mesh.scale.setScalar(currentScale);
       this.alpha = (1.0 - t) * 0.95;
-      this.material.uniforms.uAlpha.value = this.alpha;
+      this.material.uniforms.uAlpha.value = this.alpha * modeFadeAlpha;
 
       if (t >= 1.0) {
         this.active = false;
         this.mesh.visible = false;
       }
+    } else {
+      this.material.uniforms.uAlpha.value = this.alpha * modeFadeAlpha;
+      if (this.guideLine) (this.guideLine.material as THREE.LineDashedMaterial).opacity = this.alpha * 0.75 * modeFadeAlpha;
     }
   }
 
@@ -647,8 +1285,6 @@ interface SakuraCanvasProps extends ExperienceComponentProps {
 }
 
 export function SakuraCanvas({
-  intensity,
-  bass,
   sendInteraction,
   onRendererReady,
   onExit
@@ -658,54 +1294,69 @@ export function SakuraCanvas({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
   // App & Artwork Mode State
-  const [activeMode, setActiveMode] = useState<'bluten' | 'plexus' | 'wald'>('bluten');
-  const [frozenMode, setFrozenMode] = useState<'bluten' | 'plexus' | 'wald' | null>(null);
+  const [activeMode, setActiveMode] = useState<'bluten' | 'plexus'>('bluten');
   const [isPaused, setIsPaused] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [completedArtworksCount, setCompletedArtworksCount] = useState(0);
   const [blutenCounted, setBlutenCounted] = useState(false);
   const [plexusCounted, setPlexusCounted] = useState(false);
-  const [waldCounted, setWaldCounted] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [plexusAttachedCount, setPlexusAttachedCount] = useState(0);
+  const [isPlexusFinale, setIsPlexusFinale] = useState(false);
+
+  // Collaborative Creation Readiness & Lightbox State
+  const [hostCreationReady, setHostCreationReady] = useState(false);
+  const [guestCreationReady, setGuestCreationReady] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isTestUnlockActive, setIsTestUnlockActive] = useState(false);
+  const [isCreationMode, setIsCreationMode] = useState(false);
 
   // Step-by-Step Artwork Phase Lifecycle State
-  const [currentPhase, setCurrentPhase] = useState<'BRANCH' | 'BLOSSOM' | 'PETAL'>('BRANCH');
+  const [currentPhase, setCurrentPhase] = useState<'BRANCH' | 'BLOSSOM' | 'VORTEX' | 'DONE'>('BRANCH');
   const [currentRound, setCurrentRound] = useState(1);
   const [isTrunkGrowing, setIsTrunkGrowing] = useState(true);
-  const maxRoundsPerPhase = 5;
+  const [selectedColor, setSelectedColor] = useState<BlossomColorId>('pink');
+  const maxRoundsPerPhase = 3;
 
   const activeModeRef = useRef(activeMode);
-  const frozenModeRef = useRef(frozenMode);
   const isPausedRef = useRef(isPaused);
+  const selectedColorRef = useRef(selectedColor);
+  const currentPhaseRef = useRef(currentPhase);
+
+  const colorCountsRef = useRef<Record<BlossomColorId, number>>({
+    pink: 0,
+    red: 0,
+    blue: 0,
+    green: 0,
+    yellow: 0
+  });
 
   useEffect(() => { activeModeRef.current = activeMode; }, [activeMode]);
-  useEffect(() => { frozenModeRef.current = frozenMode; }, [frozenMode]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
+  useEffect(() => { currentPhaseRef.current = currentPhase; }, [currentPhase]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
 
-  const markArtworkCompleted = useCallback((type: 'bluten' | 'plexus' | 'wald') => {
+  const markArtworkCompleted = useCallback((type: 'bluten' | 'plexus') => {
     if (type === 'bluten' && !blutenCounted) {
       setBlutenCounted(true);
       setCompletedArtworksCount(c => c + 1);
     } else if (type === 'plexus' && !plexusCounted) {
       setPlexusCounted(true);
       setCompletedArtworksCount(c => c + 1);
-    } else if (type === 'wald' && !waldCounted) {
-      setWaldCounted(true);
-      setCompletedArtworksCount(c => c + 1);
     }
-  }, [blutenCounted, plexusCounted, waldCounted]);
+  }, [blutenCounted, plexusCounted]);
 
-  const updateCameraDistance = useCallback((w: number, h: number, mode: 'bluten' | 'plexus' | 'wald') => {
+  const updateCameraDistance = useCallback((w: number, h: number, mode: 'bluten' | 'plexus') => {
     if (!cameraRef.current) return;
     const camera = cameraRef.current;
     const aspect = w / h;
 
-    if (mode === 'bluten' || mode === 'wald') {
+    if (mode === 'bluten') {
       camera.fov = 45;
       camera.updateProjectionMatrix();
       const visibleWidth = 2 * Math.tan(THREE.MathUtils.degToRad(22.5)) * 16 * aspect;
@@ -722,21 +1373,25 @@ export function SakuraCanvas({
     }
   }, []);
 
-  const handleSwitchMode = useCallback((newMode: 'bluten' | 'plexus' | 'wald') => {
+  const modeTransitionTimerRef = useRef(1.0);
+
+  const handleSwitchMode = useCallback((newMode: 'bluten' | 'plexus') => {
     if (activeModeRef.current === newMode) return;
-    setFrozenMode(activeModeRef.current);
     setActiveMode(newMode);
+    modeTransitionTimerRef.current = 0.0;
     if (containerRef.current) {
       const w = containerRef.current.clientWidth || window.innerWidth;
       const h = containerRef.current.clientHeight || window.innerHeight;
       updateCameraDistance(w, h, newMode);
     }
-    if (newMode === 'wald') {
-      markArtworkCompleted('wald');
-      showToast('🌸 Sakura Modus gestartet!');
-    }
     sendInteraction('MODE_SWITCH', { mode: newMode });
-  }, [markArtworkCompleted, sendInteraction, showToast, updateCameraDistance]);
+  }, [sendInteraction, updateCameraDistance]);
+
+  const handleColorSelect = useCallback((color: BlossomColorId) => {
+    setSelectedColor(color);
+    showToast(`Farbe: ${BLOSSOM_PALETTES[color].name} ausgewählt`);
+    sendInteraction('COLOR_SELECT', { color });
+  }, [sendInteraction, showToast]);
 
   const togglePause = useCallback(() => {
     setIsPaused(p => !p);
@@ -749,10 +1404,52 @@ export function SakuraCanvas({
     showToast(!isAudioMuted ? 'Audio stummgeschaltet' : 'Audio aktiviert');
   }, [isAudioMuted, showToast]);
 
+  const restartTriggerRef = useRef<() => void>(() => {});
+
   const handleRestart = useCallback(() => {
+    setIsCreationMode(false);
+    colorCountsRef.current = { pink: 0, red: 0, blue: 0, green: 0, yellow: 0 };
+    setSelectedColor('pink');
+    setPlexusAttachedCount(0);
+    setIsPlexusFinale(false);
+    restartTriggerRef.current();
     showToast('Kunstwerk zurückgesetzt — Beginn von vorn!');
     sendInteraction('RESTART_ARTWORK', {});
   }, [sendInteraction, showToast]);
+
+  const toggleCreationReady = useCallback(() => {
+    setHostCreationReady(prev => {
+      const next = !prev;
+      sendInteraction('CREATION_READY', { ready: next });
+      // In single-player host mode or when guest is also ready, open Lightbox
+      setIsLightboxOpen(true);
+      return next;
+    });
+  }, [sendInteraction]);
+
+  const selectArtworkChoice = useCallback((type: 'bluten' | 'plexus') => {
+    setIsCreationMode(true);
+    setActiveMode(type);
+    activeModeRef.current = type;
+    modeTransitionTimerRef.current = 0.0;
+    if (containerRef.current) {
+      const w = containerRef.current.clientWidth || window.innerWidth;
+      const h = containerRef.current.clientHeight || window.innerHeight;
+      updateCameraDistance(w, h, type);
+    }
+    // Clean wipe of artwork residue & fresh start for Creation Mode
+    colorCountsRef.current = { pink: 0, red: 0, blue: 0, green: 0, yellow: 0 };
+    setSelectedColor('pink');
+    setPlexusAttachedCount(0);
+    setIsPlexusFinale(false);
+    restartTriggerRef.current();
+
+    showToast(type === 'bluten' ? '🌸 Sumi-e Kunstwerk gestartet (Creation Mode)' : '✨ Plexus Kunstwerk gestartet (Creation Mode)');
+    sendInteraction('ARTWORK_SELECT', { artwork: type });
+    setIsLightboxOpen(false);
+    setHostCreationReady(false);
+    setGuestCreationReady(false);
+  }, [sendInteraction, showToast, updateCameraDistance]);
 
   const handleExit = useCallback(() => {
     if (onExit) {
@@ -776,7 +1473,7 @@ export function SakuraCanvas({
       alpha: true,
       powerPreference: 'high-performance'
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     renderer.setSize(width, height);
     renderer.autoClear = false;
 
@@ -792,7 +1489,12 @@ export function SakuraCanvas({
       uKaleidoscope: { value: 0.0 },
       uGridVibe: { value: 0.0 },
       uRippleActive: { value: 0.0 },
-      uRippleTime: { value: 0.0 }
+      uRippleTime: { value: 0.0 },
+      uBgColor1: { value: new THREE.Vector3(0.05, 0.00, 0.02) },
+      uBgColor2: { value: new THREE.Vector3(0.74, 0.00, 0.36) },
+      uBgColor3: { value: new THREE.Vector3(0.80, 0.04, 0.44) },
+      uRippleCrest: { value: new THREE.Vector3(1.0, 0.4, 0.8) },
+      uBgBlend: { value: 0.0 }
     };
 
     const bgMat = new THREE.ShaderMaterial({
@@ -802,8 +1504,8 @@ export function SakuraCanvas({
       depthWrite: false,
       depthTest: false
     });
-    const bgQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
-    bgScene.add(bgQuad);
+    const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
+    bgScene.add(bgMesh);
 
     // Main 3D Scene
     const mainScene = new THREE.Scene();
@@ -811,13 +1513,24 @@ export function SakuraCanvas({
     cameraRef.current = camera;
     updateCameraDistance(width, height, activeModeRef.current);
 
-    // Groups
+    // ==========================================
+    // SEPARATE ROOT GROUPS FOR THE TWO ARTWORKS
+    // ==========================================
+    const blutenSceneGroup = new THREE.Group();
+    const plexusSceneGroup = new THREE.Group();
+    mainScene.add(blutenSceneGroup);
+    mainScene.add(plexusSceneGroup);
+
+    blutenSceneGroup.visible = (activeModeRef.current === 'bluten');
+    plexusSceneGroup.visible = (activeModeRef.current === 'plexus');
+
+    // Groups for Blüten Artwork
     const strokeGroup = new THREE.Group();
     const orbGroup = new THREE.Group();
     const petalGroup = new THREE.Group();
-    mainScene.add(strokeGroup);
-    mainScene.add(orbGroup);
-    mainScene.add(petalGroup);
+    blutenSceneGroup.add(strokeGroup);
+    blutenSceneGroup.add(orbGroup);
+    blutenSceneGroup.add(petalGroup);
 
     // Mouse Tracking Vectors
     const mouseScreen = new THREE.Vector2(0.5, 0.5);
@@ -827,7 +1540,7 @@ export function SakuraCanvas({
     const petalGeo = new THREE.PlaneGeometry(0.9, 0.9);
     const petalMat = new THREE.MeshBasicMaterial({
       map: generatePetalTexture(),
-      color: new THREE.Color(1.2, 1.2, 1.2),
+      color: new THREE.Color(BLOSSOM_PALETTES.pink.vortexTint),
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide
@@ -849,14 +1562,14 @@ export function SakuraCanvas({
     let activePetalCount = 0;
 
     for (let i = 0; i < MAX_PETALS; i++) {
-      petalOriginX[i] = (Math.random() - 0.5) * 16.0;
-      petalOriginY[i] = (Math.random() - 0.5) * 10.0;
+      petalOriginX[i] = 2.4 + (Math.random() - 0.5) * 16.0;
+      petalOriginY[i] = -0.4 + (Math.random() - 0.5) * 10.0;
       petalRadiusX[i] = 4.0 + Math.random() * 8.0;
       petalRadiusY[i] = 3.0 + Math.random() * 6.0;
-      petalSpeed[i] = (0.2 + Math.random() * 0.4) * (i % 2 === 0 ? 1 : -1);
+      petalSpeed[i] = (0.3 + Math.random() * 0.5) * (i % 2 === 0 ? 1 : -1);
       petalAngle[i] = Math.random() * Math.PI * 2.0;
       petalPhaseZ[i] = Math.random() * Math.PI * 2.0;
-      petalScales[i] = 0.4 + Math.random() * 0.6;
+      petalScales[i] = 0.5 + Math.random() * 0.5;
     }
 
     // 2. Main Trunk & Progressive Growth Lifecycle
@@ -873,7 +1586,7 @@ export function SakuraCanvas({
       new THREE.Vector3(6.8, -0.4, 0.0)
     ], false, 'centripetal', 0.5);
 
-    const mainTrunkStroke = new ImmersiveStroke(strokeGroup, 0.58, 0, 0xf5e4cf);
+    let mainTrunkStroke = new ImmersiveStroke(strokeGroup, 0.58, 0, 0xf5e4cf);
     const pts = trunkCurve.getSpacedPoints(140);
     for (let i = 0; i <= 140; i++) {
       const t = i / 140;
@@ -881,31 +1594,108 @@ export function SakuraCanvas({
     }
     mainTrunkStroke.setProgress(0.0);
 
-    const parentInfo = { curve: trunkCurve, stroke: mainTrunkStroke, level: 0, totalLength: trunkCurve.getLength() };
+    interface BranchInfo {
+      curve: THREE.CatmullRomCurve3;
+      stroke: ImmersiveStroke;
+      level: number;
+      totalLength: number;
+    }
+
+    const allBranches: BranchInfo[] = [
+      { curve: trunkCurve, stroke: mainTrunkStroke, level: 0, totalLength: trunkCurve.getLength() }
+    ];
+
     const activeOrbs: OrbNode[] = [];
     const growingSubBranches: { stroke: ImmersiveStroke; progress: number; duration: number }[] = [];
     const growingBlossomClusters: { stroke: ImmersiveStroke; progress: number; duration: number }[] = [];
     const persistentBlossomStrokes: ImmersiveStroke[] = [];
-    
+
     let isTrunkGrowthFinished = false;
     let growthProgressVal = 0.0;
     const growthDurationSeconds = 6.0;
 
-    const spawnOrbRound = (roundNum: number, phase: 'BRANCH' | 'BLOSSOM' | 'PETAL') => {
+    // 14-Second Dominant Color Vortex State (4s alignment + 10s storm)
+    let isVortexActive = false;
+    let vortexTimer = 0.0;
+    const VORTEX_ALIGN_TIME = 4.0;
+    const VORTEX_STORM_TIME = 10.0;
+    const VORTEX_TOTAL_DURATION = VORTEX_ALIGN_TIME + VORTEX_STORM_TIME; // 14.0s
+
+    const startVortexFinale = () => {
+      const counts = colorCountsRef.current;
+      const activeColors = (Object.keys(counts) as BlossomColorId[]).filter(c => counts[c] > 0);
+      const weightedColorPool: BlossomColorId[] = [];
+      activeColors.forEach(c => {
+        const count = counts[c];
+        for (let k = 0; k < count; k++) {
+          weightedColorPool.push(c);
+        }
+      });
+      if (weightedColorPool.length === 0) {
+        weightedColorPool.push(selectedColorRef.current);
+      }
+
+      petalMat.color.set(0xffffff);
+
+      for (let i = 0; i < MAX_PETALS; i++) {
+        const colorKey = weightedColorPool[i % weightedColorPool.length];
+        const pal = BLOSSOM_PALETTES[colorKey] || BLOSSOM_PALETTES.pink;
+        const colorHex = pal.shades[Math.floor(Math.random() * pal.shades.length)];
+        instancedPetalMesh.setColorAt(i, new THREE.Color(colorHex));
+      }
+      if (instancedPetalMesh.instanceColor) {
+        instancedPetalMesh.instanceColor.needsUpdate = true;
+      }
+
+      isVortexActive = true;
+      vortexTimer = 0.0;
+      activePetalCount = MAX_PETALS;
+      instancedPetalMesh.visible = true;
+      setCurrentPhase('VORTEX');
+
+      const bgPal = BG_COLOR_PALETTES.default;
+      if (bgUniforms.uBgColor1) {
+        bgUniforms.uBgColor1.value.copy(bgPal.c1);
+        bgUniforms.uBgColor2.value.copy(bgPal.c2);
+        bgUniforms.uBgColor3.value.copy(bgPal.c3);
+        bgUniforms.uRippleCrest.value.copy(bgPal.crest);
+        bgUniforms.uBgBlend.value = 0.0;
+        bgUniforms.uRippleActive.value = 1.0;
+        bgUniforms.uRippleTime.value = 0.0;
+      }
+
+      showToast('🌸 10s Blüten-Vortex aktiviert!');
+    };
+
+    const spawnOrbRound = (roundNum: number, phase: 'BRANCH' | 'BLOSSOM') => {
       setCurrentPhase(phase);
       setCurrentRound(roundNum);
       activeOrbs.forEach(o => o.destroy(orbGroup));
       activeOrbs.length = 0;
 
-      const type = phase === 'PETAL' ? 'petal' : 'branch';
-      const orb1 = new OrbNode(orbGroup, parentInfo, 0, roundNum, 0.30, type);
-      const orb2 = new OrbNode(orbGroup, parentInfo, 0, roundNum, 0.58, type);
-      const orb3 = new OrbNode(orbGroup, parentInfo, 0, roundNum, 0.85, type);
-      activeOrbs.push(orb1, orb2, orb3);
+      if (phase === 'BRANCH') {
+        const validBranches = allBranches.filter(b => b.level < 2);
+        validBranches.forEach(bInfo => {
+          const numOrbs = bInfo.level === 0 ? 2 : 1;
+          for (let i = 0; i < numOrbs; i++) {
+            const t = 0.25 + Math.random() * 0.60;
+            const orb = new OrbNode(orbGroup, bInfo, bInfo.level, roundNum, t, 'branch');
+            activeOrbs.push(orb);
+          }
+        });
+      } else if (phase === 'BLOSSOM') {
+        const numTotalBlossoms = Math.min(6, allBranches.length * 2);
+        for (let i = 0; i < numTotalBlossoms; i++) {
+          const bInfo = allBranches[i % allBranches.length];
+          const t = 0.20 + Math.random() * 0.70;
+          const orb = new OrbNode(orbGroup, bInfo, bInfo.level, roundNum, t, 'blossom');
+          activeOrbs.push(orb);
+        }
+      }
+
       activeOrbs.forEach(o => o.setAlpha(0.95));
     };
 
-    // Sub-branch extension function
     const spawnSubBranchFromOrb = (orb: OrbNode) => {
       if (isPausedRef.current || orb.userDrawn) return;
       orb.userDrawn = true;
@@ -942,21 +1732,31 @@ export function SakuraCanvas({
         childStroke.addPoint(spacedPts[i], Math.max(0.15, 1.0 - t * 0.60));
       }
 
+      const childBranch: BranchInfo = {
+        curve: childCurve,
+        stroke: childStroke,
+        level: orb.level + 1,
+        totalLength: childCurve.getLength()
+      };
+      allBranches.push(childBranch);
+
       growingSubBranches.push({ stroke: childStroke, progress: 0.0, duration: 3.0 });
     };
 
-    // Blossom cluster generator function
     const spawnBlossomClusterFromOrb = (orb: OrbNode) => {
       if (isPausedRef.current || orb.userDrawn) return;
       orb.userDrawn = true;
       orb.setAlpha(0.15);
 
+      const curColor = selectedColorRef.current;
+      colorCountsRef.current[curColor] += 1;
+      const palette = BLOSSOM_PALETTES[curColor];
+
       const centerPos = orb.basePosition.clone();
       const numLayerStrokes = 2 + Math.floor(Math.random() * 2);
-      const brightPinkColors = [0xffccff, 0xffaae6, 0xff77dd, 0xffeeff, 0xff88ee];
 
       for (let s = 0; s < numLayerStrokes; s++) {
-        const strokeColor = brightPinkColors[Math.floor(Math.random() * brightPinkColors.length)];
+        const strokeColor = palette.shades[Math.floor(Math.random() * palette.shades.length)];
         const clusterRadius = 0.16 + Math.random() * 0.12;
         const baseAngle = Math.random() * Math.PI * 2.0;
         const pts = [];
@@ -992,6 +1792,51 @@ export function SakuraCanvas({
     const trailAlphas = new Float32Array(MAX_TRAIL_PARTICLES);
     const trailRotations = new Float32Array(MAX_TRAIL_PARTICLES);
 
+    const tpLife = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpMaxLife = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpX = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpY = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpZ = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpVX = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpVY = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpVZ = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpR = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpG = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpB = new Float32Array(MAX_TRAIL_PARTICLES);
+    const tpRot = new Float32Array(MAX_TRAIL_PARTICLES);
+    let tpNextFreeIndex = 0;
+
+    const emitExplosionStarParticle = (x: number, y: number, z: number, vx: number, vy: number, vz: number) => {
+      const idx = tpNextFreeIndex;
+      tpNextFreeIndex = (tpNextFreeIndex + 1) % MAX_TRAIL_PARTICLES;
+
+      tpX[idx] = x;
+      tpY[idx] = y;
+      tpZ[idx] = z;
+
+      tpVX[idx] = vx;
+      tpVY[idx] = vy;
+      tpVZ[idx] = vz;
+
+      tpLife[idx] = 0.0;
+      tpMaxLife[idx] = 2.2 + Math.random() * 1.5;
+      trailSizes[idx] = 70.0 + Math.random() * 85.0;
+
+      const colorType = Math.floor(Math.random() * 4);
+      if (colorType === 0) {
+        tpR[idx] = 1.9; tpG[idx] = 1.8; tpB[idx] = 2.0;
+      } else if (colorType === 1) {
+        tpR[idx] = 0.2; tpG[idx] = 1.8; tpB[idx] = 2.0;
+      } else if (colorType === 2) {
+        tpR[idx] = 2.0; tpG[idx] = 0.2; tpB[idx] = 1.6;
+      } else {
+        tpR[idx] = 2.0; tpG[idx] = 1.6; tpB[idx] = 0.3;
+      }
+
+      trailAlphas[idx] = 1.0;
+      tpRot[idx] = Math.random() * Math.PI * 2;
+    };
+
     const trailGeo = new THREE.BufferGeometry();
     trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
     trailGeo.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
@@ -1008,22 +1853,25 @@ export function SakuraCanvas({
     });
 
     const trailPointsMesh = new THREE.Points(trailGeo, trailMat);
-    mainScene.add(trailPointsMesh);
+    plexusSceneGroup.add(trailPointsMesh);
 
     // 4. Plexus Mesh
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
     lineGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_LINES * 6), 3));
-    const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, depthWrite: false });
+    const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
     const plexusLinesMesh = new THREE.LineSegments(lineGeo, lineMat);
-    mainScene.add(plexusLinesMesh);
+    plexusSceneGroup.add(plexusLinesMesh);
 
     const nodeGeo = new THREE.BufferGeometry();
     nodeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_NODES * 3), 3));
     nodeGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_NODES * 3), 3));
     nodeGeo.setAttribute('size', new THREE.BufferAttribute(new Float32Array(MAX_TOTAL_NODES), 1));
     const nodeMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 } },
+      uniforms: {
+        uTime: { value: 0 },
+        uAlpha: { value: 1.0 }
+      },
       vertexShader: /* glsl */ `
         attribute float size;
         attribute vec3 color;
@@ -1036,19 +1884,878 @@ export function SakuraCanvas({
         }
       `,
       fragmentShader: /* glsl */ `
+        uniform float uAlpha;
         varying vec3 vColor;
         void main() {
-          float d = length(gl_PointCoord - vec2(0.5));
+          vec2 p = gl_PointCoord - vec2(0.5);
+          float d = length(p);
           if (d > 0.5) discard;
-          float alpha = smoothstep(0.5, 0.0, d);
-          gl_FragColor = vec4(vColor, alpha * 0.9);
+          float starVal = pow(clamp(1.0 - abs(p.x) * 2.0, 0.0, 1.0) * clamp(1.0 - abs(p.y) * 2.0, 0.0, 1.0), 3.0);
+          float softCore = exp(-d * d * 18.0);
+          float intensity = max(starVal * 1.5, softCore * 1.2);
+          gl_FragColor = vec4(vColor, intensity * 0.95 * uAlpha);
         }
       `,
       transparent: true,
+      blending: THREE.AdditiveBlending,
       depthWrite: false
     });
     const plexusPointsMesh = new THREE.Points(nodeGeo, nodeMat);
-    mainScene.add(plexusPointsMesh);
+    plexusSceneGroup.add(plexusPointsMesh);
+
+    // Plexus Finale Shader Mesh (The Universe Within multi-layer network)
+    const plexusFinaleGeo = new THREE.PlaneGeometry(2, 2);
+    const plexusFinaleUniforms = {
+      iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
+      iTime: { value: 0.0 },
+      iMouse: { value: new THREE.Vector2(0, 0) },
+      uAlpha: { value: 0.0 },
+      uColor1: { value: new THREE.Vector3(1.0, 0.1, 0.6) },
+      uColor2: { value: new THREE.Vector3(0.0, 0.8, 1.0) },
+      uColor3: { value: new THREE.Vector3(1.0, 0.8, 0.1) }
+    };
+    const plexusFinaleMat = new THREE.ShaderMaterial({
+      vertexShader: plexusFinaleVertexShader,
+      fragmentShader: plexusFinaleFragmentShader,
+      uniforms: plexusFinaleUniforms,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: false
+    });
+    const plexusFinaleMesh = new THREE.Mesh(plexusFinaleGeo, plexusFinaleMat);
+    plexusFinaleMesh.visible = false;
+    plexusSceneGroup.add(plexusFinaleMesh);
+
+    // Pre-allocated flat buffers for high-performance zero-GC Plexus updates
+    const worldNodeX = new Float32Array(MAX_TOTAL_NODES);
+    const worldNodeY = new Float32Array(MAX_TOTAL_NODES);
+    const worldNodeZ = new Float32Array(MAX_TOTAL_NODES);
+    const worldNodeR = new Float32Array(MAX_TOTAL_NODES);
+    const worldNodeG = new Float32Array(MAX_TOTAL_NODES);
+    const worldNodeB = new Float32Array(MAX_TOTAL_NODES);
+    const worldNodeSize = new Float32Array(MAX_TOTAL_NODES);
+    const worldNodeDistCenter = new Float32Array(MAX_TOTAL_NODES);
+    const nodeConnCounts = new Uint8Array(MAX_TOTAL_NODES);
+    let prevActiveTrailCount = 0;
+
+    // ==========================================
+    // 5 FLOATING PLEXUS ORBS SYSTEM
+    // ==========================================
+    interface AttachedPlexusNode {
+      radius: number;
+      angle: number;
+      elevation: number;
+      orbitSpeed: number;
+      r: number;
+      g: number;
+      b: number;
+      size: number;
+      rot: number;
+      rotSpeed: number;
+      tier: number;
+      chaosTargetX: number;
+      chaosTargetY: number;
+      chaosTargetZ: number;
+      chaosFreqX: number;
+      chaosFreqY: number;
+      chaosFreqZ: number;
+      chaosPhase: number;
+    }
+
+    interface PlexusNodeDef {
+      dx: number;
+      dy: number;
+      dz: number;
+      freq: number;
+      phase: number;
+      rot: number;
+      rotSpeed: number;
+    }
+
+    interface PlexusCluster {
+      id: number;
+      centerX: number;
+      centerY: number;
+      centerZ: number;
+      driftX: number;
+      driftY: number;
+      driftZ: number;
+      nodes: PlexusNodeDef[];
+      r: number;
+      g: number;
+      b: number;
+    }
+
+    // Planetary orbital configurations (Keplerian orbits around center at moderate individual speeds)
+    const PLANETARY_ORBIT_CONFIGS = [
+      { radiusX: 115.0, radiusY: 72.0, baseZ: -12.0, speed: 0.38, zPhase: 0.0, zAmp: 18.0 },  // Pink (Innermost)
+      { radiusX: 162.0, radiusY: 98.0, baseZ: 14.0, speed: 0.30, zPhase: 1.2, zAmp: 22.0 },   // Rot
+      { radiusX: 210.0, radiusY: 128.0, baseZ: -18.0, speed: 0.23, zPhase: 2.5, zAmp: 25.0 }, // Blau
+      { radiusX: 255.0, radiusY: 155.0, baseZ: 16.0, speed: 0.18, zPhase: 3.8, zAmp: 20.0 },  // Grün
+      { radiusX: 300.0, radiusY: 178.0, baseZ: -8.0, speed: 0.14, zPhase: 5.0, zAmp: 16.0 }   // Gold (Outermost)
+    ];
+
+    class FloatingPlexusOrbInstance {
+      config: typeof BLOSSOM_PALETTES[BlossomColorId];
+      id: BlossomColorId;
+      name: string;
+      orbIndex: number;
+      radiusX: number;
+      radiusY: number;
+      baseZ: number;
+      orbitSpeed: number;
+      zPhase: number;
+      zAmp: number;
+      orbitAngle: number;
+      initialOrbitAngle: number;
+      x: number;
+      y: number;
+      z: number;
+      attachedPlexusCount = 0;
+      attachedNodes: AttachedPlexusNode[] = [];
+      mesh: THREE.Mesh;
+      material: THREE.ShaderMaterial;
+      atmosphereMesh: THREE.Mesh;
+      atmosphereMaterial: THREE.ShaderMaterial;
+      starSprite: THREE.Sprite;
+      trailRibbonGeo: THREE.BufferGeometry;
+      trailRibbonMat: THREE.ShaderMaterial;
+      trailRibbonMesh: THREE.Mesh;
+      ribbonSamples: number;
+      trailLength: number;
+      trailHistory: { x: number; y: number; z: number }[];
+      impulseMesh: THREE.Mesh;
+      impulseMaterial: THREE.ShaderMaterial;
+      impulseTimer = 999.0;
+      hoverWobbleTimer = 999.0;
+      dockWobbleTimer = 999.0;
+      internalTime = Math.random() * 10.0;
+      preset: typeof FRACTAL_ORB_PRESETS[BlossomColorId];
+
+      preFinaleOrbitAngle = 0;
+      hasCapturedPreFinale = false;
+
+      constructor(config: typeof BLOSSOM_PALETTES[BlossomColorId], orbIndex = 0) {
+        this.config = config;
+        this.id = config.id;
+        this.name = config.name;
+        this.orbIndex = orbIndex;
+
+        const orbitCfg = PLANETARY_ORBIT_CONFIGS[this.orbIndex % PLANETARY_ORBIT_CONFIGS.length];
+        this.radiusX = orbitCfg.radiusX;
+        this.radiusY = orbitCfg.radiusY;
+        this.baseZ = orbitCfg.baseZ;
+        this.orbitSpeed = orbitCfg.speed;
+        this.zPhase = orbitCfg.zPhase;
+        this.zAmp = orbitCfg.zAmp;
+
+        this.initialOrbitAngle = (this.orbIndex / 5.0) * Math.PI * 2 + this.orbIndex * 0.55;
+        this.orbitAngle = this.initialOrbitAngle;
+        this.x = Math.cos(this.orbitAngle) * this.radiusX;
+        this.y = Math.sin(this.orbitAngle) * this.radiusY;
+        this.z = Math.sin(this.orbitAngle * 1.5 + this.zPhase) * this.zAmp + this.baseZ;
+
+        this.preFinaleOrbitAngle = this.orbitAngle;
+        this.hasCapturedPreFinale = false;
+
+        const ORB_RADIUS = 24.0;
+        const geom = new THREE.SphereGeometry(ORB_RADIUS, 48, 48);
+        const preset = FRACTAL_ORB_PRESETS[config.id] || FRACTAL_ORB_PRESETS.pink;
+        this.preset = preset;
+
+        this.material = new THREE.ShaderMaterial({
+          vertexShader: fractalOrbVertexShader,
+          fragmentShader: fractalOrbFragmentShader,
+          uniforms: {
+            uTime: { value: this.internalTime },
+            uLocalCamPos: { value: new THREE.Vector3(0, 0, 150) },
+            uPrimaryColor: { value: new THREE.Color(preset.primary) },
+            uSecondaryColor: { value: new THREE.Color(preset.secondary) },
+            uDensity: { value: preset.density },
+            uAlpha: { value: 0.0 },
+            uFractalIters: { value: preset.fractalIters },
+            uFractalScale: { value: preset.fractalScale },
+            uFractalDecay: { value: preset.fractalDecay },
+            uInternalAnim: { value: 0.43 },
+            uSmoothness: { value: preset.smoothness },
+            uAsymmetry: { value: preset.asymmetry },
+            uRadius: { value: ORB_RADIUS }
+          },
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        this.mesh = new THREE.Mesh(geom, this.material);
+        this.mesh.position.set(this.x, this.y, this.z);
+        this.mesh.visible = false;
+
+        // Atmosphere Halo Ring Mesh (child of orb)
+        this.atmosphereMaterial = new THREE.ShaderMaterial({
+          vertexShader: atmosphereVertexShader,
+          fragmentShader: atmosphereFragmentShader,
+          uniforms: {
+            uColor: { value: new THREE.Color(preset.primary) },
+            uGlow: { value: preset.atmosphereGlow },
+            uLevel: { value: preset.atmosphereLevel },
+            uAlpha: { value: 0.0 }
+          },
+          transparent: true,
+          side: THREE.FrontSide,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        this.atmosphereMesh = new THREE.Mesh(geom, this.atmosphereMaterial);
+        this.atmosphereMesh.scale.set(preset.atmosphereScale, preset.atmosphereScale, preset.atmosphereScale);
+        this.mesh.add(this.atmosphereMesh);
+
+        // Shining Starburst Sprite Flare
+        const starTex = generateStarCrossTexture(config.uiColor || preset.primary);
+        const spriteMat = new THREE.SpriteMaterial({
+          map: starTex,
+          color: 0xffffff,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        this.starSprite = new THREE.Sprite(spriteMat);
+        this.starSprite.scale.set(48, 48, 1);
+        this.starSprite.visible = false;
+        this.mesh.add(this.starSprite);
+
+        // Silky Smooth Continuous Glowing Comet Ribbon Geometry
+        const RIBBON_SAMPLES = 96;
+        this.ribbonSamples = RIBBON_SAMPLES;
+        this.trailLength = 125;
+        this.trailHistory = [];
+
+        const totalVerts = RIBBON_SAMPLES * 2;
+        const totalIndices = (RIBBON_SAMPLES - 1) * 6;
+        const ribbonPositions = new Float32Array(totalVerts * 3);
+        const ribbonUvs = new Float32Array(totalVerts * 2);
+        const ribbonIndices = new Uint16Array(totalIndices);
+
+        let idxOffset = 0;
+        for (let s = 0; s < RIBBON_SAMPLES; s++) {
+          const vY = s / (RIBBON_SAMPLES - 1);
+          ribbonUvs[s * 4] = 0.0;
+          ribbonUvs[s * 4 + 1] = vY;
+          ribbonUvs[s * 4 + 2] = 1.0;
+          ribbonUvs[s * 4 + 3] = vY;
+
+          if (s < RIBBON_SAMPLES - 1) {
+            const i0 = s * 2;
+            const i1 = s * 2 + 1;
+            const i2 = (s + 1) * 2;
+            const i3 = (s + 1) * 2 + 1;
+            ribbonIndices[idxOffset++] = i0;
+            ribbonIndices[idxOffset++] = i1;
+            ribbonIndices[idxOffset++] = i2;
+            ribbonIndices[idxOffset++] = i2;
+            ribbonIndices[idxOffset++] = i1;
+            ribbonIndices[idxOffset++] = i3;
+          }
+        }
+
+        this.trailRibbonGeo = new THREE.BufferGeometry();
+        this.trailRibbonGeo.setAttribute('position', new THREE.BufferAttribute(ribbonPositions, 3));
+        this.trailRibbonGeo.setAttribute('uv', new THREE.BufferAttribute(ribbonUvs, 2));
+        this.trailRibbonGeo.setIndex(new THREE.BufferAttribute(ribbonIndices, 1));
+
+        const rgbList = PALETTE_RGB_CACHE[this.id];
+        const orbRgb = rgbList[0];
+
+        this.trailRibbonMat = new THREE.ShaderMaterial({
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 uColor;
+            uniform float uAlpha;
+            varying vec2 vUv;
+            void main() {
+              float distFromCenter = abs(vUv.x - 0.5) * 2.0;
+              float lateralGlow = exp(-distFromCenter * distFromCenter * 3.6);
+              float coreBeam = exp(-distFromCenter * distFromCenter * 14.0) * 0.4;
+              float brightness = mix(1.4, 0.35, vUv.y);
+              float lengthAlpha = pow(clamp(1.0 - vUv.y, 0.0, 1.0), 1.2) * uAlpha;
+              float combinedIntensity = (lateralGlow + coreBeam) * lengthAlpha;
+              if (combinedIntensity < 0.002) discard;
+              vec3 headTint = mix(vec3(1.0), uColor, 0.3);
+              vec3 beamColor = mix(headTint, uColor, clamp(vUv.y * 1.8, 0.0, 1.0)) * brightness;
+              gl_FragColor = vec4(beamColor * combinedIntensity, combinedIntensity);
+            }
+          `,
+          uniforms: {
+            uColor: { value: new THREE.Color(orbRgb.r, orbRgb.g, orbRgb.b) },
+            uAlpha: { value: 0.0 }
+          },
+          side: THREE.DoubleSide,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        this.trailRibbonMesh = new THREE.Mesh(this.trailRibbonGeo, this.trailRibbonMat);
+        this.trailRibbonMesh.visible = false;
+        plexusSceneGroup.add(this.trailRibbonMesh);
+
+        plexusSceneGroup.add(this.mesh);
+
+        // Gentle colored shockwave impulse ring expanding on docking
+        const impulseGeom = new THREE.PlaneGeometry(240, 240);
+        this.impulseMaterial = new THREE.ShaderMaterial({
+          vertexShader: orbMeshVertexShader,
+          fragmentShader: /* glsl */ `
+            varying vec2 vUv;
+            uniform float uProgress;
+            uniform vec3 uColor;
+            void main() {
+              vec2 p = vUv - vec2(0.5);
+              float r = length(p) * 2.0;
+              float targetR = uProgress * 0.92;
+              float ringWidth = 0.07 * (1.0 - uProgress * 0.5);
+              float d = abs(r - targetR);
+              float ring = smoothstep(ringWidth, 0.0, d);
+              float alpha = ring * (1.0 - uProgress) * 0.95;
+              if (alpha < 0.005) discard;
+              gl_FragColor = vec4(uColor * 1.5, alpha);
+            }
+          `,
+          uniforms: {
+            uProgress: { value: 1.0 },
+            uColor: { value: new THREE.Color(config.vortexTint) }
+          },
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        this.impulseMesh = new THREE.Mesh(impulseGeom, this.impulseMaterial);
+        this.impulseMesh.position.set(this.x, this.y, this.z);
+        this.impulseMesh.visible = false;
+        plexusSceneGroup.add(this.impulseMesh);
+      }
+
+      triggerHoverWobble() {
+        if (this.hoverWobbleTimer > 0.4) {
+          this.hoverWobbleTimer = 0.0;
+        }
+      }
+
+      triggerDockImpulse() {
+        this.impulseTimer = 0.0;
+      }
+
+      triggerDockWobble() {
+        this.dockWobbleTimer = 0.0;
+        this.impulseTimer = 0.0;
+      }
+
+      update(delta: number, time: number, isFinale: boolean, finaleTimer: number, camera?: THREE.Camera | null, modeFadeAlpha = 1.0) {
+        this.internalTime += delta * 0.55;
+        this.material.uniforms.uTime.value = this.internalTime;
+
+        // Smooth 3D tumbling rotation of volumetric orb
+        this.mesh.rotation.y += delta * 0.55;
+        this.mesh.rotation.x += delta * 0.28;
+        this.mesh.updateMatrixWorld();
+
+        if (camera) {
+          const localCam = camera.position.clone();
+          this.mesh.worldToLocal(localCam);
+          this.material.uniforms.uLocalCamPos.value.copy(localCam);
+        }
+
+        if (isFinale) {
+          if (!this.hasCapturedPreFinale) {
+            this.preFinaleOrbitAngle = this.orbitAngle;
+            this.hasCapturedPreFinale = true;
+          }
+
+          if (this.attachedPlexusCount > 0) {
+            const orbitRadius = 180.0;
+            const angle = time * 1.14 + (this.orbIndex * ((Math.PI * 2) / 5));
+            const targetOrbitX = Math.cos(angle) * orbitRadius;
+            const targetOrbitY = Math.sin(angle) * orbitRadius * 0.75;
+            const targetOrbitZ = Math.sin(angle * 2.0) * 35.0;
+
+            this.x = THREE.MathUtils.lerp(this.x, targetOrbitX, 0.08);
+            this.y = THREE.MathUtils.lerp(this.y, targetOrbitY, 0.08);
+            this.z = THREE.MathUtils.lerp(this.z, targetOrbitZ, 0.08);
+
+            this.material.uniforms.uAlpha.value = THREE.MathUtils.lerp(this.material.uniforms.uAlpha.value, 0.95 * modeFadeAlpha, 0.1);
+            this.atmosphereMaterial.uniforms.uAlpha.value = this.material.uniforms.uAlpha.value;
+            this.mesh.visible = (activeModeRef.current === 'plexus');
+
+            // Starburst & Ribbon Trail in Finale
+            const finaleAlpha = 0.95 * modeFadeAlpha;
+            const effectiveShine = 36.0;
+            this.starSprite.scale.set(effectiveShine, effectiveShine, 1.0);
+            this.starSprite.visible = (activeModeRef.current === 'plexus');
+            this.starSprite.material.opacity = modeFadeAlpha;
+
+            this.trailHistory.unshift({ x: this.x, y: this.y, z: this.z });
+            if (this.trailHistory.length > this.trailLength) this.trailHistory.pop();
+
+            if (this.trailRibbonMesh && this.trailRibbonGeo) {
+              const effectiveTailFactor = 1.0;
+              const hasTrail = (activeModeRef.current === 'plexus') && this.trailHistory.length >= 3;
+              this.trailRibbonMesh.visible = hasTrail;
+              this.trailRibbonMat.uniforms.uAlpha.value = finaleAlpha;
+
+              if (hasTrail) {
+                const activeCount = Math.max(6, Math.floor(effectiveTailFactor * this.trailHistory.length));
+                const activePts = [];
+                for (let h = 0; h < activeCount; h++) {
+                  const pt = this.trailHistory[h];
+                  if (pt) activePts.push(new THREE.Vector3(pt.x, pt.y, pt.z));
+                }
+
+                if (activePts.length >= 2) {
+                  const spline = new THREE.CatmullRomCurve3(activePts, false, 'centripetal', 0.5);
+                  const samples = spline.getSpacedPoints(this.ribbonSamples - 1);
+                  const rPositions = this.trailRibbonGeo.attributes.position.array as Float32Array;
+                  const camPos = camera ? camera.position : { x: 0, y: 0, z: 540 };
+                  const BASE_RIBBON_WIDTH = 25.0 * Math.min(1.0, effectiveTailFactor * 1.5);
+
+                  for (let s = 0; s < this.ribbonSamples; s++) {
+                    const curP = samples[s];
+                    const prevP = samples[Math.max(0, s - 1)];
+                    const nextP = samples[Math.min(this.ribbonSamples - 1, s + 1)];
+
+                    let tx = nextP.x - prevP.x;
+                    let ty = nextP.y - prevP.y;
+                    let tz = nextP.z - prevP.z;
+                    const tLen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1.0;
+                    tx /= tLen; ty /= tLen; tz /= tLen;
+
+                    let vx = camPos.x - curP.x;
+                    let vy = camPos.y - curP.y;
+                    let vz = camPos.z - curP.z;
+                    const vLen = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1.0;
+                    vx /= vLen; vy /= vLen; vz /= vLen;
+
+                    let nx = ty * vz - tz * vy;
+                    let ny = tz * vx - tx * vz;
+                    let nz = tx * vy - ty * vx;
+                    const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1.0;
+                    nx /= nLen; ny /= nLen; nz /= nLen;
+
+                    const normS = s / (this.ribbonSamples - 1);
+                    const w = BASE_RIBBON_WIDTH * Math.pow(Math.max(0.0, 1.0 - normS), 0.92);
+
+                    const vIdx = s * 6;
+                    rPositions[vIdx]     = curP.x + nx * w;
+                    rPositions[vIdx + 1] = curP.y + ny * w;
+                    rPositions[vIdx + 2] = curP.z + nz * w;
+
+                    rPositions[vIdx + 3] = curP.x - nx * w;
+                    rPositions[vIdx + 4] = curP.y - ny * w;
+                    rPositions[vIdx + 5] = curP.z - nz * w;
+                  }
+
+                  this.trailRibbonGeo.attributes.position.needsUpdate = true;
+                }
+              }
+            }
+          } else {
+            this.material.uniforms.uAlpha.value = THREE.MathUtils.lerp(this.material.uniforms.uAlpha.value, 0.0, 0.08);
+            this.atmosphereMaterial.uniforms.uAlpha.value = this.material.uniforms.uAlpha.value;
+            if (this.material.uniforms.uAlpha.value < 0.01) {
+              this.mesh.visible = false;
+            }
+            if (this.trailRibbonMesh) this.trailRibbonMesh.visible = false;
+            if (this.starSprite) this.starSprite.visible = false;
+          }
+        } else {
+          if (this.trailRibbonMesh) this.trailRibbonMesh.visible = false;
+          if (this.starSprite) this.starSprite.visible = false;
+          this.trailHistory = [];
+
+          if (this.hasCapturedPreFinale) {
+            this.orbitAngle = this.preFinaleOrbitAngle;
+            this.hasCapturedPreFinale = false;
+          }
+
+            // Restore visibility and opacity for all orbs (clean fade-in without pop-in)
+            this.material.uniforms.uAlpha.value = 0.95 * modeFadeAlpha;
+            this.atmosphereMaterial.uniforms.uAlpha.value = this.preset.atmosphereGlow * modeFadeAlpha;
+            this.mesh.visible = (activeModeRef.current === 'plexus' && modeFadeAlpha > 0.001);
+
+            // Planetary Orbiting computed deterministically from time (exact sync)
+            this.orbitAngle = this.initialOrbitAngle + this.orbitSpeed * time;
+            const targetX = Math.cos(this.orbitAngle) * this.radiusX;
+            const targetY = Math.sin(this.orbitAngle) * this.radiusY;
+            const targetZ = Math.sin(this.orbitAngle * 1.5 + this.zPhase) * this.zAmp + this.baseZ;
+
+            this.x = targetX;
+            this.y = targetY;
+            this.z = targetZ;
+        }
+
+        // Squash-and-Stretch & Spring Wobble (1.0s)
+        let scaleX = 1.0, scaleY = 1.0, scaleZ = 1.0;
+        let wobbleDispX = 0.0, wobbleDispY = 0.0;
+
+        // 1. Hover Wobble: Elastic organic spring reaction (1.0s)
+        if (this.hoverWobbleTimer < 1.0) {
+          this.hoverWobbleTimer += delta;
+          const t = Math.min(1.0, this.hoverWobbleTimer / 1.0);
+          const wobble = Math.sin(t * Math.PI * 8.0) * Math.exp(-t * 3.5);
+          scaleX *= (1.0 + wobble * 0.22);
+          scaleY *= (1.0 - wobble * 0.18);
+          scaleZ *= (1.0 + wobble * 0.22);
+          wobbleDispX += Math.sin(t * Math.PI * 10.0) * (1.0 - t) * 4.5;
+          wobbleDispY += Math.cos(t * Math.PI * 10.0) * (1.0 - t) * 4.5;
+        }
+
+        // 2. Dock Wobble: Energetic impact squash & stretch (1.0s)
+        if (this.dockWobbleTimer < 1.0) {
+          this.dockWobbleTimer += delta;
+          const t = Math.min(1.0, this.dockWobbleTimer / 1.0);
+          const dockWobble = Math.sin(t * Math.PI * 10.0) * Math.exp(-t * 3.2);
+          scaleX *= (1.0 + dockWobble * 0.36);
+          scaleY *= (1.0 - dockWobble * 0.28);
+          scaleZ *= (1.0 + dockWobble * 0.36);
+          wobbleDispX += Math.sin(t * Math.PI * 12.0) * (1.0 - t) * 6.0;
+          wobbleDispY += Math.cos(t * Math.PI * 12.0) * (1.0 - t) * 6.0;
+
+          const glowBoost = 1.0 + Math.max(0.0, dockWobble * 2.0);
+          this.atmosphereMaterial.uniforms.uGlow.value = this.preset.atmosphereGlow * glowBoost;
+        } else if (this.hoverWobbleTimer >= 1.0) {
+          this.atmosphereMaterial.uniforms.uGlow.value = this.preset.atmosphereGlow;
+        }
+
+        this.mesh.scale.set(scaleX, scaleY, scaleZ);
+        this.mesh.position.set(this.x + wobbleDispX, this.y + wobbleDispY, this.z);
+
+        // Update dock impulse shockwave ring
+        if (this.impulseTimer < 0.85) {
+          this.impulseTimer += delta;
+          const progress = Math.min(1.0, this.impulseTimer / 0.85);
+          this.impulseMaterial.uniforms.uProgress.value = progress;
+          this.impulseMesh.position.set(this.x, this.y, this.z);
+          this.impulseMesh.visible = (activeModeRef.current === 'plexus');
+        } else {
+          this.impulseMesh.visible = false;
+        }
+
+        const baseRotSpeed = 0.45 + (this.attachedPlexusCount * 0.20);
+        this.attachedNodes.forEach(node => {
+          node.rot += (delta * (baseRotSpeed + node.rotSpeed * 0.2));
+        });
+      }
+
+      attachCluster(cluster: PlexusCluster) {
+        this.attachedPlexusCount += 1;
+        const tier = this.attachedPlexusCount;
+        // Adapted layer radius to fit outside the 24 radius sphere
+        const layerRadius = 38.0 + (tier - 1) * 14.0;
+        const speedMul = 1.0 + (tier % 2 === 0 ? 0.35 : -0.25);
+
+        const rgbList = PALETTE_RGB_CACHE[this.id];
+
+        cluster.nodes.forEach((cn, i) => {
+          const angle = (i / cluster.nodes.length) * Math.PI * 2 + Math.random() * 0.4;
+          const elevation = (Math.random() - 0.5) * Math.PI * 0.6;
+          const colIndex = i % rgbList.length;
+          const rgb = rgbList[colIndex];
+          this.attachedNodes.push({
+            radius: layerRadius + (Math.random() - 0.5) * 6.0,
+            angle: angle,
+            elevation: elevation,
+            orbitSpeed: (0.45 + (i % 3) * 0.20) * (i % 2 === 0 ? 1 : -1) * speedMul,
+            r: rgb.r,
+            g: rgb.g,
+            b: rgb.b,
+            size: 16.0 + Math.random() * 8.0,
+            rot: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 3.0,
+            tier: tier,
+            chaosTargetX: (Math.random() - 0.5) * 540.0,
+            chaosTargetY: (Math.random() - 0.5) * 340.0,
+            chaosTargetZ: (Math.random() - 0.5) * 120.0,
+            chaosFreqX: 0.4 + Math.random() * 0.8,
+            chaosFreqY: 0.4 + Math.random() * 0.8,
+            chaosFreqZ: 0.3 + Math.random() * 0.6,
+            chaosPhase: Math.random() * Math.PI * 2
+          });
+        });
+      }
+
+      destroy() {
+        plexusSceneGroup.remove(this.mesh);
+        plexusSceneGroup.remove(this.impulseMesh);
+        if (this.trailRibbonMesh) plexusSceneGroup.remove(this.trailRibbonMesh);
+        this.mesh.geometry.dispose();
+        this.atmosphereMesh.geometry.dispose();
+        this.impulseMesh.geometry.dispose();
+        if (this.trailRibbonGeo) this.trailRibbonGeo.dispose();
+        this.material.dispose();
+        this.atmosphereMaterial.dispose();
+        this.impulseMaterial.dispose();
+        if (this.trailRibbonMat) this.trailRibbonMat.dispose();
+      }
+    }
+
+    const floatingPlexusOrbs: FloatingPlexusOrbInstance[] = [];
+    (Object.keys(BLOSSOM_PALETTES) as BlossomColorId[]).forEach((cid, idx) => {
+      const orb = new FloatingPlexusOrbInstance(BLOSSOM_PALETTES[cid], idx);
+      floatingPlexusOrbs.push(orb);
+    });
+
+    const activePlexusClusters: PlexusCluster[] = [];
+    let draggedPlexusCluster: PlexusCluster | null = null;
+    const dragOffset = new THREE.Vector2();
+    let isMouseDown = false;
+    let plexusHoldTime = 0.0;
+    let plexusOriginX = 0;
+    let plexusOriginY = 0;
+    let activeHoldNodes: PlexusNodeDef[] = [];
+    let totalAttachedPlexusCount = 0;
+    let isPlexusFinaleActive = false;
+    let plexusFinaleStartTime = 0.0;
+    let isPlexusCompleted = false;
+    let isPlexusRippleActive = false;
+    let plexusRippleTimer = 0.0;
+    const PLEXUS_TRANSITION_DURATION = 4.0;
+    const PLEXUS_GRAND_FINALE_DURATION = 10.0;
+    const PLEXUS_FINALE_DURATION = 14.0;
+
+    interface FinaleMeshOpts {
+      particleAmount: number;
+      defaultSpeed: number;
+      variantSpeed: number;
+      defaultRadius: number;
+      variantRadius: number;
+      linkRadius: number;
+      maxLinksPerNode?: number;
+      boundX: number;
+      boundY: number;
+      boundZ: number;
+    }
+
+    const FINALE_MESH_OPTS: FinaleMeshOpts = {
+      particleAmount: 100,
+      defaultSpeed: 0.75,
+      variantSpeed: 0.75,
+      defaultRadius: 18.0,
+      variantRadius: 9.0,
+      linkRadius: 88.0,
+      maxLinksPerNode: 4,
+      boundX: 295.0, // 50% margin to screen edges
+      boundY: 185.0, // 50% margin to screen edges
+      boundZ: 48.0
+    };
+
+    class FinaleMeshParticle {
+      x = 0;
+      y = 0;
+      z = 0;
+      renderX = 0;
+      renderY = 0;
+      renderZ = 0;
+      originX = 0;
+      originY = 0;
+      originZ = 0;
+      particleIndex = 0;
+      strandPhase = 0;
+      strandAmp = 42.0;
+      curlPhase = 0;
+      curlSpeed = 2.4;
+      speed = 1;
+      directionAngle = 0;
+      pitchAngle = 0;
+      vector = { x: 0, y: 0, z: 0 };
+      radius = 10;
+      color = { r: 1, g: 1, b: 1 };
+      rotAngle = 0;
+      rotSpeed = 0;
+      boundX: number;
+      boundY: number;
+      boundZ: number;
+
+      constructor(opts: FinaleMeshOpts, boundX?: number, boundY?: number, boundZ?: number, palette?: { r: number; g: number; b: number }[], originPos?: { x: number; y: number; z: number } | null, particleIndex = 0) {
+        this.boundX = boundX || FINALE_MESH_OPTS.boundX;
+        this.boundY = boundY || FINALE_MESH_OPTS.boundY;
+        this.boundZ = boundZ || FINALE_MESH_OPTS.boundZ;
+        this.particleIndex = particleIndex;
+        this.originX = originPos ? (originPos.x + (Math.random() - 0.5) * 14.0) : (Math.random() - 0.5) * 40;
+        this.originY = originPos ? (originPos.y + (Math.random() - 0.5) * 14.0) : (Math.random() - 0.5) * 30;
+        this.originZ = originPos ? (originPos.z + (Math.random() - 0.5) * 10.0) : 0;
+
+        // Long organic wavy filament thread streaming properties
+        this.strandPhase = (particleIndex % 20) / 20.0;
+        this.strandAmp = 42.0 + (particleIndex % 6) * 7.0;
+        this.curlPhase = (particleIndex * 1.45) % (Math.PI * 2);
+        this.curlSpeed = 2.4 + (particleIndex % 3) * 0.65;
+
+        this.reset(opts, palette);
+      }
+
+      reset(opts: FinaleMeshOpts, palette?: { r: number; g: number; b: number }[]) {
+        const opt = opts || FINALE_MESH_OPTS;
+        const angle = Math.random() * Math.PI * 2;
+        const rFrac = Math.sqrt(Math.random());
+        this.x = Math.cos(angle) * this.boundX * 0.90 * rFrac;
+        this.y = Math.sin(angle) * this.boundY * 0.90 * rFrac;
+        this.z = (Math.random() - 0.5) * 2.0 * this.boundZ;
+
+        this.renderX = this.originX;
+        this.renderY = this.originY;
+        this.renderZ = this.originZ;
+
+        this.speed = opt.defaultSpeed + Math.random() * opt.variantSpeed;
+        this.directionAngle = Math.random() * Math.PI * 2;
+        this.pitchAngle = (Math.random() - 0.5) * Math.PI * 0.7;
+
+        this.vector = {
+          x: Math.cos(this.directionAngle) * Math.cos(this.pitchAngle) * this.speed,
+          y: Math.sin(this.directionAngle) * Math.cos(this.pitchAngle) * this.speed,
+          z: Math.sin(this.pitchAngle) * this.speed * 0.6
+        };
+
+        this.radius = opt.defaultRadius + Math.random() * opt.variantRadius;
+        this.color = palette ? palette[Math.floor(Math.random() * palette.length)] : { r: 1.0, g: 0.8, b: 0.9 };
+        this.rotAngle = Math.random() * Math.PI * 2;
+        this.rotSpeed = (Math.random() - 0.5) * 2.0;
+      }
+
+      update(delta: number, transitionProgress = 1.0, finaleAge = 0.0, totalTime = 0.0) {
+        const dt60 = Math.min(2.0, delta * 60.0);
+        this.border();
+        this.x += this.vector.x * dt60;
+        this.y += this.vector.y * dt60;
+        this.z += this.vector.z * dt60;
+        this.rotAngle += this.rotSpeed * delta;
+
+        // 1. Long organic wavy filament thread motion streaming from docked orbs into center area
+        let particleProg = 1.0;
+        let easeProg = 1.0;
+        let waveX = 0.0, waveY = 0.0, waveZ = 0.0;
+
+        if (transitionProgress < 1.0) {
+          const strandStart = this.strandPhase * 0.38;
+          particleProg = Math.max(0.0, Math.min(1.0, (transitionProgress - strandStart) / (1.0 - strandStart)));
+          easeProg = particleProg * particleProg * (3.0 - 2.0 * particleProg);
+
+          const filamentWaveEnvelope = Math.sin(particleProg * Math.PI);
+          waveX = Math.sin(totalTime * this.curlSpeed + this.curlPhase + particleProg * 6.28) * this.strandAmp * filamentWaveEnvelope;
+          waveY = Math.cos(totalTime * (this.curlSpeed * 0.85) + this.curlPhase * 1.3 + particleProg * 5.5) * (this.strandAmp * 0.8) * filamentWaveEnvelope;
+          waveZ = Math.sin(totalTime * (this.curlSpeed * 1.2) + this.curlPhase * 2.1 + particleProg * 7.0) * (this.strandAmp * 0.6) * filamentWaveEnvelope;
+        }
+
+        const baseX = THREE.MathUtils.lerp(this.originX, this.x, easeProg) + waveX;
+        const baseY = THREE.MathUtils.lerp(this.originY, this.y, easeProg) + waveY;
+        const baseZ = THREE.MathUtils.lerp(this.originZ, this.z, easeProg) + waveZ;
+
+        // 2. Moderate whole-network 3D rotation around its own central Y-axis (and subtle vertical tilt)
+        const netRotY = finaleAge * 0.24;
+        const netTiltX = Math.sin(finaleAge * 0.32) * 0.08;
+
+        const cosY = Math.cos(netRotY);
+        const sinY = Math.sin(netRotY);
+        const rx = baseX * cosY - baseZ * sinY;
+        const rz1 = baseX * sinY + baseZ * cosY;
+
+        const cosX = Math.cos(netTiltX);
+        const sinX = Math.sin(netTiltX);
+        const ry = baseY * cosX - rz1 * sinX;
+        const rz = baseY * sinX + rz1 * cosX;
+
+        this.renderX = rx;
+        this.renderY = ry;
+        this.renderZ = rz;
+      }
+
+      border() {
+        const normY = this.y / this.boundY;
+        const currentBoundX = this.boundX * Math.sqrt(Math.max(0.12, 1.0 - normY * normY * 0.72));
+
+        if (this.x >= currentBoundX) {
+          this.vector.x = -Math.abs(this.vector.x);
+          this.x = currentBoundX;
+        } else if (this.x <= -currentBoundX) {
+          this.vector.x = Math.abs(this.vector.x);
+          this.x = -currentBoundX;
+        }
+
+        if (this.y >= this.boundY) {
+          this.vector.y = -Math.abs(this.vector.y);
+          this.y = this.boundY;
+        } else if (this.y <= -this.boundY) {
+          this.vector.y = Math.abs(this.vector.y);
+          this.y = -this.boundY;
+        }
+
+        if (this.z >= this.boundZ) {
+          this.vector.z = -Math.abs(this.vector.z);
+          this.z = this.boundZ;
+        } else if (this.z <= -this.boundZ) {
+          this.vector.z = Math.abs(this.vector.z);
+          this.z = -this.boundZ;
+        }
+      }
+    }
+
+    let finaleParticles: FinaleMeshParticle[] = [];
+    const initFinaleParticles = (activeOrbPalettes?: { r: number; g: number; b: number }[][], activeOrbPositions?: { x: number; y: number; z: number }[]) => {
+      finaleParticles = [];
+      const palettes = (activeOrbPalettes && activeOrbPalettes.length > 0)
+        ? activeOrbPalettes
+        : [PALETTE_RGB_CACHE.pink, PALETTE_RGB_CACHE.red, PALETTE_RGB_CACHE.blue, PALETTE_RGB_CACHE.green, PALETTE_RGB_CACHE.yellow];
+      for (let i = 0; i < FINALE_MESH_OPTS.particleAmount; i++) {
+        const pal = palettes[i % palettes.length];
+        const origin = activeOrbPositions && activeOrbPositions.length > 0 ? activeOrbPositions[i % activeOrbPositions.length] : null;
+        finaleParticles.push(new FinaleMeshParticle(FINALE_MESH_OPTS, FINALE_MESH_OPTS.boundX, FINALE_MESH_OPTS.boundY, FINALE_MESH_OPTS.boundZ, pal, origin, i));
+      }
+    };
+
+    const generateRandomPlexusHoldNodes = (): PlexusNodeDef[] => {
+      const nodes: PlexusNodeDef[] = [];
+      const nodeCount = 14 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < nodeCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 15.0 + Math.random() * 45.0;
+        const heightZ = (Math.random() - 0.5) * 35.0;
+        nodes.push({
+          dx: Math.cos(angle) * dist,
+          dy: Math.sin(angle) * dist,
+          dz: heightZ,
+          freq: 0.8 + Math.random() * 1.5,
+          phase: Math.random() * Math.PI * 2,
+          rot: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 3.0
+        });
+      }
+      return nodes;
+    };
+
+    const createDriftingPlexusCluster = (x: number, y: number, z: number, customNodes?: PlexusNodeDef[]) => {
+      const nodes = customNodes || generateRandomPlexusHoldNodes();
+      const clusterId = activePlexusClusters.length + 1;
+      const dirX = (activePlexusClusters.length % 2 === 0) ? 1 : -1;
+      const dirY = (activePlexusClusters.length % 3 === 0) ? 1 : -1;
+
+      activePlexusClusters.push({
+        id: clusterId,
+        centerX: x,
+        centerY: y,
+        centerZ: z,
+        driftX: (12.0 + Math.random() * 18.0) * dirX,
+        driftY: (10.0 + Math.random() * 16.0) * dirY,
+        driftZ: (8.0 + Math.random() * 14.0) * dirX,
+        nodes: nodes,
+        r: 1.0,
+        g: 0.18,
+        b: 0.65
+      });
+    };
 
     // Interactive Pointer Handlers
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
@@ -1065,33 +2772,227 @@ export function SakuraCanvas({
         const dist = -cameraRef.current.position.z / dir.z;
         mouseWorld.copy(cameraRef.current.position).add(dir.multiplyScalar(dist));
       }
+
+      if (isMouseDown && draggedPlexusCluster && activeModeRef.current === 'plexus') {
+        draggedPlexusCluster.centerX = mouseWorld.x + dragOffset.x;
+        draggedPlexusCluster.centerY = mouseWorld.y + dragOffset.y;
+
+        // Hover wobble reaction when dragging over orb
+        for (let i = 0; i < floatingPlexusOrbs.length; i++) {
+          const orb = floatingPlexusOrbs[i];
+          const dx = orb.x - draggedPlexusCluster.centerX;
+          const dy = orb.y - draggedPlexusCluster.centerY;
+          if (Math.sqrt(dx * dx + dy * dy) < 80.0) {
+            orb.triggerHoverWobble();
+          }
+        }
+      }
     };
 
     const handlePointerDown = () => {
-      if (isPausedRef.current || !isTrunkGrowthFinished) return;
+      if (isPausedRef.current) return;
+      isMouseDown = true;
 
-      activeOrbs.forEach(orb => {
-        if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < 2.5) {
-          orb.triggerExplosion();
+      if (activeModeRef.current === 'bluten') {
+        if (!isTrunkGrowthFinished || isVortexActive) return;
+        activeOrbs.forEach(orb => {
+          if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < 2.5) {
+            orb.triggerExplosion();
 
-          if (currentPhase === 'BRANCH') {
-            spawnSubBranchFromOrb(orb);
-          } else if (currentPhase === 'BLOSSOM') {
-            spawnBlossomClusterFromOrb(orb);
-          } else if (currentPhase === 'PETAL') {
-            instancedPetalMesh.visible = true;
-            activePetalCount = Math.min(MAX_PETALS, activePetalCount + 120);
+            const curPh = currentPhaseRef.current;
+            if (curPh === 'BRANCH') {
+              spawnSubBranchFromOrb(orb);
+            } else if (curPh === 'BLOSSOM') {
+              spawnBlossomClusterFromOrb(orb);
+            }
+
+            showToast('🌸 Interaktiver Knotenpunkt aktiviert!');
+
+            const remainingOrbs = activeOrbs.filter(o => !o.userDrawn);
+            if (remainingOrbs.length === 0) {
+              setTimeout(() => {
+                if (currentPhaseRef.current === 'BRANCH') {
+                  if (currentRound < maxRoundsPerPhase) {
+                    spawnOrbRound(currentRound + 1, 'BRANCH');
+                  } else {
+                    spawnOrbRound(1, 'BLOSSOM');
+                    showToast('🌸 Blütenphase gestartet! Wähle rechts deine Wunschfarbe.');
+                  }
+                } else if (currentPhaseRef.current === 'BLOSSOM') {
+                  if (currentRound < maxRoundsPerPhase) {
+                    spawnOrbRound(currentRound + 1, 'BLOSSOM');
+                  } else {
+                    startVortexFinale();
+                  }
+                }
+              }, 1000);
+            }
+          }
+        });
+      } else if (activeModeRef.current === 'plexus') {
+        draggedPlexusCluster = null;
+
+        for (let i = 0; i < activePlexusClusters.length; i++) {
+          const cluster = activePlexusClusters[i];
+          const dx = cluster.centerX - mouseWorld.x;
+          const dy = cluster.centerY - mouseWorld.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist <= 75.0) {
+            draggedPlexusCluster = cluster;
+            dragOffset.set(dx, dy);
+            break;
+          }
+        }
+
+        if (!draggedPlexusCluster) {
+          plexusHoldTime = 0.0;
+          activeHoldNodes = generateRandomPlexusHoldNodes();
+          plexusOriginX = mouseWorld.x;
+          plexusOriginY = mouseWorld.y;
+        }
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (isMouseDown && activeModeRef.current === 'plexus') {
+        if (draggedPlexusCluster) {
+          let dockedOrb: FloatingPlexusOrbInstance | null = null;
+          let minDist = 120.0;
+
+          for (let i = 0; i < floatingPlexusOrbs.length; i++) {
+            const orb = floatingPlexusOrbs[i];
+            const dx = orb.x - draggedPlexusCluster.centerX;
+            const dy = orb.y - draggedPlexusCluster.centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+              minDist = dist;
+              dockedOrb = orb;
+            }
           }
 
-          markArtworkCompleted('bluten');
-          showToast('🌸 Interaktiver Knotenpunkt aktiviert!');
+          if (dockedOrb) {
+            dockedOrb.attachCluster(draggedPlexusCluster);
+            dockedOrb.triggerDockImpulse();
+            dockedOrb.triggerDockWobble();
+            totalAttachedPlexusCount++;
+            setPlexusAttachedCount(totalAttachedPlexusCount);
+
+            const clusterIdx = activePlexusClusters.indexOf(draggedPlexusCluster);
+            if (clusterIdx !== -1) activePlexusClusters.splice(clusterIdx, 1);
+
+            showToast(`🔮 Plexus an ${dockedOrb.name}-Orb angedockt! (${totalAttachedPlexusCount}/6 Gesamt)`);
+
+            if (totalAttachedPlexusCount >= 6 && !isPlexusFinaleActive && !isPlexusCompleted) {
+              isPlexusFinaleActive = true;
+              setIsPlexusFinale(true);
+              plexusFinaleStartTime = totalAnimTime;
+              isPlexusRippleActive = true;
+              plexusRippleTimer = 0.0;
+              if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 1.0;
+              if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
+
+              // Initialize network particles exclusively from docked orbs
+              const activeDockedOrbs = floatingPlexusOrbs.filter(o => o.attachedPlexusCount > 0);
+              const activeOrbsList = activeDockedOrbs.length > 0 ? activeDockedOrbs : floatingPlexusOrbs;
+              const weightedPalettes: { r: number; g: number; b: number }[][] = [];
+              const weightedPositions: { x: number; y: number; z: number }[] = [];
+              activeOrbsList.forEach(orb => {
+                const count = Math.max(1, orb.attachedPlexusCount);
+                const pal = PALETTE_RGB_CACHE[orb.id] || PALETTE_RGB_CACHE.pink;
+                for (let w = 0; w < count; w++) {
+                  weightedPalettes.push(pal);
+                  weightedPositions.push({ x: orb.x, y: orb.y, z: orb.z });
+                }
+              });
+              initFinaleParticles(weightedPalettes, weightedPositions);
+
+              showToast('🌟 10s Finale: Stern-Netzwerk aktiviert!');
+            }
+          }
+        } else {
+          if (plexusHoldTime >= 1.5) {
+            createDriftingPlexusCluster(plexusOriginX, plexusOriginY, 0.0, activeHoldNodes);
+          }
         }
-      });
+      }
+      isMouseDown = false;
+      draggedPlexusCluster = null;
     };
 
     window.addEventListener('mousemove', handlePointerMove);
     window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('mouseup', handlePointerUp);
     window.addEventListener('touchstart', handlePointerMove);
+    window.addEventListener('touchend', handlePointerUp);
+
+    // Restart function to reset 3D scene elements cleanly
+    restartTriggerRef.current = () => {
+      isVortexActive = false;
+      vortexTimer = 0.0;
+      instancedPetalMesh.visible = false;
+      activePetalCount = 0;
+
+      while (strokeGroup.children.length > 0) {
+        strokeGroup.remove(strokeGroup.children[0]);
+      }
+      activeOrbs.forEach(o => o.destroy(orbGroup));
+      activeOrbs.length = 0;
+      growingSubBranches.length = 0;
+      growingBlossomClusters.length = 0;
+      persistentBlossomStrokes.length = 0;
+      allBranches.length = 0;
+
+      // Reset Plexus State
+      activePlexusClusters.length = 0;
+      totalAttachedPlexusCount = 0;
+      isPlexusFinaleActive = false;
+      isPlexusCompleted = false;
+      finaleParticles.length = 0;
+      isPlexusRippleActive = false;
+      plexusRippleTimer = 0.0;
+      setPlexusAttachedCount(0);
+      setIsPlexusFinale(false);
+      floatingPlexusOrbs.forEach(orb => {
+        orb.attachedPlexusCount = 0;
+        orb.attachedNodes = [];
+      });
+
+      if (activeModeRef.current === 'bluten') {
+        blutenSceneGroup.visible = true;
+        plexusSceneGroup.visible = false;
+
+        mainTrunkStroke = new ImmersiveStroke(strokeGroup, 0.58, 0, 0xf5e4cf);
+        for (let i = 0; i <= 140; i++) {
+          const t = i / 140;
+          mainTrunkStroke.addPoint(pts[i], Math.max(0.18, 1.0 - t * 0.55));
+        }
+        mainTrunkStroke.setProgress(0.0);
+        allBranches.push({ curve: trunkCurve, stroke: mainTrunkStroke, level: 0, totalLength: trunkCurve.getLength() });
+
+        isTrunkGrowthFinished = false;
+        growthProgressVal = 0.0;
+        setIsTrunkGrowing(true);
+        setCurrentPhase('BRANCH');
+        setCurrentRound(1);
+      } else {
+        blutenSceneGroup.visible = false;
+        plexusSceneGroup.visible = true;
+
+        setIsTrunkGrowing(false);
+        // Pre-spawn 2 fresh drifting clusters for user interaction
+        createDriftingPlexusCluster(-120, 40, 0);
+        createDriftingPlexusCluster(140, -60, 0);
+      }
+
+      if (bgUniforms.uBgColor1) bgUniforms.uBgColor1.value.copy(BG_COLOR_PALETTES.default.c1);
+      if (bgUniforms.uBgColor2) bgUniforms.uBgColor2.value.copy(BG_COLOR_PALETTES.default.c2);
+      if (bgUniforms.uBgColor3) bgUniforms.uBgColor3.value.copy(BG_COLOR_PALETTES.default.c3);
+      if (bgUniforms.uRippleCrest) bgUniforms.uRippleCrest.value.copy(BG_COLOR_PALETTES.default.crest);
+      if (bgUniforms.uBgBlend) bgUniforms.uBgBlend.value = 0.0;
+      if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
+      if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
+    };
 
     // Animation Loop
     let animFrameId: number;
@@ -1107,77 +3008,676 @@ export function SakuraCanvas({
 
       // Update uniforms
       bgUniforms.iTime.value = totalAnimTime;
-      mainTrunkStroke.setTime(totalAnimTime);
-      persistentBlossomStrokes.forEach(s => s.setTime(totalAnimTime));
+      bgUniforms.uGridVibe.value = 0.0; // Raster explicitly removed as requested
 
-      // Step-by-Step Trunk Growth Animation (0.0 -> 1.0 over 6 seconds)
-      if (!isTrunkGrowthFinished) {
-        growthProgressVal += delta / growthDurationSeconds;
-        if (growthProgressVal >= 1.0) {
-          growthProgressVal = 1.0;
-          isTrunkGrowthFinished = true;
-          setIsTrunkGrowing(false);
-          spawnOrbRound(1, 'BRANCH');
-          showToast('🌱 Astphase gestartet — Klicke die Knotenpunkte!');
-        }
-        mainTrunkStroke.setProgress(growthProgressVal);
-      }
-
-      // Animate Subbranches (3.0s)
-      for (let i = growingSubBranches.length - 1; i >= 0; i--) {
-        const item = growingSubBranches[i];
-        item.progress += delta / item.duration;
-        if (item.progress > 1.0) item.progress = 1.0;
-        item.stroke.setProgress(item.progress);
-        item.stroke.setTime(totalAnimTime);
-        if (item.progress >= 1.0) {
-          growingSubBranches.splice(i, 1);
+      if (bgUniforms.uRippleActive.value > 0.5) {
+        bgUniforms.uRippleTime.value += delta;
+        if (bgUniforms.uRippleTime.value > 3.0) {
+          bgUniforms.uRippleActive.value = 0.0;
         }
       }
-
-      // Animate Blossom Clusters (0.5s)
-      for (let i = growingBlossomClusters.length - 1; i >= 0; i--) {
-        const item = growingBlossomClusters[i];
-        item.progress += delta / item.duration;
-        if (item.progress > 1.0) item.progress = 1.0;
-        item.stroke.setProgress(item.progress);
-        item.stroke.setTime(totalAnimTime);
-        if (item.progress >= 1.0) {
-          growingBlossomClusters.splice(i, 1);
-        }
-      }
-
       // Mode visibility sync
-      const showBlüten = activeModeRef.current === 'bluten' || activeModeRef.current === 'wald';
-      strokeGroup.visible = showBlüten;
-      orbGroup.visible = showBlüten;
-      petalGroup.visible = showBlüten;
+      const showBlüten = (activeModeRef.current === 'bluten');
+      blutenSceneGroup.visible = showBlüten;
+      plexusSceneGroup.visible = !showBlüten;
 
-      const showPlexus = activeModeRef.current === 'plexus' || activeModeRef.current === 'wald';
-      plexusLinesMesh.visible = showPlexus;
-      plexusPointsMesh.visible = showPlexus;
-
-      // Update Instanced Petals
-      if (showBlüten && instancedPetalMesh.visible) {
-        const renderPetals = Math.min(MAX_PETALS, activePetalCount);
-        for (let i = 0; i < renderPetals; i++) {
-          petalAngle[i] += petalSpeed[i] * delta;
-          const a = petalAngle[i];
-          const px = petalOriginX[i] + Math.cos(a) * petalRadiusX[i];
-          const py = petalOriginY[i] + Math.sin(a * 0.8) * petalRadiusY[i];
-          const pz = Math.sin(totalAnimTime * 1.5 + petalPhaseZ[i]) * 1.5;
-
-          dummy.position.set(px, py, pz);
-          dummy.rotation.set(totalAnimTime * 0.5 + i, totalAnimTime * 0.7 + i, a);
-          dummy.scale.setScalar(petalScales[i]);
-          dummy.updateMatrix();
-          instancedPetalMesh.setMatrixAt(i, dummy.matrix);
-        }
-        instancedPetalMesh.instanceMatrix.needsUpdate = true;
+      // 1-second smooth visual fade-in when switching between artworks
+      if (modeTransitionTimerRef.current < 1.0) {
+        modeTransitionTimerRef.current = Math.min(1.0, modeTransitionTimerRef.current + delta / 1.0);
       }
+      const modeFadeAlpha = THREE.MathUtils.smoothstep(modeTransitionTimerRef.current, 0.0, 1.0);
 
-      // Update Orbs
-      activeOrbs.forEach(orb => orb.update(totalAnimTime, delta));
+      if (showBlüten) {
+        mainTrunkStroke.setTime(totalAnimTime);
+        mainTrunkStroke.setAlpha(modeFadeAlpha);
+        allBranches.forEach(b => {
+          b.stroke.setTime(totalAnimTime);
+          b.stroke.setAlpha(modeFadeAlpha);
+        });
+        persistentBlossomStrokes.forEach(s => {
+          s.setTime(totalAnimTime);
+          s.setAlpha(modeFadeAlpha);
+        });
+
+        // Step-by-Step Trunk Growth Animation (0.0 -> 1.0 over 6 seconds)
+        if (!isTrunkGrowthFinished) {
+          growthProgressVal += delta / growthDurationSeconds;
+          if (growthProgressVal >= 1.0) {
+            growthProgressVal = 1.0;
+            isTrunkGrowthFinished = true;
+            setIsTrunkGrowing(false);
+            spawnOrbRound(1, 'BRANCH');
+            showToast('🌱 Astphase gestartet — Klicke die Knotenpunkte!');
+          }
+          mainTrunkStroke.setProgress(growthProgressVal);
+        }
+
+        // Animate Subbranches (3.0s)
+        for (let i = growingSubBranches.length - 1; i >= 0; i--) {
+          const item = growingSubBranches[i];
+          item.progress += delta / item.duration;
+          if (item.progress > 1.0) item.progress = 1.0;
+          item.stroke.setProgress(item.progress);
+          item.stroke.setTime(totalAnimTime);
+          item.stroke.setAlpha(modeFadeAlpha);
+          if (item.progress >= 1.0) {
+            growingSubBranches.splice(i, 1);
+          }
+        }
+
+        // Animate Blossom Clusters (0.5s)
+        for (let i = growingBlossomClusters.length - 1; i >= 0; i--) {
+          const item = growingBlossomClusters[i];
+          item.progress += delta / item.duration;
+          if (item.progress > 1.0) item.progress = 1.0;
+          item.stroke.setProgress(item.progress);
+          item.stroke.setTime(totalAnimTime);
+          item.stroke.setAlpha(modeFadeAlpha);
+          if (item.progress >= 1.0) {
+            growingBlossomClusters.splice(i, 1);
+          }
+        }
+
+        if (instancedPetalMesh && instancedPetalMesh.material) {
+          (instancedPetalMesh.material as THREE.MeshBasicMaterial).opacity = modeFadeAlpha;
+        }
+
+        // 14-Second Dominant Color Petal Vortex Animation (4s alignment + 10s storm)
+        if (isVortexActive) {
+          vortexTimer += delta;
+          const centerX = cameraRef.current ? cameraRef.current.position.x : 2.4;
+          const centerY = cameraRef.current ? cameraRef.current.position.y : -0.4;
+          const sideTilt = 0.15;
+
+          if (vortexTimer < VORTEX_ALIGN_TIME) {
+            // Phase 1: 4s gentle transition & alignment into flight paths
+            const alignProgress = Math.min(1.0, vortexTimer / VORTEX_ALIGN_TIME);
+            const blend = alignProgress * alignProgress * (3.0 - 2.0 * alignProgress);
+            const spinMultiplier = 0.65 + blend * 2.8;
+
+            for (let i = 0; i < MAX_PETALS; i++) {
+              petalAngle[i] += petalSpeed[i] * delta * spinMultiplier;
+              const a = petalAngle[i];
+              const normH = (i / MAX_PETALS);
+
+              // Initial floating drift position
+              const driftX = petalOriginX[i] + Math.sin(totalAnimTime * 0.4 + petalPhaseZ[i]) * petalRadiusX[i] * 0.5;
+              const driftY = petalOriginY[i] + Math.cos(totalAnimTime * 0.35 + petalPhaseZ[i]) * petalRadiusY[i] * 0.5;
+              const driftZ = Math.sin(totalAnimTime * 0.3 + petalPhaseZ[i]) * 2.0;
+
+              // Vortex circular cylinder position
+              const tubeRadius = (7.5 + (petalRadiusX[i] % 2.5));
+              const rawY = (normH - 0.5) * 16.0;
+              const rawX = Math.cos(a) * tubeRadius;
+              const rawZ = Math.sin(a) * tubeRadius;
+
+              const vortexX = rawX + centerX;
+              const vortexY = centerY + rawY * Math.cos(sideTilt) - rawZ * Math.sin(sideTilt);
+              const vortexZ = rawY * Math.sin(sideTilt) + rawZ * Math.cos(sideTilt);
+
+              const px = THREE.MathUtils.lerp(driftX, vortexX, blend);
+              const py = THREE.MathUtils.lerp(driftY, vortexY, blend);
+              const pz = THREE.MathUtils.lerp(driftZ, vortexZ, blend);
+
+              dummy.position.set(px, py, pz);
+              dummy.rotation.set(totalAnimTime * 0.8 + i, totalAnimTime * 1.2 + i, a);
+              dummy.scale.setScalar(petalScales[i] * (0.6 + 0.4 * blend));
+              dummy.updateMatrix();
+              instancedPetalMesh.setMatrixAt(i, dummy.matrix);
+            }
+          } else {
+            // Phase 2: 10s full vortex storm (speed reduced by 20%)
+            const stormTimer = vortexTimer - VORTEX_ALIGN_TIME;
+            const stormProgress = Math.min(1.0, stormTimer / VORTEX_STORM_TIME);
+            const spinMultiplier = 3.6 + Math.sin(stormProgress * Math.PI) * 1.6;
+
+            for (let i = 0; i < MAX_PETALS; i++) {
+              petalAngle[i] += petalSpeed[i] * delta * spinMultiplier;
+              const a = petalAngle[i];
+              const normH = (i / MAX_PETALS);
+
+              const tubeRadius = (7.5 + (petalRadiusX[i] % 2.5)) * (0.85 + 0.35 * Math.sin(stormProgress * Math.PI));
+              const rawY = (normH - 0.5) * 16.0;
+
+              const rawX = Math.cos(a) * tubeRadius;
+              const rawZ = Math.sin(a) * tubeRadius;
+
+              const px = rawX + centerX;
+              const py = centerY + rawY * Math.cos(sideTilt) - rawZ * Math.sin(sideTilt);
+              const pz = rawY * Math.sin(sideTilt) + rawZ * Math.cos(sideTilt);
+
+              dummy.position.set(px, py, pz);
+              dummy.rotation.set(totalAnimTime * 0.8 + i, totalAnimTime * 1.2 + i, a);
+              dummy.scale.setScalar(petalScales[i] * (0.9 + 0.3 * Math.sin(stormProgress * Math.PI)));
+              dummy.updateMatrix();
+              instancedPetalMesh.setMatrixAt(i, dummy.matrix);
+            }
+          }
+          instancedPetalMesh.instanceMatrix.needsUpdate = true;
+
+          if (vortexTimer >= VORTEX_TOTAL_DURATION) {
+            isVortexActive = false;
+            if (bgUniforms.uBgColor1) bgUniforms.uBgColor1.value.copy(BG_COLOR_PALETTES.default.c1);
+            if (bgUniforms.uBgColor2) bgUniforms.uBgColor2.value.copy(BG_COLOR_PALETTES.default.c2);
+            if (bgUniforms.uBgColor3) bgUniforms.uBgColor3.value.copy(BG_COLOR_PALETTES.default.c3);
+            if (bgUniforms.uRippleCrest) bgUniforms.uRippleCrest.value.copy(BG_COLOR_PALETTES.default.crest);
+            if (bgUniforms.uBgBlend) bgUniforms.uBgBlend.value = 0.0;
+            if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
+            if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
+
+            markArtworkCompleted('bluten');
+            setCurrentPhase('DONE');
+            showToast('🌸 Blütenkunstwerk nach 10s vollendet!');
+          }
+        }
+
+        // Update active sakura branch guide orbs
+        activeOrbs.forEach(orb => orb.update(totalAnimTime, delta, modeFadeAlpha));
+      } else {
+        // ==========================================
+        // PLEXUS ENGINE UPDATE LOOP
+        // ==========================================
+        if (plexusLinesMesh && plexusLinesMesh.material) {
+          (plexusLinesMesh.material as THREE.LineBasicMaterial).opacity = 0.85 * modeFadeAlpha;
+        }
+        if (plexusPointsMesh && plexusPointsMesh.material && (plexusPointsMesh.material as THREE.ShaderMaterial).uniforms?.uAlpha) {
+          (plexusPointsMesh.material as THREE.ShaderMaterial).uniforms.uAlpha.value = modeFadeAlpha;
+        }
+        const linePosAttr = plexusLinesMesh.geometry.attributes.position;
+        const lineColAttr = plexusLinesMesh.geometry.attributes.color;
+        const linePositions = linePosAttr.array as Float32Array;
+        const lineColors = lineColAttr.array as Float32Array;
+
+        const nodePosAttr = plexusPointsMesh.geometry.attributes.position;
+        const nodeColAttr = plexusPointsMesh.geometry.attributes.color;
+        const nodeSizeAttr = plexusPointsMesh.geometry.attributes.size;
+        const nodePositions = nodePosAttr.array as Float32Array;
+        const nodeColors = nodeColAttr.array as Float32Array;
+        const nodeSizes = nodeSizeAttr.array as Float32Array;
+
+        if (isMouseDown) {
+          if (draggedPlexusCluster) {
+            draggedPlexusCluster.centerX = mouseWorld.x + dragOffset.x;
+            draggedPlexusCluster.centerY = mouseWorld.y + dragOffset.y;
+            for (let i = 0; i < floatingPlexusOrbs.length; i++) {
+              const orb = floatingPlexusOrbs[i];
+              const dx = orb.x - draggedPlexusCluster.centerX;
+              const dy = orb.y - draggedPlexusCluster.centerY;
+              if (Math.sqrt(dx * dx + dy * dy) < 80.0) {
+                orb.triggerHoverWobble();
+              }
+            }
+          } else {
+            plexusHoldTime += delta;
+            plexusOriginX = mouseWorld.x;
+            plexusOriginY = mouseWorld.y;
+          }
+        }
+
+        const finaleAge = isPlexusFinaleActive ? (totalAnimTime - plexusFinaleStartTime) : 0.0;
+
+        if (isPlexusRippleActive) {
+          plexusRippleTimer += delta;
+          if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 1.0;
+          if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = plexusRippleTimer;
+          if (plexusRippleTimer >= 2.5) {
+            isPlexusRippleActive = false;
+            if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
+            if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
+          }
+        }
+
+        if (isPlexusFinaleActive && finaleAge >= PLEXUS_FINALE_DURATION) {
+          isPlexusFinaleActive = false;
+          setIsPlexusFinale(false);
+          if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
+          if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
+          if (!isPlexusCompleted) {
+            isPlexusCompleted = true;
+            markArtworkCompleted('plexus');
+            showToast('✨ Plexus-Netzwerk nach 14s vollendet!');
+          }
+        }
+
+        floatingPlexusOrbs.forEach(orb => {
+          orb.update(delta, totalAnimTime, isPlexusFinaleActive, finaleAge, cameraRef.current, modeFadeAlpha);
+        });
+
+        if (isPlexusFinaleActive) {
+          plexusFinaleMesh.visible = false;
+          plexusLinesMesh.visible = true;
+          plexusPointsMesh.visible = true;
+
+          const fadeIn = THREE.MathUtils.smoothstep(finaleAge, 0.0, 3.5);
+          const fadeOut = Math.max(0.0, Math.min(1.0, (PLEXUS_FINALE_DURATION - finaleAge) / 1.5));
+          const finaleAlpha = fadeIn * fadeOut;
+
+          const activeDockedOrbs = floatingPlexusOrbs.filter(o => o.attachedPlexusCount > 0);
+          const activeOrbsList = activeDockedOrbs.length > 0 ? activeDockedOrbs : floatingPlexusOrbs;
+
+          if (finaleParticles.length === 0) {
+            const weightedPalettes: { r: number; g: number; b: number }[][] = [];
+            const weightedPositions: { x: number; y: number; z: number }[] = [];
+            activeOrbsList.forEach(orb => {
+              const count = Math.max(1, orb.attachedPlexusCount);
+              const pal = PALETTE_RGB_CACHE[orb.id] || PALETTE_RGB_CACHE.pink;
+              for (let w = 0; w < count; w++) {
+                weightedPalettes.push(pal);
+                weightedPositions.push({ x: orb.x, y: orb.y, z: orb.z });
+              }
+            });
+            initFinaleParticles(weightedPalettes, weightedPositions);
+          }
+
+          // 1. Update dynamic finale particles with 4s smooth transition unfolding
+          const transitionProgress = Math.min(1.0, finaleAge / PLEXUS_TRANSITION_DURATION);
+          for (let p = 0; p < finaleParticles.length; p++) {
+            finaleParticles[p].update(delta, transitionProgress, finaleAge, totalAnimTime);
+          }
+
+          // 2. Collect world nodes
+          let worldNodeCount = 0;
+
+          // Add dynamic particles
+          for (let p = 0; p < finaleParticles.length; p++) {
+            if (worldNodeCount >= MAX_TOTAL_NODES) break;
+            const pt = finaleParticles[p];
+            const idx = worldNodeCount++;
+            worldNodeX[idx] = pt.renderX;
+            worldNodeY[idx] = pt.renderY;
+            worldNodeZ[idx] = pt.renderZ;
+            worldNodeR[idx] = pt.color.r;
+            worldNodeG[idx] = pt.color.g;
+            worldNodeB[idx] = pt.color.b;
+            worldNodeSize[idx] = (pt.radius + Math.sin(totalAnimTime * 3.2 + p) * 3.5) * finaleAlpha;
+            worldNodeDistCenter[idx] = Math.sqrt(pt.renderX * pt.renderX + pt.renderY * pt.renderY);
+          }
+
+          // Add orbiting floating orbs as active network hubs (ONLY the active docked orbs!)
+          for (let o = 0; o < activeOrbsList.length; o++) {
+            if (worldNodeCount >= MAX_TOTAL_NODES) break;
+            const orb = activeOrbsList[o];
+            const oIdx = worldNodeCount++;
+            worldNodeX[oIdx] = orb.x;
+            worldNodeY[oIdx] = orb.y;
+            worldNodeZ[oIdx] = orb.z;
+            const pal = PALETTE_RGB_CACHE[orb.id] || PALETTE_RGB_CACHE.pink;
+            const col = pal[0];
+            worldNodeR[oIdx] = col.r;
+            worldNodeG[oIdx] = col.g;
+            worldNodeB[oIdx] = col.b;
+            worldNodeSize[oIdx] = 36.0 * finaleAlpha;
+            worldNodeDistCenter[oIdx] = Math.sqrt(orb.x * orb.x + orb.y * orb.y);
+          }
+
+          // Populate Node Buffers
+          for (let k = 0; k < worldNodeCount; k++) {
+            const k3 = k * 3;
+            nodePositions[k3] = worldNodeX[k];
+            nodePositions[k3 + 1] = worldNodeY[k];
+            nodePositions[k3 + 2] = worldNodeZ[k];
+
+            const baseNodeR = Math.max(0.35, worldNodeR[k]);
+            const baseNodeG = Math.max(0.35, worldNodeG[k]);
+            const baseNodeB = Math.max(0.35, worldNodeB[k]);
+
+            nodeColors[k3] = Math.min(1.0, baseNodeR * 1.55 * finaleAlpha);
+            nodeColors[k3 + 1] = Math.min(1.0, baseNodeG * 1.55 * finaleAlpha);
+            nodeColors[k3 + 2] = Math.min(1.0, baseNodeB * 1.55 * finaleAlpha);
+
+            nodeSizes[k] = worldNodeSize[k];
+          }
+
+          // 3. Dynamic Distance-Based Line Connections with Thick Filaments & Random Twinkling Flicker
+          let lineVertexIdx = 0;
+          let lineColorIdx = 0;
+          const maxLineVertices = linePositions.length - 18;
+
+          const linkRadius = FINALE_MESH_OPTS.linkRadius;
+          const linkRadiusSq = linkRadius * linkRadius;
+          const maxLinksPerNode = FINALE_MESH_OPTS.maxLinksPerNode || 4;
+          const nodeLinkCounts = new Uint8Array(worldNodeCount);
+
+          for (let i = 0; i < worldNodeCount; i++) {
+            if (nodeLinkCounts[i] >= maxLinksPerNode) continue;
+            const x1 = worldNodeX[i], y1 = worldNodeY[i], z1 = worldNodeZ[i];
+            for (let j = i + 1; j < worldNodeCount; j++) {
+              if (lineVertexIdx >= maxLineVertices) break;
+              if (nodeLinkCounts[i] >= maxLinksPerNode) break;
+              if (nodeLinkCounts[j] >= maxLinksPerNode) continue;
+              const x2 = worldNodeX[j], y2 = worldNodeY[j], z2 = worldNodeZ[j];
+              const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+              const distSq = dx * dx + dy * dy + dz * dz;
+
+              if (distSq < linkRadiusSq) {
+                const distance = Math.sqrt(distSq);
+                const opacity = (1.0 - distance / linkRadius) * finaleAlpha;
+                if (opacity > 0.01) {
+                  const lineSeed = (i * 137.5 + j * 269.3) % 1000.0;
+                  const flickerA = Math.sin(totalAnimTime * 14.0 + lineSeed);
+                  const flickerB = Math.cos(totalAnimTime * 25.0 + lineSeed * 1.7);
+                  const flickerNoise = flickerA * 0.6 + flickerB * 0.4;
+
+                  let flickerMul = 1.0;
+                  if (flickerNoise < -0.32) {
+                    flickerMul = Math.max(0.0, (flickerNoise + 0.32) * -3.0 > 0.4 ? 0.0 : 0.35);
+                  } else if (flickerNoise > 0.68) {
+                    flickerMul = 1.65;
+                  }
+
+                  if (flickerMul <= 0.02) continue;
+
+                  nodeLinkCounts[i]++;
+                  nodeLinkCounts[j]++;
+
+                  const lineAlpha = Math.pow(opacity, 0.65) * 1.65 * flickerMul;
+                  const r1 = Math.min(1.0, worldNodeR[i] * lineAlpha * 1.55);
+                  const g1 = Math.min(1.0, worldNodeG[i] * lineAlpha * 1.55);
+                  const b1 = Math.min(1.0, worldNodeB[i] * lineAlpha * 1.55);
+                  const r2 = Math.min(1.0, worldNodeR[j] * lineAlpha * 1.55);
+                  const g2 = Math.min(1.0, worldNodeG[j] * lineAlpha * 1.55);
+                  const b2 = Math.min(1.0, worldNodeB[j] * lineAlpha * 1.55);
+
+                  const pLen = Math.sqrt(dx * dx + dy * dy) || 1.0;
+                  const perpX = (-dy / pLen) * 0.85;
+                  const perpY = (dx / pLen) * 0.85;
+
+                  // 1. Center Line
+                  linePositions[lineVertexIdx++] = x1;
+                  linePositions[lineVertexIdx++] = y1;
+                  linePositions[lineVertexIdx++] = z1;
+                  linePositions[lineVertexIdx++] = x2;
+                  linePositions[lineVertexIdx++] = y2;
+                  linePositions[lineVertexIdx++] = z2;
+
+                  lineColors[lineColorIdx++] = r1;
+                  lineColors[lineColorIdx++] = g1;
+                  lineColors[lineColorIdx++] = b1;
+                  lineColors[lineColorIdx++] = r2;
+                  lineColors[lineColorIdx++] = g2;
+                  lineColors[lineColorIdx++] = b2;
+
+                  // 2. Positive Perpendicular Filament
+                  if (lineVertexIdx < maxLineVertices) {
+                    linePositions[lineVertexIdx++] = x1 + perpX;
+                    linePositions[lineVertexIdx++] = y1 + perpY;
+                    linePositions[lineVertexIdx++] = z1;
+                    linePositions[lineVertexIdx++] = x2 + perpX;
+                    linePositions[lineVertexIdx++] = y2 + perpY;
+                    linePositions[lineVertexIdx++] = z2;
+
+                    lineColors[lineColorIdx++] = r1 * 0.85;
+                    lineColors[lineColorIdx++] = g1 * 0.85;
+                    lineColors[lineColorIdx++] = b1 * 0.85;
+                    lineColors[lineColorIdx++] = r2 * 0.85;
+                    lineColors[lineColorIdx++] = g2 * 0.85;
+                    lineColors[lineColorIdx++] = b2 * 0.85;
+                  }
+
+                  // 3. Negative Perpendicular Filament
+                  if (lineVertexIdx < maxLineVertices) {
+                    linePositions[lineVertexIdx++] = x1 - perpX;
+                    linePositions[lineVertexIdx++] = y1 - perpY;
+                    linePositions[lineVertexIdx++] = z1;
+                    linePositions[lineVertexIdx++] = x2 - perpX;
+                    linePositions[lineVertexIdx++] = y2 - perpY;
+                    linePositions[lineVertexIdx++] = z2;
+
+                    lineColors[lineColorIdx++] = r1 * 0.85;
+                    lineColors[lineColorIdx++] = g1 * 0.85;
+                    lineColors[lineColorIdx++] = b1 * 0.85;
+                    lineColors[lineColorIdx++] = r2 * 0.85;
+                    lineColors[lineColorIdx++] = g2 * 0.85;
+                    lineColors[lineColorIdx++] = b2 * 0.85;
+                  }
+                }
+              }
+            }
+          }
+
+          lineGeo.setDrawRange(0, lineVertexIdx / 3);
+          nodeGeo.setDrawRange(0, worldNodeCount);
+
+          linePosAttr.needsUpdate = true;
+          lineColAttr.needsUpdate = true;
+          nodePosAttr.needsUpdate = true;
+          nodeColAttr.needsUpdate = true;
+          nodeSizeAttr.needsUpdate = true;
+        } else {
+          plexusFinaleMesh.visible = false;
+          plexusFinaleUniforms.uAlpha.value = 0.0;
+          plexusLinesMesh.visible = true;
+          plexusPointsMesh.visible = true;
+
+          let worldNodeCount = 0;
+
+          // 1. Growing cluster around cursor
+          if (isMouseDown && !draggedPlexusCluster && activeHoldNodes.length > 0) {
+            const progress = Math.min(1.0, plexusHoldTime / 1.5);
+            const activeCount = Math.floor(progress * activeHoldNodes.length);
+
+            for (let n = 0; n < activeCount; n++) {
+              if (worldNodeCount >= MAX_TOTAL_NODES) break;
+              const node = activeHoldNodes[n];
+              node.rot += delta * node.rotSpeed;
+
+              const wx = plexusOriginX + node.dx * progress + Math.sin(totalAnimTime * node.freq + node.phase) * 10.0;
+              const wy = plexusOriginY + node.dy * progress + Math.cos(totalAnimTime * node.freq + node.phase) * 10.0;
+              const wz = node.dz * progress;
+
+              const idx = worldNodeCount++;
+              worldNodeX[idx] = wx;
+              worldNodeY[idx] = wy;
+              worldNodeZ[idx] = wz;
+              worldNodeR[idx] = 1.0;
+              worldNodeG[idx] = 0.18;
+              worldNodeB[idx] = 0.65;
+              worldNodeSize[idx] = 15.0 * progress;
+              worldNodeDistCenter[idx] = Math.sqrt(wx * wx + wy * wy);
+            }
+          }
+
+          // 2. Free floating clusters
+          const safeMarginX = 260.0;
+          const safeMarginY = 160.0;
+
+          for (let c = 0; c < activePlexusClusters.length; c++) {
+            const cluster = activePlexusClusters[c];
+            if (cluster !== draggedPlexusCluster) {
+              cluster.centerX += cluster.driftX * delta;
+              cluster.centerY += cluster.driftY * delta;
+              cluster.centerZ += cluster.driftZ * delta;
+
+              if (cluster.centerX > safeMarginX) { cluster.driftX = -Math.abs(cluster.driftX); cluster.centerX = safeMarginX; }
+              else if (cluster.centerX < -safeMarginX) { cluster.driftX = Math.abs(cluster.driftX); cluster.centerX = -safeMarginX; }
+              if (cluster.centerY > safeMarginY) { cluster.driftY = -Math.abs(cluster.driftY); cluster.centerY = safeMarginY; }
+              else if (cluster.centerY < -safeMarginY) { cluster.driftY = Math.abs(cluster.driftY); cluster.centerY = -safeMarginY; }
+              if (Math.abs(cluster.centerZ) > 60.0) { cluster.driftZ *= -1.0; cluster.centerZ = Math.sign(cluster.centerZ) * 60.0; }
+            }
+
+            for (let i = 0; i < cluster.nodes.length; i++) {
+              if (worldNodeCount >= MAX_TOTAL_NODES) break;
+              const node = cluster.nodes[i];
+              node.rot += delta * node.rotSpeed;
+
+              const wx = cluster.centerX + node.dx + Math.sin(totalAnimTime * node.freq + node.phase) * 10.0;
+              const wy = cluster.centerY + node.dy + Math.cos(totalAnimTime * node.freq + node.phase) * 10.0;
+              const wz = cluster.centerZ + node.dz + Math.sin(totalAnimTime * 0.9 + node.phase * 1.5) * 15.0;
+
+              const idx = worldNodeCount++;
+              worldNodeX[idx] = wx;
+              worldNodeY[idx] = wy;
+              worldNodeZ[idx] = wz;
+              worldNodeR[idx] = cluster.r;
+              worldNodeG[idx] = cluster.g;
+              worldNodeB[idx] = cluster.b;
+              worldNodeSize[idx] = 15.0;
+              worldNodeDistCenter[idx] = Math.sqrt(wx * wx + wy * wy);
+            }
+          }
+
+          // 3. Attached Plexus Nodes: Local Orb Shells
+          for (let o = 0; o < floatingPlexusOrbs.length; o++) {
+            const orb = floatingPlexusOrbs[o];
+            const attNodes = orb.attachedNodes;
+            const attLen = attNodes.length;
+            if (attLen === 0) continue;
+
+            for (let n = 0; n < attLen; n++) {
+              if (worldNodeCount >= MAX_TOTAL_NODES) break;
+              const node = attNodes[n];
+              node.angle += node.orbitSpeed * delta;
+              node.rot += delta * node.rotSpeed;
+
+              const localRadius = node.radius;
+              const localX = orb.x + Math.cos(node.angle) * Math.cos(node.elevation) * localRadius;
+              const localY = orb.y + Math.sin(node.angle) * Math.cos(node.elevation) * localRadius * 0.85;
+              const localZ = orb.z + Math.sin(node.elevation) * localRadius;
+
+              const idx = worldNodeCount++;
+              worldNodeX[idx] = localX;
+              worldNodeY[idx] = localY;
+              worldNodeZ[idx] = localZ;
+              worldNodeR[idx] = node.r;
+              worldNodeG[idx] = node.g;
+              worldNodeB[idx] = node.b;
+              worldNodeSize[idx] = node.size;
+              worldNodeDistCenter[idx] = Math.sqrt(localX * localX + localY * localY);
+            }
+          }
+
+          // Populate Node Buffers
+          for (let k = 0; k < worldNodeCount; k++) {
+            const k3 = k * 3;
+            nodePositions[k3] = worldNodeX[k];
+            nodePositions[k3 + 1] = worldNodeY[k];
+            nodePositions[k3 + 2] = worldNodeZ[k];
+
+            nodeColors[k3] = worldNodeR[k];
+            nodeColors[k3 + 1] = worldNodeG[k];
+            nodeColors[k3 + 2] = worldNodeB[k];
+
+            nodeSizes[k] = worldNodeSize[k];
+          }
+
+          // Render Dynamic Lines Between Connected Nodes
+          let lineVertexIdx = 0;
+          let lineColorIdx = 0;
+          const maxLineVertices = linePositions.length - 6;
+          nodeConnCounts.fill(0, 0, worldNodeCount);
+
+          const maxDistCutoff = 85.0;
+          const maxDistCutoff2 = maxDistCutoff * maxDistCutoff;
+
+          for (let i = 0; i < worldNodeCount; i++) {
+            const ax = worldNodeX[i];
+            const ay = worldNodeY[i];
+            const az = worldNodeZ[i];
+            const ar = worldNodeR[i];
+            const ag = worldNodeG[i];
+            const ab = worldNodeB[i];
+
+            for (let j = i + 1; j < worldNodeCount; j++) {
+              if (lineVertexIdx >= maxLineVertices) break;
+
+              const dx = ax - worldNodeX[j];
+              if (dx > maxDistCutoff || dx < -maxDistCutoff) continue;
+
+              const dy = ay - worldNodeY[j];
+              if (dy > maxDistCutoff || dy < -maxDistCutoff) continue;
+
+              const dz = az - worldNodeZ[j];
+              if (dz > maxDistCutoff || dz < -maxDistCutoff) continue;
+
+              const d2 = dx * dx + dy * dy + dz * dz;
+              if (d2 >= maxDistCutoff2) continue;
+
+              nodeConnCounts[i]++;
+              nodeConnCounts[j]++;
+
+              const dist = Math.sqrt(d2);
+              const alpha = (1.0 - dist / 85.0) * 0.92;
+
+              linePositions[lineVertexIdx++] = ax;
+              linePositions[lineVertexIdx++] = ay;
+              linePositions[lineVertexIdx++] = az;
+
+              linePositions[lineVertexIdx++] = worldNodeX[j];
+              linePositions[lineVertexIdx++] = worldNodeY[j];
+              linePositions[lineVertexIdx++] = worldNodeZ[j];
+
+              const effAlpha = Math.pow(alpha, 0.72) * 1.35;
+              lineColors[lineColorIdx++] = Math.min(1.0, ar * effAlpha);
+              lineColors[lineColorIdx++] = Math.min(1.0, ag * effAlpha);
+              lineColors[lineColorIdx++] = Math.min(1.0, ab * effAlpha);
+
+              lineColors[lineColorIdx++] = Math.min(1.0, worldNodeR[j] * effAlpha);
+              lineColors[lineColorIdx++] = Math.min(1.0, worldNodeG[j] * effAlpha);
+              lineColors[lineColorIdx++] = Math.min(1.0, worldNodeB[j] * effAlpha);
+            }
+          }
+
+          lineGeo.setDrawRange(0, lineVertexIdx / 3);
+          nodeGeo.setDrawRange(0, worldNodeCount);
+
+          linePosAttr.needsUpdate = true;
+          lineColAttr.needsUpdate = true;
+          nodePosAttr.needsUpdate = true;
+          nodeColAttr.needsUpdate = true;
+          nodeSizeAttr.needsUpdate = true;
+        }
+
+        // Update Particle Trail & Explosion Flare Mesh (Plexus mode only)
+        const tpPositions = trailGeo.attributes.position.array as Float32Array;
+        const tpColors = trailGeo.attributes.color.array as Float32Array;
+        const tpSizes = trailGeo.attributes.size.array as Float32Array;
+        const tpAlphas = trailGeo.attributes.alpha.array as Float32Array;
+        const tpRotAngles = trailGeo.attributes.rotAngle.array as Float32Array;
+        let activeTrailCount = 0;
+
+        for (let k = 0; k < MAX_TRAIL_PARTICLES; k++) {
+          if (tpLife[k] < tpMaxLife[k]) {
+            tpLife[k] += delta;
+            activeTrailCount++;
+            const progress = tpLife[k] / tpMaxLife[k];
+
+            tpVX[k] *= 0.965;
+            tpVY[k] *= 0.965;
+            tpVZ[k] *= 0.965;
+
+            tpX[k] += tpVX[k] * delta;
+            tpY[k] += tpVY[k] * delta;
+            tpZ[k] += tpVZ[k] * delta;
+
+            tpRot[k] += delta * 3.0;
+
+            const k3 = k * 3;
+            tpPositions[k3] = tpX[k];
+            tpPositions[k3 + 1] = tpY[k];
+            tpPositions[k3 + 2] = tpZ[k];
+
+            tpColors[k3] = tpR[k];
+            tpColors[k3 + 1] = tpG[k];
+            tpColors[k3 + 2] = tpB[k];
+
+            tpAlphas[k] = Math.max(0.0, (1.0 - Math.pow(progress, 1.8)));
+            tpSizes[k] = trailSizes[k] * (1.0 - progress * 0.35);
+            tpRotAngles[k] = tpRot[k];
+          } else if (tpSizes[k] > 0) {
+            tpSizes[k] = 0;
+            tpAlphas[k] = 0;
+          }
+        }
+
+        if (activeTrailCount > 0 || prevActiveTrailCount > 0) {
+          trailGeo.attributes.position.needsUpdate = true;
+          trailGeo.attributes.color.needsUpdate = true;
+          trailGeo.attributes.size.needsUpdate = true;
+          trailGeo.attributes.alpha.needsUpdate = true;
+          trailGeo.attributes.rotAngle.needsUpdate = true;
+        }
+        prevActiveTrailCount = activeTrailCount;
+      }
 
       // Render dual pass
       renderer.clear();
@@ -1196,6 +3696,7 @@ export function SakuraCanvas({
       updateCameraDistance(w, h, activeModeRef.current);
       renderer.setSize(w, h);
       bgUniforms.iResolution.value.set(w, h, 1);
+      plexusFinaleUniforms.iResolution.value.set(w, h, 1);
     };
     window.addEventListener('resize', handleResize);
 
@@ -1206,9 +3707,29 @@ export function SakuraCanvas({
         if (!data) return;
         const msg = data as unknown as Record<string, unknown>;
         if (msg.kind === 'MODE_SWITCH' && msg.mode) {
-          handleSwitchMode(msg.mode as 'bluten' | 'plexus' | 'wald');
+          handleSwitchMode(msg.mode as 'bluten' | 'plexus');
+        } else if (msg.kind === 'COLOR_SELECT' && msg.color) {
+          setSelectedColor(msg.color as BlossomColorId);
         } else if (msg.kind === 'PAUSE_TOGGLE' && typeof msg.isPaused === 'boolean') {
           setIsPaused(msg.isPaused as boolean);
+        } else if (msg.kind === 'CREATION_READY' && typeof msg.ready === 'boolean') {
+          setGuestCreationReady(msg.ready as boolean);
+          if (msg.ready && hostCreationReady) {
+            setIsLightboxOpen(true);
+          }
+        } else if (msg.kind === 'CREATION_RESET') {
+          setHostCreationReady(false);
+          setGuestCreationReady(false);
+          setIsLightboxOpen(false);
+        } else if (msg.kind === 'ARTWORK_SELECT' && msg.artwork) {
+          setIsCreationMode(true);
+          const art = msg.artwork as 'bluten' | 'plexus';
+          setActiveMode(art);
+          activeModeRef.current = art;
+          restartTriggerRef.current();
+          setIsLightboxOpen(false);
+          setHostCreationReady(false);
+          setGuestCreationReady(false);
         }
       }
     });
@@ -1216,7 +3737,9 @@ export function SakuraCanvas({
     return () => {
       window.removeEventListener('mousemove', handlePointerMove);
       window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('mouseup', handlePointerUp);
       window.removeEventListener('touchstart', handlePointerMove);
+      window.removeEventListener('touchend', handlePointerUp);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animFrameId);
       renderer.dispose();
@@ -1229,33 +3752,33 @@ export function SakuraCanvas({
       petalGeo.dispose();
       trailMat.dispose();
       trailGeo.dispose();
+      plexusFinaleGeo.dispose();
+      plexusFinaleMat.dispose();
       noiseTex.dispose();
+      floatingPlexusOrbs.forEach(orb => orb.destroy());
     };
   }, [onRendererReady, handleSwitchMode, markArtworkCompleted, showToast, updateCameraDistance]);
 
-  const isSakuraUnlocked = blutenCounted && plexusCounted;
-  const isCreationUnlocked = completedArtworksCount >= 3;
+  const isCreationUnlocked = isTestUnlockActive || completedArtworksCount >= 2;
 
   // Dynamic Instruction Text Calculation based on step-by-step phase
-  const instructionTitle = isTrunkGrowing
-    ? 'Stammwuchs (Initialisierung)'
-    : activeMode === 'bluten'
-      ? `Sumi-e Blütenkunst (${currentPhase} - Runde ${currentRound}/${maxRoundsPerPhase})`
-      : activeMode === 'plexus'
-        ? 'Plexus Konstellation'
-        : '🌸 Sakura Kunstwerk';
+  const roundInfo = activeMode === 'bluten' && (currentPhase === 'BRANCH' || currentPhase === 'BLOSSOM')
+    ? `Runde ${currentRound}/${maxRoundsPerPhase}`
+    : null;
 
   const instructionBody = isTrunkGrowing
-    ? 'Der Stamm wächst heran... Lehne dich zurück und beobachte den Wuchs.'
+    ? 'Klicke auf einen Knotenpunkt, um einen weiteren Zweig am Ast wachsen zu lassen.'
     : activeMode === 'bluten'
       ? currentPhase === 'BRANCH'
-        ? 'Halte an einem Knotenpunkt die Maus gedrückt und ziehe entlang der Hilfslinie, um einen weiteren Ast wachsen zu lassen.'
+        ? 'Klicke auf einen Knotenpunkt, um einen weiteren Zweig am Ast wachsen zu lassen.'
         : currentPhase === 'BLOSSOM'
-          ? 'Drücke auf einen Knotenpunkt, um Sakurablüten zu erzeugen.'
-          : 'Klicke auf die Blüten, um das Kunstwerk mit Blütenblättern zu füllen.'
-      : activeMode === 'plexus'
-        ? 'Bewege deine Maus/Touch, um leuchtende Partikel-Knoten und Energielinien zu verbinden.'
-        : 'Harmonischer Sakura-Wald. Verbinde Blüten & Plexus zu einem Gesamtkunstwerk.';
+          ? 'Wähle rechts deine Wunschfarbe und klicke auf die Knoten, Sakurablüten zu malen und vollende das Kunstwerk.'
+          : currentPhase === 'VORTEX'
+            ? 'Die meistgewählte Farbe entfesselt einen 10-sekündigen Blütensturm!'
+            : 'Das Blütenkunstwerk ist vollendet!'
+      : isPlexusFinale
+        ? '6 Plexus angedockt! Das Kunstwerk ist vollendet.'
+        : 'Halte deine Maus gedrückt, um einen Plexus zu erschaffen. Ziehe 6 verschiedene Plexus mit der Maus auf die Kerne, um das Kunstwerk zu vollenden.';
 
   return (
     <div ref={containerRef} className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c] select-none z-0">
@@ -1269,19 +3792,58 @@ export function SakuraCanvas({
         </div>
       )}
 
+      {/* RIGHT SIDEBAR: Color Palette (Smoothly shown during BLOSSOM phase) */}
+      {activeMode === 'bluten' && currentPhase === 'BLOSSOM' && (
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-auto flex flex-col items-center gap-3.5 p-4 bg-[#120c1c]/90 backdrop-blur-xl border border-[#ff69b4]/40 rounded-3xl shadow-[0_12px_35px_rgba(0,0,0,0.6)] z-50 animate-in fade-in duration-300">
+          <div className="text-[10px] font-bold tracking-[2.5px] uppercase text-[#ffc8eb]/80 [writing-mode:vertical-lr] rotate-180 py-1">
+            Farbpalette
+          </div>
+          <div className="w-6 h-px bg-white/20 my-0.5" />
+          <div className="flex flex-col gap-3">
+            {(Object.keys(BLOSSOM_PALETTES) as BlossomColorId[]).map((colorKey) => {
+              const pal = BLOSSOM_PALETTES[colorKey];
+              const isSelected = selectedColor === colorKey;
+              return (
+                <button
+                  key={colorKey}
+                  onClick={() => handleColorSelect(colorKey)}
+                  title={`Farbe wählen: ${pal.name}`}
+                  className={`relative group w-9 h-9 rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer ${
+                    isSelected
+                      ? 'scale-120 ring-2 ring-white shadow-[0_0_18px_' + pal.uiColor + ']'
+                      : 'opacity-70 hover:opacity-100 hover:scale-110'
+                  }`}
+                  style={{ backgroundColor: pal.uiColor }}
+                >
+                  {isSelected && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_white]" />
+                  )}
+                  {/* Tooltip on hover */}
+                  <span className="absolute right-full mr-3 px-2.5 py-1 bg-[#180f24]/95 text-white text-[10px] font-semibold tracking-wider uppercase rounded-lg border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
+                    {pal.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Modern 4-Corner Glassmorphic HUD Layer */}
       <div className="absolute inset-0 p-8 flex flex-col justify-between pointer-events-none z-40">
-        
+
         {/* TOP BAR: Instruction Box (Left) & Control Buttons (Right) */}
         <div className="flex justify-between items-start w-full">
           {/* Top Left: Dynamic Instruction Box */}
           <div className="pointer-events-auto flex flex-col gap-1.5 p-4 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] max-w-[440px]">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d] animate-ping" />
-              <span className="text-[11px] font-bold tracking-[2px] uppercase text-[#ffb4dc]/95">
-                {instructionTitle} {isPaused && '(Pausiert)'}
-              </span>
-            </div>
+            {(roundInfo || isPaused) && (
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d] animate-ping" />
+                <span className="text-[11px] font-bold tracking-[2px] uppercase text-[#ffb4dc]/95">
+                  {roundInfo ? `${roundInfo}${isPaused ? ' (Pausiert)' : ''}` : 'Pausiert'}
+                </span>
+              </div>
+            )}
             <p className="text-xs leading-relaxed text-white/90 font-normal">
               {instructionBody}
             </p>
@@ -1329,85 +3891,158 @@ export function SakuraCanvas({
           {/* Bottom Left: Brand Title */}
           <div className="flex flex-col gap-1 select-none">
             <h1 className="text-2xl font-bold tracking-[4px] uppercase text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] drop-shadow-[0_0_20px_rgba(255,42,157,0.7)]">
-              Sakura: Reborn
+              Sakuraverse
             </h1>
             <p className="text-[11px] font-medium tracking-[2.5px] uppercase text-[#ffc8eb]/75">
-              Collaborative Artwork Experience
+              A Collaborative Artwork
             </p>
           </div>
 
-          {/* Bottom Center: Mode Selector */}
+          {/* Bottom Center: Mode Selector / Creation Mode Badge */}
           <div className="pointer-events-auto flex flex-col gap-1.5 items-center">
-            <span className="text-[10px] font-semibold tracking-[2px] uppercase text-[#ffb4dc]/70">
-              Test Mode
-            </span>
-            <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
-              <button
-                onClick={() => handleSwitchMode('bluten')}
-                className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${
-                  activeMode === 'bluten'
-                    ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_15px_rgba(255,42,157,0.5)]'
-                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
-                }`}
-              >
-                Blüten
-              </button>
+            {isCreationMode ? (
+              <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#160e22]/90 backdrop-blur-md border border-[#ff69b4]/50 shadow-[0_0_20px_rgba(255,42,157,0.4)]">
+                <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_8px_#ff2a9d] animate-pulse" />
+                <span className="text-xs font-bold tracking-[2.5px] uppercase text-white">
+                  Creation Mode
+                </span>
+              </div>
+            ) : (
+              <>
+                <span className="text-[10px] font-semibold tracking-[2px] uppercase text-[#ffb4dc]/70">
+                  Test Mode
+                </span>
+                <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
+                  <button
+                    onClick={() => handleSwitchMode('bluten')}
+                    className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'bluten'
+                      ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_15px_rgba(255,42,157,0.5)]'
+                      : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                      }`}
+                  >
+                    Blüten
+                  </button>
 
-              <button
-                onClick={() => handleSwitchMode('plexus')}
-                className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${
-                  activeMode === 'plexus'
-                    ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_15px_rgba(0,240,255,0.5)]'
-                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
-                }`}
-              >
-                Plexus
-              </button>
-
-              <button
-                onClick={() => isSakuraUnlocked && handleSwitchMode('wald')}
-                disabled={!isSakuraUnlocked}
-                title={isSakuraUnlocked ? '🌸 Sakura Modus ist bereit!' : 'Spiele zuerst Blüten und Plexus durch'}
-                className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${
-                  !isSakuraUnlocked
-                    ? 'opacity-35 cursor-not-allowed text-[#ffc8eb]/40'
-                    : activeMode === 'wald'
-                      ? 'bg-gradient-to-r from-[#a855f7]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_22px_rgba(78,226,236,0.8)]'
-                      : 'text-[#4ee2ec] border border-[#4ee2ec]/80 hover:bg-[#4ee2ec]/20'
-                }`}
-              >
-                Sakura {!isSakuraUnlocked && '🔒'}
-              </button>
-            </div>
+                  <button
+                    onClick={() => handleSwitchMode('plexus')}
+                    className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'plexus'
+                      ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_15px_rgba(0,240,255,0.5)]'
+                      : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                      }`}
+                  >
+                    Plexus
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Bottom Right: Creation Action Button */}
-          <div className="pointer-events-auto">
-            <button
-              disabled={!isCreationUnlocked}
-              onClick={handleRestart}
-              className={`relative overflow-hidden px-9 py-4 rounded-full text-xs font-semibold tracking-[2px] uppercase transition-all shadow-2xl flex items-center gap-2.5 ${
-                isCreationUnlocked
-                  ? 'bg-gradient-to-r from-[#ff2a9d]/55 to-[#4ee2ec]/30 text-white border border-[#4ee2ec] shadow-[0_12px_35px_rgba(255,42,157,0.4)] animate-bounce cursor-pointer'
-                  : 'bg-[#120c1c]/85 text-white/50 border border-[#ff69b4]/30 cursor-not-allowed'
-              }`}
-            >
-              {/* Progress Bar Fill */}
-              <div
-                className="absolute inset-0 bg-gradient-to-r from-[#ff2a9d]/25 to-[#4ee2ec]/25 transition-all duration-300 pointer-events-none"
-                style={{ width: `${(completedArtworksCount / 3) * 100}%` }}
-              />
-              <span className="relative z-10 font-mono text-[11px] px-2 py-0.5 bg-white/10 rounded-full text-white/70">
-                {isCreationUnlocked ? '(3/3) Bereit!' : `(${completedArtworksCount}/3)`}
-              </span>
-              <span className="relative z-10">
-                Kunstwerk erstellen
-              </span>
-            </button>
+          {/* Bottom Right: Creation Button & Readiness Indicators */}
+          <div className="pointer-events-auto flex flex-col items-center gap-2">
+            {/* Ready Status Badges with Green Checkmarks */}
+            <div className="flex items-center gap-4 min-h-[44px]">
+              <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${hostCreationReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}>
+                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#10e782] to-[#00b045] text-[#051a0e] flex items-center justify-center text-xs font-black shadow-[0_0_14px_rgba(16,231,130,0.8)]">✓</span>
+                <span className="text-[10px] font-bold tracking-wider uppercase text-white shadow-sm">Host</span>
+              </div>
+              <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${guestCreationReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}>
+                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#10e782] to-[#00b045] text-[#051a0e] flex items-center justify-center text-xs font-black shadow-[0_0_14px_rgba(16,231,130,0.8)]">✓</span>
+                <span className="text-[10px] font-bold tracking-wider uppercase text-white shadow-sm">Gast</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                disabled={!isCreationUnlocked}
+                onClick={toggleCreationReady}
+                className={`relative overflow-hidden px-8 py-3.5 rounded-full text-xs font-bold tracking-[2px] uppercase transition-all shadow-2xl flex items-center gap-2.5 ${isCreationUnlocked
+                  ? 'bg-gradient-to-r from-[#ff2a9d]/55 to-[#4ee2ec]/30 text-white border border-[#4ee2ec] shadow-[0_12px_35px_rgba(255,42,157,0.4)] hover:scale-105 active:scale-95 cursor-pointer'
+                  : 'bg-[#120c1c]/85 text-white/40 border border-[#ff69b4]/20 cursor-not-allowed opacity-60'
+                  }`}
+              >
+                <span className="font-mono text-[11px] px-2 py-0.5 bg-white/10 rounded-full text-white/80">
+                  {isTestUnlockActive ? '⚡ Test' : `(${completedArtworksCount}/2)`}
+                </span>
+                <span className="relative z-10">
+                  Kunstwerk erstellen
+                </span>
+              </button>
+
+              <label className="inline-flex items-center gap-2 px-3 py-2 bg-[#120c1c]/75 backdrop-blur-md border border-[#4ee2ec]/40 rounded-full text-[11px] font-bold text-white/85 cursor-pointer hover:border-[#4ee2ec] transition-all" title="Test Unlock Toggle">
+                <input
+                  type="checkbox"
+                  checked={isTestUnlockActive}
+                  onChange={(e) => {
+                    setIsTestUnlockActive(e.target.checked);
+                    showToast(e.target.checked ? "⚡ Test-Unlock: Button aktiviert!" : "Test-Unlock deaktiviert");
+                  }}
+                  className="w-4 h-4 rounded accent-[#10e782] cursor-pointer"
+                />
+                <span>⚡ Unlock</span>
+              </label>
+            </div>
           </div>
 
         </div>
       </div>
+
+      {/* Lightbox: Artwork Selection Modal */}
+      {isLightboxOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#06020c]/85 backdrop-blur-2xl animate-fade-in">
+          <div className="relative w-full max-w-3xl bg-gradient-to-br from-[#1a0e26]/95 to-[#0e0816]/98 border border-[#ff69b4]/45 rounded-3xl p-10 text-center shadow-[0_30px_80px_rgba(0,0,0,0.85),0_0_50px_rgba(255,42,157,0.3)]">
+            <button
+              onClick={() => {
+                setIsLightboxOpen(false);
+                setHostCreationReady(false);
+                setGuestCreationReady(false);
+              }}
+              className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-[#ff2a9d]/40 border border-white/20 hover:border-[#ff2a9d] text-white flex items-center justify-center text-sm transition-all"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-3xl font-extrabold tracking-widest uppercase bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,42,157,0.6)] mb-8">
+              Wähle dein Kunstwerk
+            </h2>
+
+            <div className="grid grid-cols-2 gap-8">
+              {/* Sumi-e Card */}
+              <button
+                onClick={() => selectArtworkChoice('bluten')}
+                className="group relative rounded-2xl overflow-hidden border-2 border-[#ff69b4]/30 hover:border-[#ff2a9d] bg-[#120c1c]/60 flex flex-col items-center transition-all hover:-translate-y-2 hover:scale-[1.025] hover:shadow-[0_20px_50px_rgba(255,42,157,0.5),0_0_35px_rgba(78,226,236,0.35)] cursor-pointer"
+              >
+                <div className="relative w-full aspect-square overflow-hidden bg-[#0d0614]">
+                  <img src="/sumie_preview.jpg" alt="Sumi-e Blütenkunstwerk" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-[#120818]/40 to-[#0e0414]/95 pointer-events-none" />
+                  <div className="absolute bottom-5 inset-x-0 text-center text-2xl font-extrabold tracking-widest text-white uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                    Sumi-e
+                  </div>
+                </div>
+                <div className="w-full py-3.5 px-4 text-xs font-bold tracking-widest uppercase text-[#ffdcf5]/90 bg-white/5 group-hover:bg-[#ff2a9d]/20 group-hover:text-white border-t border-white/10 transition-colors">
+                  🌸 Blüten & Äste
+                </div>
+              </button>
+
+              {/* Plexus Card */}
+              <button
+                onClick={() => selectArtworkChoice('plexus')}
+                className="group relative rounded-2xl overflow-hidden border-2 border-[#ff69b4]/30 hover:border-[#ff2a9d] bg-[#120c1c]/60 flex flex-col items-center transition-all hover:-translate-y-2 hover:scale-[1.025] hover:shadow-[0_20px_50px_rgba(255,42,157,0.5),0_0_35px_rgba(78,226,236,0.35)] cursor-pointer"
+              >
+                <div className="relative w-full aspect-square overflow-hidden bg-[#0d0614]">
+                  <img src="/plexus_preview.jpg" alt="Plexus Konstellation" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-[#120818]/40 to-[#0e0414]/95 pointer-events-none" />
+                  <div className="absolute bottom-5 inset-x-0 text-center text-2xl font-extrabold tracking-widest text-white uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                    Plexus
+                  </div>
+                </div>
+                <div className="w-full py-3.5 px-4 text-xs font-bold tracking-widest uppercase text-[#ffdcf5]/90 bg-white/5 group-hover:bg-[#ff2a9d]/20 group-hover:text-white border-t border-white/10 transition-colors">
+                  ✨ Orb & Konstellation
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

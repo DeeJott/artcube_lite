@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react';
 
 export default function Home() {
-  const [srcUrl, setSrcUrl] = useState('sakura-v3.html?v=3.6');
+  const [srcUrl, setSrcUrl] = useState('sakura-v3.html?v=4.0');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       const search = window.location.search;
-      const isGitHubPages = path.includes('/artcube_lite');
-      const base = isGitHubPages ? '/artcube_lite' : '';
-      const versionParam = search ? `${search}&v=3.6` : '?v=3.6';
+      let base = '';
+      if (path.includes('/artcube_lite')) base = '/artcube_lite';
+      else if (path.includes('/art-cube-demo')) base = '/art-cube-demo';
+      const versionParam = search ? `${search}&v=4.0` : '?v=4.0';
       setSrcUrl(`${base}/sakura-v3.html${versionParam}`);
     }
   }, []);
@@ -22,7 +23,7 @@ export default function Home() {
         src={srcUrl}
         className="w-full h-full border-none block z-50"
         allow="fullscreen; autoplay; clipboard-write; microphone"
-        title="Sakura Reborn Experience"
+        title="Sakuraverse Experience"
       />
     </main>
   );
