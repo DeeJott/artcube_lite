@@ -2029,10 +2029,43 @@
       // Real-time Session Networking (PeerJS WebRTC & BroadcastChannel)
       const urlParams = new URLSearchParams(window.location.search);
       const roomId = urlParams.get('room') || `sakura-${Math.floor(1000 + Math.random() * 9000)}`;
+      const cleanRoomId = `artcube-${roomId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
       const urlHostName = urlParams.get('hostName');
       const broadcastChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel(`sakura_channel_${roomId}`) : null;
       let peer = null;
       let activePeerConn = null;
+      let isPeerReconnecting = false;
+      let peerReconnectTimer = null;
+      let heartbeatInterval = null;
+      let lastHeartbeatReceived = Date.now();
+      let wakeLockSentinel = null;
+
+      // ==========================================
+      // SCREEN WAKE LOCK API (Prevents mobile sleep)
+      // ==========================================
+      async function requestScreenWakeLock() {
+        if ('wakeLock' in navigator && !wakeLockSentinel) {
+          try {
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+            console.log('Screen Wake Lock successfully acquired.');
+            wakeLockSentinel.addEventListener('release', () => {
+              console.log('Screen Wake Lock was released.');
+              wakeLockSentinel = null;
+            });
+          } catch (err) {
+            console.warn('Wake Lock request error:', err.name, err.message);
+          }
+        }
+      }
+
+      function releaseScreenWakeLock() {
+        if (wakeLockSentinel) {
+          try {
+            wakeLockSentinel.release();
+            wakeLockSentinel = null;
+          } catch (e) { }
+        }
+      }
 
       const myRole = urlParams.has('room') ? 'guest' : 'host';
       let activeUserIndex = (myRole === 'guest') ? 2 : 1; // 1 = Host (User 1), 2 = Guest (User 2)
@@ -4199,8 +4232,9 @@
             if (guestWaitingBox) guestWaitingBox.style.display = 'block';
             showToast(`Willkommen, ${user2Name}! Du bist beigetreten.`);
 
-            // Guest User-Gesture: Sofort Querformat & Fullscreen anfordern!
+            // Guest User-Gesture: Sofort Querformat, Fullscreen & WakeLock anfordern!
             requestLandscapeOrientation();
+            requestScreenWakeLock();
 
             broadcastState('GUEST_JOINED', { user1Name, user2Name });
           });
@@ -4542,56 +4576,200 @@
       function initPeerConnection() {
         if (typeof Peer === 'undefined') return;
 
-        // Clean room ID for PeerJS
-        const cleanRoomId = `artcube-${roomId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
-
         if (myRole === 'host') {
-          try {
-            peer = new Peer(cleanRoomId);
-            peer.on('open', (id) => {
-              console.log('Host PeerJS initialized with ID:', id);
-            });
-            peer.on('connection', (conn) => {
-              activePeerConn = conn;
-              setupPeerConnectionListeners(conn);
-              showToast("WebRTC Mitspieler verbunden!");
-            });
-            peer.on('error', (err) => {
-              console.warn('PeerJS Host Error:', err);
-            });
-          } catch (e) {
-            console.warn('PeerJS init failed:', e);
-          }
+          setupHostPeer();
         } else {
-          try {
-            peer = new Peer();
-            peer.on('open', () => {
-              const conn = peer.connect(cleanRoomId);
-              activePeerConn = conn;
-              setupPeerConnectionListeners(conn);
-            });
-            peer.on('error', (err) => {
-              console.warn('PeerJS Guest Error:', err);
-            });
-          } catch (e) {
-            console.warn('PeerJS init failed:', e);
+          setupGuestPeer();
+        }
+        startHeartbeat();
+      }
+
+      function setupHostPeer() {
+        try {
+          if (peer && !peer.destroyed) {
+            if (peer.disconnected) peer.reconnect();
+            return;
           }
+          peer = new Peer(cleanRoomId);
+          peer.on('open', (id) => {
+            console.log('Host PeerJS initialized with ID:', id);
+          });
+          peer.on('connection', (conn) => {
+            console.log('Incoming connection from guest...');
+            activePeerConn = conn;
+            setupPeerConnectionListeners(conn);
+            showToast("WebRTC Mitspieler verbunden!");
+            if (isArtworkStarted) {
+              setTimeout(() => {
+                sendStateResync();
+              }, 400);
+            }
+          });
+          peer.on('disconnected', () => {
+            console.warn('Host PeerJS disconnected from signaling server.');
+            if (peer && !peer.destroyed) {
+              try { peer.reconnect(); } catch (e) { }
+            }
+          });
+          peer.on('error', (err) => {
+            console.warn('PeerJS Host Error:', err);
+          });
+        } catch (e) {
+          console.warn('Host PeerJS init failed:', e);
+        }
+      }
+
+      function setupGuestPeer() {
+        try {
+          if (peer && !peer.destroyed) {
+            if (peer.disconnected) peer.reconnect();
+            connectGuestToHost();
+            return;
+          }
+          peer = new Peer();
+          peer.on('open', (id) => {
+            console.log('Guest PeerJS initialized with ID:', id);
+            connectGuestToHost();
+          });
+          peer.on('disconnected', () => {
+            console.warn('Guest PeerJS disconnected from signaling server.');
+            if (peer && !peer.destroyed) {
+              try { peer.reconnect(); } catch (e) { }
+            }
+          });
+          peer.on('error', (err) => {
+            console.warn('PeerJS Guest Error:', err);
+            if (myRole === 'guest' && document.visibilityState === 'visible') {
+              scheduleGuestReconnect(2500);
+            }
+          });
+        } catch (e) {
+          console.warn('Guest PeerJS init failed:', e);
+        }
+      }
+
+      function connectGuestToHost() {
+        if (!peer || peer.destroyed) {
+          setupGuestPeer();
+          return;
+        }
+        if (activePeerConn && activePeerConn.open) return;
+
+        try {
+          console.log('Guest connecting to host cleanRoomId:', cleanRoomId);
+          const conn = peer.connect(cleanRoomId, { reliable: true });
+          activePeerConn = conn;
+          setupPeerConnectionListeners(conn);
+        } catch (e) {
+          console.warn('connectGuestToHost failed:', e);
+          scheduleGuestReconnect(3000);
+        }
+      }
+
+      function scheduleGuestReconnect(delay = 1500) {
+        if (myRole !== 'guest' || isPeerReconnecting) return;
+        if (activePeerConn && activePeerConn.open) return;
+
+        if (peerReconnectTimer) clearTimeout(peerReconnectTimer);
+        peerReconnectTimer = setTimeout(() => {
+          reconnectGuest();
+        }, delay);
+      }
+
+      function reconnectGuest() {
+        if (myRole !== 'guest') return;
+        if (activePeerConn && activePeerConn.open) return;
+
+        isPeerReconnecting = true;
+        console.log('Reconnecting guest to host...');
+        showToast("Verbindung wird wiederhergestellt...");
+
+        try {
+          if (!peer || peer.destroyed) {
+            setupGuestPeer();
+          } else if (peer.disconnected) {
+            peer.reconnect();
+            connectGuestToHost();
+          } else {
+            connectGuestToHost();
+          }
+        } catch (e) {
+          console.warn('Reconnection error:', e);
+        } finally {
+          setTimeout(() => {
+            isPeerReconnecting = false;
+          }, 2000);
         }
       }
 
       function setupPeerConnectionListeners(conn) {
         conn.on('open', () => {
+          console.log('Peer connection opened successfully!');
           isGuestJoined = true;
           updateParticipantStatus();
           broadcastState('HELLO', { user1Name, user2Name, role: myRole });
+
+          if (myRole === 'guest') {
+            broadcastState('STATE_RESYNC_REQUEST', {});
+            showToast("✅ Verbunden! Session synchronisiert.");
+          } else {
+            if (isArtworkStarted) {
+              sendStateResync();
+            }
+          }
         });
 
         conn.on('data', (data) => {
+          lastHeartbeatReceived = Date.now();
           handleIncomingNetworkData(data);
         });
 
         conn.on('close', () => {
+          console.log('Peer connection closed.');
           activePeerConn = null;
+          if (myRole === 'guest') {
+            if (document.visibilityState === 'visible') {
+              scheduleGuestReconnect(1200);
+            }
+          } else {
+            isGuestJoined = false;
+            updateParticipantStatus();
+          }
+        });
+
+        conn.on('error', (err) => {
+          console.warn('Peer connection error:', err);
+          activePeerConn = null;
+          if (myRole === 'guest' && document.visibilityState === 'visible') {
+            scheduleGuestReconnect(2000);
+          }
+        });
+      }
+
+      function startHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(() => {
+          if (activePeerConn && activePeerConn.open) {
+            try {
+              activePeerConn.send({ type: 'HEARTBEAT_PING', time: Date.now() });
+            } catch (e) { }
+          } else if (myRole === 'guest' && document.visibilityState === 'visible' && !isPeerReconnecting) {
+            scheduleGuestReconnect(1000);
+          }
+        }, 5000);
+      }
+
+      function sendStateResync() {
+        broadcastState('STATE_RESYNC_RESPONSE', {
+          user1Name,
+          user2Name,
+          activeMode,
+          isArtworkStarted,
+          isPaused,
+          growthProgress: (typeof growthProgress !== 'undefined') ? growthProgress : 1.0,
+          selectedBlossomColor: (typeof selectedBlossomColor !== 'undefined') ? selectedBlossomColor : 'pink',
+          isVortexActive: (typeof isVortexActive !== 'undefined') ? isVortexActive : false,
+          isPlexusCompleted: (typeof isPlexusCompleted !== 'undefined') ? isPlexusCompleted : false
         });
       }
 
@@ -4742,6 +4920,48 @@
           }
         } else if (data.type === 'USER_LEFT_SESSION') {
           showToast("ℹ️ Partner hat die Session verlassen.");
+        } else if (data.type === 'HEARTBEAT_PING') {
+          broadcastState('HEARTBEAT_PONG', { time: Date.now() });
+        } else if (data.type === 'HEARTBEAT_PONG') {
+          lastHeartbeatReceived = Date.now();
+        } else if (data.type === 'STATE_RESYNC_REQUEST') {
+          if (myRole === 'host') {
+            sendStateResync();
+          }
+        } else if (data.type === 'STATE_RESYNC_RESPONSE') {
+          if (myRole === 'guest') {
+            if (data.user1Name) user1Name = data.user1Name;
+            if (data.user2Name) user2Name = data.user2Name;
+            isGuestJoined = true;
+            updateParticipantStatus();
+
+            if (data.isArtworkStarted && !isArtworkStarted) {
+              launchArtworkExperience(false);
+            }
+            if (data.activeMode && data.activeMode !== activeMode) {
+              switchMode(data.activeMode, false);
+            }
+            if (typeof data.isPaused !== 'undefined') {
+              isPaused = data.isPaused;
+              if (pauseIcon) pauseIcon.textContent = isPaused ? "▶️" : "⏸️";
+              if (pauseLabel) pauseLabel.textContent = isPaused ? "Play" : "Pause";
+              if (isPaused) {
+                if (bgAudio && !bgAudio.paused) bgAudio.pause();
+              } else {
+                if (!isAudioMuted) playAudioTrack();
+              }
+            }
+            if (data.selectedBlossomColor && typeof BLOSSOM_PALETTES !== 'undefined' && BLOSSOM_PALETTES[data.selectedBlossomColor]) {
+              selectedBlossomColor = data.selectedBlossomColor;
+            }
+            if (data.isVortexActive && !isVortexActive) {
+              startVortexFinale();
+            }
+            if (data.isPlexusCompleted) {
+              isPlexusCompleted = true;
+            }
+            showToast("✅ Session synchronisiert!");
+          }
         }
       }
 
@@ -4827,8 +5047,63 @@
         } catch (e) { }
       }
 
+      // =========================================================================
+      // MOBILE RESILIENCE: Visibility Change, Standby Wake-Up & Network Recovery
+      // =========================================================================
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          console.log('Page visible again (switched back to tab / wake from sleep)');
+
+          // 1. Re-acquire Screen Wake Lock if session is active
+          if (isArtworkStarted || isGuestJoined || myRole === 'guest') {
+            requestScreenWakeLock();
+          }
+
+          // 2. Unpause audio if it was interrupted by OS backgrounding
+          if (isArtworkStarted && !isPaused && bgAudio && bgAudio.paused && !isAudioMuted) {
+            playAudioTrack();
+          }
+
+          // 3. Verify PeerJS connection state & auto-reconnect
+          if (myRole === 'guest') {
+            if (!activePeerConn || !activePeerConn.open) {
+              reconnectGuest();
+            } else {
+              broadcastState('HEARTBEAT_PING', { time: Date.now() });
+              broadcastState('STATE_RESYNC_REQUEST', {});
+            }
+          } else if (myRole === 'host') {
+            if (peer && peer.disconnected && !peer.destroyed) {
+              try { peer.reconnect(); } catch (e) { }
+            }
+          }
+        }
+      });
+
+      window.addEventListener('online', () => {
+        console.log('Browser online event detected.');
+        showToast("Netzwerkverbindung erkannt.");
+        if (myRole === 'guest') {
+          reconnectGuest();
+        } else if (myRole === 'host') {
+          if (peer && peer.disconnected && !peer.destroyed) {
+            try { peer.reconnect(); } catch (e) { }
+          }
+        }
+      });
+
+      window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+          console.log('Page restored from bfcache.');
+          if (myRole === 'guest') {
+            reconnectGuest();
+          }
+        }
+      });
+
       function launchArtworkExperience(shouldBroadcast = true) {
         requestLandscapeOrientation();
+        requestScreenWakeLock();
         checkAndShowLandscapeOverlay();
 
         if (window.history && window.history.pushState) {
@@ -5368,6 +5643,7 @@
         restartAll();
 
         hideLandscapePrompt();
+        releaseScreenWakeLock();
 
         if (bgAudio && !bgAudio.paused) {
           bgAudio.pause();
