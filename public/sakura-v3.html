@@ -2073,6 +2073,8 @@
       let user2Name = "Gast";
       let isGuestJoined = false;
       let isArtworkStarted = false;
+      let isCreationSession = false;
+      let creationSessionArtwork = null;
 
       // Active Artwork Mode: 'bluten', 'plexus'
       let activeMode = 'bluten';
@@ -4560,6 +4562,12 @@
       }
 
       function broadcastState(type, payload = {}) {
+        // In solo Souvenir Mode, NEVER broadcast any interactions to the collaborative room!
+        // Exception: SESSION_SPLIT_SOUVENIR itself to notify the partner of departure.
+        if (isCreationSession && type !== 'SESSION_SPLIT_SOUVENIR') {
+          return;
+        }
+
         const packet = { type, role: myRole, senderIndex: activeUserIndex, ...payload };
 
         // 1. Local BroadcastChannel (Same machine / multi-tab fallback)
@@ -4787,6 +4795,9 @@
       function handleIncomingNetworkData(data) {
         if (!data || !data.type) return;
 
+        // In solo Souvenir Mode, IGNORE all incoming collaborative network data!
+        if (isCreationSession) return;
+
         // Safely update names depending on who sent the packet
         if (myRole === 'host') {
           // Host only accepts user2Name from guest
@@ -4913,7 +4924,17 @@
             showToast(`✨ ${partnerName} hat Plexus gestartet!`);
           }
         } else if (data.type === 'SESSION_SPLIT_SOUVENIR') {
-          showToast(`ℹ️ ${data.user || 'Partner'} hat den Souvenirmodus gestartet.`);
+          const departingIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
+          const remoteCursor = document.getElementById(departingIdx === 1 ? 'userCursor1' : 'userCursor2');
+          if (remoteCursor) {
+            remoteCursor.classList.remove('active');
+            remoteCursor.style.display = 'none';
+          }
+          if (departingIdx === 2) {
+            isGuestJoined = false;
+            updateParticipantStatus();
+          }
+          showToast(`ℹ️ ${data.user || 'Partner'} ist in den Solo-Souvenirmodus gewechselt.`);
         } else if (data.type === 'VORTEX_START') {
           if (!isVortexActive) {
             startVortexFinale();
@@ -5121,9 +5142,17 @@
         lobbyOverlay.classList.add('hidden');
         document.getElementById('webgl-container').classList.add('active');
         document.getElementById('hudLayer').classList.add('active');
-        document.getElementById('userCursor1').classList.add('active');
-        if (isGuestJoined) {
-          document.getElementById('userCursor2').classList.add('active');
+        const c1 = document.getElementById('userCursor1');
+        const c2 = document.getElementById('userCursor2');
+        if (c1) { c1.classList.add('active'); c1.style.display = ''; }
+        if (c2) {
+          if (isGuestJoined || myRole === 'guest') {
+            c2.classList.add('active');
+            c2.style.display = '';
+          } else {
+            c2.classList.remove('active');
+            c2.style.display = 'none';
+          }
         }
 
         const actionWrapper = document.getElementById('creationActionWrapper');
@@ -5664,8 +5693,8 @@
 
         const cursor1 = document.getElementById('userCursor1');
         const cursor2 = document.getElementById('userCursor2');
-        if (cursor1) cursor1.classList.remove('active');
-        if (cursor2) cursor2.classList.remove('active');
+        if (cursor1) { cursor1.classList.remove('active'); cursor1.style.display = ''; }
+        if (cursor2) { cursor2.classList.remove('active'); cursor2.style.display = ''; }
 
         if (lobbyOverlay) lobbyOverlay.classList.remove('hidden');
         const testModal = document.getElementById('testModeLightboxOverlay');
@@ -5680,24 +5709,40 @@
         showToast("✨ Zurück zum Startbildschirm.");
       }
 
-      let isCreationSession = false;
-      let creationSessionArtwork = null;
-
       function startCreationSession(type) {
         closeArtworkLightbox();
         requestLandscapeOrientation();
+        requestScreenWakeLock();
         checkAndShowLandscapeOverlay();
 
         if (window.history && window.history.pushState) {
           window.history.pushState({ screen: 'artwork' }, document.title);
         }
 
-        // 1. Ensure artwork experience is started and canvas/HUD are active
+        // 1. Notify partner immediately that this user is switching to solo Souvenir Mode
+        // so the partner's screen instantly removes this user's cursor!
+        broadcastState('SESSION_SPLIT_SOUVENIR', {
+          user: (activeUserIndex === 1 ? user1Name : user2Name),
+          senderIndex: activeUserIndex
+        });
+
+        // 2. Set Creation Session State & mark as solo
+        isCreationSession = true;
         isArtworkStarted = true;
         isPaused = false;
         if (clock && !clock.running) clock.start();
         playAudioTrack();
 
+        // 3. Completely SEVER the WebRTC connection!
+        // The user is completely decoupled from the room in their own solo sandbox.
+        if (activePeerConn) {
+          try {
+            activePeerConn.close();
+          } catch (e) { }
+          activePeerConn = null;
+        }
+
+        // 4. Update UI containers
         if (lobbyOverlay) lobbyOverlay.classList.add('hidden');
         const testModal = document.getElementById('testModeLightboxOverlay');
         if (testModal) testModal.classList.remove('active');
@@ -5706,18 +5751,19 @@
         if (webglCont) webglCont.classList.add('active');
         const hudLayerElem = document.getElementById('hudLayer');
         if (hudLayerElem) hudLayerElem.classList.add('active');
-        const cursor1 = document.getElementById('userCursor1');
-        if (cursor1) cursor1.classList.add('active');
 
-        // Souvenir Mode is strictly SOLO: Hide guest cursor even if a guest was previously present
-        const cursor2 = document.getElementById('userCursor2');
-        if (cursor2) cursor2.classList.remove('active');
-
-        // Broadcast to partner that user is switching to solo Souvenir Mode
-        broadcastState('SESSION_SPLIT_SOUVENIR', { user: (activeUserIndex === 1 ? user1Name : user2Name) });
-
-        // 2. Set Creation Session State & Switch HUD to Creation Mode
-        isCreationSession = true;
+        // 5. Strictly SOLO cursors:
+        // Show ONLY my own cursor element. Completely hide and deactivate the other person's cursor element!
+        const myCursor = document.getElementById(activeUserIndex === 1 ? 'userCursor1' : 'userCursor2');
+        const otherCursor = document.getElementById(activeUserIndex === 1 ? 'userCursor2' : 'userCursor1');
+        if (myCursor) {
+          myCursor.classList.add('active');
+          myCursor.style.display = '';
+        }
+        if (otherCursor) {
+          otherCursor.classList.remove('active');
+          otherCursor.style.display = 'none';
+        }
         const targetMode = (type === 'sumie' || type === 'bluten') ? 'bluten' : 'plexus';
         creationSessionArtwork = targetMode;
         activeMode = targetMode;
@@ -8145,12 +8191,27 @@
         if (isArtworkStarted) {
           const cursor1 = document.getElementById('userCursor1');
           const cursor2 = document.getElementById('userCursor2');
-          if (cursor1) cursor1.classList.add('active');
-          if (cursor2) {
-            if (!isCreationSession && (isGuestJoined || myRole === 'guest')) {
-              cursor2.classList.add('active');
+
+          if (isCreationSession) {
+            // Strictly SOLO Souvenir Mode: only my own cursor is active and displayed
+            if (activeUserIndex === 1) {
+              if (cursor1) { cursor1.classList.add('active'); cursor1.style.display = ''; }
+              if (cursor2) { cursor2.classList.remove('active'); cursor2.style.display = 'none'; }
             } else {
-              cursor2.classList.remove('active');
+              if (cursor2) { cursor2.classList.add('active'); cursor2.style.display = ''; }
+              if (cursor1) { cursor1.classList.remove('active'); cursor1.style.display = 'none'; }
+            }
+          } else {
+            // Collaborative Test Mode
+            if (cursor1) { cursor1.classList.add('active'); cursor1.style.display = ''; }
+            if (cursor2) {
+              if (isGuestJoined || myRole === 'guest') {
+                cursor2.classList.add('active');
+                cursor2.style.display = '';
+              } else {
+                cursor2.classList.remove('active');
+                cursor2.style.display = 'none';
+              }
             }
           }
         }
@@ -8454,10 +8515,12 @@
           }
         }
 
-        broadcastState('CURSOR_MOVE', {
-          normX: normX,
-          normY: normY
-        });
+        if (!isCreationSession) {
+          broadcastState('CURSOR_MOVE', {
+            normX: normX,
+            normY: normY
+          });
+        }
       }
 
       // Backward-compatible aliases
