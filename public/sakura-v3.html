@@ -605,6 +605,183 @@
       transform: translateX(-50%) translateY(0);
     }
 
+    /* Native-like Mobile Back Exit Notice */
+    .back-exit-notice {
+      position: fixed;
+      bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      transform: translateX(-50%) translateY(30px) scale(0.92);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 9999;
+    }
+
+    .back-exit-notice.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    .back-notice-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      background: rgba(22, 14, 34, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 105, 180, 0.65);
+      border-radius: 9999px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 42, 157, 0.45);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .back-notice-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    /* Landscape Switch Prompt Overlay */
+    .landscape-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      background: rgba(8, 0, 14, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    .landscape-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .landscape-modal {
+      max-width: 420px;
+      width: 100%;
+      background: linear-gradient(145deg, rgba(30, 16, 45, 0.95), rgba(14, 6, 22, 0.98));
+      border: 1px solid rgba(255, 105, 180, 0.45);
+      border-radius: 28px;
+      padding: 36px 28px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 42, 157, 0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      animation: modalPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes modalPopIn {
+      from { transform: scale(0.9) translateY(15px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .phone-rotate-icon-wrapper {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .phone-device-icon {
+      width: 38px;
+      height: 60px;
+      border: 3px solid #ff2a9d;
+      border-radius: 8px;
+      position: relative;
+      animation: phoneRotateAnim 2.4s ease-in-out infinite;
+      box-shadow: 0 0 20px rgba(255, 42, 157, 0.6);
+    }
+
+    .phone-device-icon::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 1px;
+    }
+
+    .rotate-arrow {
+      position: absolute;
+      font-size: 26px;
+      color: #4ee2ec;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: arrowPulse 2.4s ease-in-out infinite;
+      text-shadow: 0 0 15px rgba(78, 226, 236, 0.8);
+      pointer-events: none;
+    }
+
+    @keyframes phoneRotateAnim {
+      0%, 20% { transform: rotate(0deg); }
+      50%, 80% { transform: rotate(90deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    @keyframes arrowPulse {
+      0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.85); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+    }
+
+    .landscape-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ffffff 0%, #ff80df 60%, #ff2a9d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .landscape-desc {
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgba(255, 220, 245, 0.85);
+      font-weight: 500;
+    }
+
+    .landscape-action-btn {
+      width: 100%;
+      padding: 15px 24px;
+      background: linear-gradient(135deg, #ff2a9d 0%, #a855f7 100%);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 9999px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      box-shadow: 0 8px 25px rgba(255, 42, 157, 0.55);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      touch-action: manipulation;
+    }
+
+    .landscape-action-btn:hover,
+    .landscape-action-btn:active {
+      transform: scale(1.02);
+      box-shadow: 0 10px 35px rgba(255, 42, 157, 0.8);
+    }
+
     /* Modern Glassmorphic HUD Layout */
     .hud-layer {
       position: fixed;
@@ -1461,6 +1638,29 @@
 
   <!-- Toast Notification Message -->
   <div class="toast-msg" id="toastMsg">Einladungslink in Zwischenablage kopiert!</div>
+
+  <!-- Native-style Double-Back Toast Notice for Mobile -->
+  <div class="back-exit-notice" id="backExitNotice">
+    <div class="back-notice-pill">
+      <span class="back-notice-icon">↩️</span>
+      <span class="back-notice-text">Nochmal „Zurück“ wischen, um die Session zu beenden</span>
+    </div>
+  </div>
+
+  <!-- Mobile Landscape Switch Prompt Overlay -->
+  <div class="landscape-overlay" id="landscapeOverlay">
+    <div class="landscape-modal">
+      <div class="phone-rotate-icon-wrapper">
+        <div class="phone-device-icon"></div>
+        <div class="rotate-arrow">↻</div>
+      </div>
+      <div class="landscape-title">Querformat</div>
+      <div class="landscape-desc">Host hat die Session gestartet! Tippe auf den Bildschirm oder drehe dein Smartphone ins Querformat für das Kunstwerk.</div>
+      <button type="button" class="landscape-action-btn" id="btnActivateLandscape">
+        <span>🔄 Querformat starten</span>
+      </button>
+    </div>
+  </div>
 
   <!-- Custom User Cursors -->
   <div class="user-cursor" id="userCursor1">
@@ -3786,8 +3986,20 @@
             if (guestWaitingBox) guestWaitingBox.style.display = 'block';
             showToast(`Willkommen, ${user2Name}! Du bist beigetreten.`);
 
+            // Guest User-Gesture: Sofort Querformat & Fullscreen anfordern!
+            requestLandscapeOrientation();
+
             broadcastState('GUEST_JOINED', { user1Name, user2Name });
           });
+
+          if (guestWaitingBox) {
+            guestWaitingBox.style.cursor = 'pointer';
+            guestWaitingBox.title = "Tippen für Querformat";
+            guestWaitingBox.addEventListener('click', () => {
+              requestLandscapeOrientation();
+              showToast("📱 Querformat angefordert");
+            });
+          }
         }
 
         copyInviteBtn.addEventListener('click', () => {
@@ -3802,6 +4014,92 @@
 
         startArtworkBtn.addEventListener('click', () => {
           launchArtworkExperience(true);
+        });
+
+        // Landscape Switch Prompt Buttons
+        const btnActivateLandscape = document.getElementById('btnActivateLandscape');
+        const landscapeOverlayElem = document.getElementById('landscapeOverlay');
+        const handleLandscapeClick = (e) => {
+          if (e) e.stopPropagation();
+          requestLandscapeOrientation();
+          if (landscapeOverlayElem) landscapeOverlayElem.classList.remove('active');
+        };
+        if (btnActivateLandscape) {
+          btnActivateLandscape.addEventListener('click', handleLandscapeClick);
+          btnActivateLandscape.addEventListener('touchend', handleLandscapeClick);
+        }
+        if (landscapeOverlayElem) {
+          landscapeOverlayElem.addEventListener('click', handleLandscapeClick);
+        }
+
+        if (typeof screen !== 'undefined' && screen.orientation) {
+          screen.orientation.addEventListener('change', () => {
+            setTimeout(() => {
+              if (isArtworkStarted) checkAndShowLandscapeOverlay();
+            }, 150);
+          });
+        }
+
+        // History State: Initialer Startzustand
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({ screen: 'start' }, document.title);
+        }
+
+        // Smartphone Double-Back Gesture / Hardware Back Button Handling
+        let lastBackPressTimestamp = 0;
+        const DOUBLE_BACK_WINDOW_MS = 2500;
+
+        function handleDoubleBackGesture() {
+          if (isArtworkStarted) {
+            const now = Date.now();
+            if (now - lastBackPressTimestamp <= DOUBLE_BACK_WINDOW_MS) {
+              // Zweite Zurück-Geste innerhalb von 2.5 Sekunden: Session verlassen und zurück zum Startbildschirm!
+              lastBackPressTimestamp = 0;
+              if (navigator.vibrate) {
+                try { navigator.vibrate([40, 50, 40]); } catch (err) {}
+              }
+              returnToStartScreen();
+            } else {
+              // Erste Zurück-Geste: History State wiederherstellen, Haptik & handyeigene Meldung anzeigen
+              lastBackPressTimestamp = now;
+              if (window.history && window.history.pushState) {
+                window.history.pushState({ screen: 'artwork' }, document.title);
+              }
+              if (navigator.vibrate) {
+                try { navigator.vibrate(50); } catch (err) {}
+              }
+              showBackExitNotice("Nochmal „Zurück“ wischen, um die Session zu beenden");
+            }
+          } else {
+            // Falls Modals auf dem Startbildschirm geöffnet sind, schließe diese bei "Zurück"
+            const testModal = document.getElementById('testModeLightboxOverlay');
+            if (testModal && testModal.classList.contains('active')) {
+              testModal.classList.remove('active');
+              return;
+            }
+            const souvenirModal = document.getElementById('artworkLightboxOverlay');
+            if (souvenirModal && souvenirModal.classList.contains('active')) {
+              closeArtworkLightbox();
+              return;
+            }
+          }
+        }
+
+        window.addEventListener('popstate', handleDoubleBackGesture);
+
+        // Auch über PostMessage aus übergeordneten Containern/Iframes ansprechbar
+        window.addEventListener('message', (e) => {
+          if (e.data && e.data.type === 'PARENT_POPSTATE') {
+            handleDoubleBackGesture();
+          }
+        });
+
+        // Warnung vor versehentlichem Tab-Schließen / Reload während einer aktiven Session
+        window.addEventListener('beforeunload', (e) => {
+          if (isArtworkStarted) {
+            e.preventDefault();
+            e.returnValue = '';
+          }
         });
 
         audioToggleBtn.addEventListener('click', () => {
@@ -4229,6 +4527,8 @@
           if (!isVortexActive) {
             startVortexFinale();
           }
+        } else if (data.type === 'USER_LEFT_SESSION') {
+          showToast("ℹ️ Partner hat die Session verlassen.");
         }
       }
 
@@ -4253,25 +4553,75 @@
         }
       }
 
+      function isMobileOrTouchDevice() {
+        return ('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) || (window.innerWidth <= 950);
+      }
+
+      let backNoticeTimer = null;
+      function showBackExitNotice(message) {
+        const notice = document.getElementById('backExitNotice');
+        if (!notice) return;
+        if (message) {
+          const txt = notice.querySelector('.back-notice-text');
+          if (txt) txt.textContent = message;
+        }
+        notice.classList.add('show');
+        if (backNoticeTimer) clearTimeout(backNoticeTimer);
+        backNoticeTimer = setTimeout(() => {
+          notice.classList.remove('show');
+        }, 2500);
+      }
+
+      function checkAndShowLandscapeOverlay() {
+        if (!isMobileOrTouchDevice()) return;
+        const isPortrait = window.innerHeight > window.innerWidth;
+        const landscapeOverlay = document.getElementById('landscapeOverlay');
+        if (landscapeOverlay) {
+          if (isPortrait) {
+            landscapeOverlay.classList.add('active');
+          } else {
+            landscapeOverlay.classList.remove('active');
+          }
+        }
+      }
+
+      function hideLandscapePrompt() {
+        const landscapeOverlay = document.getElementById('landscapeOverlay');
+        if (landscapeOverlay) landscapeOverlay.classList.remove('active');
+      }
+
       function requestLandscapeOrientation() {
-        // Vollbildmodus in der Desktopansicht deaktiviert (nur auf Touch-/Mobilgeräten aktivieren)
-        const isMobileTouch = ('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) || (window.innerWidth <= 950);
+        const isMobileTouch = isMobileOrTouchDevice();
         if (!isMobileTouch) return;
 
         try {
-          if (document.documentElement && document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => { });
-          } else if (document.documentElement && document.documentElement.webkitRequestFullscreen) {
-            document.documentElement.webkitRequestFullscreen();
+          const docEl = document.documentElement;
+          if (docEl) {
+            if (docEl.requestFullscreen) {
+              docEl.requestFullscreen().catch(() => {});
+            } else if (docEl.webkitRequestFullscreen) {
+              docEl.webkitRequestFullscreen();
+            } else if (docEl.msRequestFullscreen) {
+              docEl.msRequestFullscreen();
+            }
           }
+
           if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(() => { });
+            screen.orientation.lock('landscape').catch(() => {
+              screen.orientation.lock('landscape-primary').catch(() => {});
+            });
           }
         } catch (e) { }
       }
 
       function launchArtworkExperience(shouldBroadcast = true) {
         requestLandscapeOrientation();
+        checkAndShowLandscapeOverlay();
+
+        if (window.history && window.history.pushState) {
+          window.history.pushState({ screen: 'artwork' }, document.title);
+        }
+
         isArtworkStarted = true;
         clock.start();
 
@@ -4804,6 +5154,19 @@
         setCreationModeUI(false);
         restartAll();
 
+        hideLandscapePrompt();
+
+        if (bgAudio && !bgAudio.paused) {
+          bgAudio.pause();
+        }
+
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+        if (screen.orientation && screen.orientation.unlock) {
+          try { screen.orientation.unlock(); } catch (err) {}
+        }
+
         const hud = document.getElementById('hudLayer');
         if (hud) hud.classList.remove('active');
 
@@ -4823,6 +5186,8 @@
         const actionWrapper = document.getElementById('creationActionWrapper');
         if (actionWrapper) actionWrapper.style.display = 'flex';
 
+        broadcastState('USER_LEFT_SESSION', { role: myRole });
+
         showToast("✨ Zurück zum Startbildschirm.");
       }
 
@@ -4832,6 +5197,11 @@
       function startCreationSession(type) {
         closeArtworkLightbox();
         requestLandscapeOrientation();
+        checkAndShowLandscapeOverlay();
+
+        if (window.history && window.history.pushState) {
+          window.history.pushState({ screen: 'artwork' }, document.title);
+        }
 
         // 1. Ensure artwork experience is started and canvas/HUD are active
         isArtworkStarted = true;
@@ -7628,6 +7998,10 @@
           mainRenderer.setPixelRatio(targetPixelRatio);
           mainRenderer.setSize(w, h);
           updateCameraDistance();
+        }
+
+        if (isArtworkStarted) {
+          checkAndShowLandscapeOverlay();
         }
       }
 
