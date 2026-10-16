@@ -2072,6 +2072,59 @@
         font-size: 12px;
       }
     }
+
+    /* =========================================================================
+       PORTRAIT MODE: 16:9 Scaled Artwork in Screen Center (iPhone & Mobile)
+       ========================================================================= */
+    @media (orientation: portrait) {
+      #bg-container,
+      #webgl-container {
+        position: fixed !important;
+        top: 50% !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: calc(100vw * 9 / 16) !important;
+        max-height: 100vh !important;
+        transform: translateY(-50%) !important;
+        overflow: hidden !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.95), 0 0 25px rgba(255, 42, 157, 0.15) !important;
+      }
+
+      #bg-container canvas,
+      #webgl-container canvas {
+        width: 100vw !important;
+        height: calc(100vw * 9 / 16) !important;
+        display: block !important;
+      }
+
+      .landscape-overlay {
+        display: none !important;
+      }
+
+      .hud-layer {
+        padding: max(16px, var(--sat)) max(16px, var(--sar)) max(16px, var(--sab)) max(16px, var(--sal)) !important;
+      }
+
+      .color-palette-sidebar {
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        right: 8px !important;
+        padding: 6px 4px !important;
+        border-radius: 14px !important;
+      }
+
+      .color-palette-title,
+      .color-palette-divider {
+        display: none !important;
+      }
+
+      .color-swatch-btn {
+        width: 22px !important;
+        height: 22px !important;
+      }
+    }
   </style>
 
   <!-- Three.js & PeerJS WebRTC Libraries -->
@@ -3164,9 +3217,20 @@
         return tex;
       }
 
+      function getCanvasRect() {
+        const isPortrait = window.innerHeight > window.innerWidth;
+        if (isPortrait) {
+          const w = window.innerWidth;
+          const h = Math.round(w * (9 / 16));
+          const top = Math.round((window.innerHeight - h) / 2);
+          return { left: 0, top: top, width: w, height: h, isPortrait: true };
+        }
+        return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, isPortrait: false };
+      }
+
       function getVisibleBounds() {
         if (!camera) return { maxX: 400, maxY: 220 };
-        const aspect = window.innerWidth / window.innerHeight;
+        const aspect = (camera && camera.aspect) ? camera.aspect : (window.innerWidth / window.innerHeight);
         const vHeight = 2.0 * Math.tan((camera.fov * Math.PI / 360)) * camera.position.z;
         const vWidth = vHeight * aspect;
         return {
@@ -4517,6 +4581,7 @@
         setupPlexusMesh();
         setupFloatingPlexusOrbs();
         setupAmbientSparkles();
+        onWindowResize();
         // Lobby Form & User Setup Listeners
         const hostInputGroup = document.getElementById('hostInputGroup');
         const guestInputGroup = document.getElementById('guestInputGroup');
@@ -5204,8 +5269,9 @@
           const remoteIdx = data.senderIndex || (data.role === 'host' ? 1 : 2);
           const cursorElem = document.getElementById(remoteIdx === 1 ? 'userCursor1' : 'userCursor2');
           if (cursorElem) {
-            const cX = data.normX * window.innerWidth;
-            const cY = (1.0 - data.normY) * window.innerHeight;
+            const rect = getCanvasRect();
+            const cX = rect.left + data.normX * rect.width;
+            const cY = rect.top + (1.0 - data.normY) * rect.height;
             cursorElem.style.left = `${cX}px`;
             cursorElem.style.top = `${cY}px`;
             if (isArtworkStarted && !isCreationSession) {
@@ -5397,15 +5463,10 @@
       }
 
       function checkAndShowLandscapeOverlay() {
-        if (!isMobileOrTouchDevice()) return;
-        const isPortrait = window.innerHeight > window.innerWidth;
+        // Portrait mode is now supported as 16:9 center display on mobile
         const landscapeOverlay = document.getElementById('landscapeOverlay');
         if (landscapeOverlay) {
-          if (isPortrait) {
-            landscapeOverlay.classList.add('active');
-          } else {
-            landscapeOverlay.classList.remove('active');
-          }
+          landscapeOverlay.classList.remove('active');
         }
       }
 
@@ -5689,8 +5750,9 @@
 
       function updateCameraDistance() {
         if (!camera) return;
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+        const rect = getCanvasRect();
+        const w = rect.width;
+        const h = rect.height;
         const aspect = w / h;
 
         if (activeMode === 'bluten') {
@@ -8595,8 +8657,9 @@
 
       // Coordinate converter helper: maps viewport coordinates to normalized screen & 3D world space
       function updatePointerCoordinates(clientX, clientY) {
-        const normX = clientX / window.innerWidth;
-        const normY = 1.0 - (clientY / window.innerHeight);
+        const rect = getCanvasRect();
+        const normX = THREE.MathUtils.clamp((clientX - rect.left) / rect.width, 0.0, 1.0);
+        const normY = THREE.MathUtils.clamp(1.0 - ((clientY - rect.top) / rect.height), 0.0, 1.0);
 
         mouseScreen.x = normX;
         mouseScreen.y = normY;
@@ -8951,8 +9014,9 @@
       const onMouseUp = onPointerUp;
 
       function onWindowResize() {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+        const rect = getCanvasRect();
+        const w = rect.width;
+        const h = rect.height;
         const targetPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
 
         if (bgRenderer) {
