@@ -43,6 +43,18 @@
       user-select: none;
     }
 
+    /* iOS Safari Minimal-UI 1-Pixel Scroll Helper */
+    html.ios-landscape-scroll,
+    body.ios-landscape-scroll {
+      position: static !important;
+      height: auto !important;
+      min-height: calc(100vh + 1.5px) !important;
+      min-height: calc(100dvh + 1.5px) !important;
+      overflow-x: hidden !important;
+      overflow-y: scroll !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+
     /* Interactive UI controls handle fast taps without delay or double-tap zoom */
     button, input, select, textarea, .custom-modal, .lightbox-dialog, .lobby-card, .btn-action, .hud-btn, .mode-pill, .color-swatch {
       touch-action: manipulation;
@@ -4633,11 +4645,17 @@
         }
         window.addEventListener('orientationchange', handleOrientationUpdate);
 
-        // One-time listener on initial touch to collapse Safari toolbar on iOS
-        window.addEventListener('touchstart', function onInitialTouch() {
-          triggerIOSMinimalUI();
-          window.removeEventListener('touchstart', onInitialTouch);
-        }, { passive: true, once: true });
+        // Maintain 1px scroll on iOS in landscape mode to prevent Safari from re-expanding the bar
+        const keepIOSMinimalUI = () => {
+          if (isIOSDevice() && window.innerWidth > window.innerHeight) {
+            triggerIOSMinimalUI();
+            if (window.scrollY === 0) {
+              window.scrollTo(0, 1);
+            }
+          }
+        };
+        window.addEventListener('touchstart', keepIOSMinimalUI, { passive: true });
+        window.addEventListener('scroll', keepIOSMinimalUI, { passive: true });
 
         // History State: Initialer Startzustand
         if (window.history && window.history.replaceState) {
@@ -5410,31 +5428,34 @@
             try { docEl.webkitRequestFullscreen(); } catch (e) { }
           }
 
-          // In Safari on iOS, collapsible navigation chrome is triggered
-          // when a small scroll occurs. We temporarily add scroll space,
-          // scroll 1px down, then immediately restore.
-          const prevBodyHeight = document.body.style.height;
-          const prevDocHeight = document.documentElement.style.height;
-          const prevBodyOverflow = document.body.style.overflow;
-          const prevDocOverflow = document.documentElement.style.overflow;
+          const isLandscape = window.innerWidth > window.innerHeight;
 
-          document.documentElement.style.height = 'calc(100% + 40px)';
-          document.body.style.height = 'calc(100% + 40px)';
-          document.documentElement.style.overflow = 'auto';
-          document.body.style.overflow = 'auto';
+          if (isLandscape) {
+            // Apply iOS landscape minimal scroll helper class
+            document.documentElement.classList.add('ios-landscape-scroll');
+            document.body.classList.add('ios-landscape-scroll');
 
-          window.scrollTo(0, 1);
-
-          setTimeout(() => {
-            window.scrollTo(0, 0);
-            document.documentElement.style.height = prevDocHeight;
-            document.body.style.height = prevBodyHeight;
-            document.documentElement.style.overflow = prevDocOverflow;
-            document.body.style.overflow = prevBodyOverflow;
-            if (typeof onWindowResize === 'function') {
-              onWindowResize();
+            // Set window.scrollY to 1px to trigger and lock Safari's collapsed toolbar
+            if (window.scrollY === 0) {
+              window.scrollTo(0, 1);
             }
-          }, 120);
+
+            setTimeout(() => {
+              if (window.scrollY === 0) {
+                window.scrollTo(0, 1);
+              }
+              if (typeof onWindowResize === 'function') {
+                onWindowResize();
+              }
+            }, 80);
+          } else {
+            // In portrait mode, restore normal fixed behavior
+            document.documentElement.classList.remove('ios-landscape-scroll');
+            document.body.classList.remove('ios-landscape-scroll');
+            if (window.scrollY > 0) {
+              window.scrollTo(0, 0);
+            }
+          }
         } catch (e) {
           console.warn('triggerIOSMinimalUI error:', e);
         }
