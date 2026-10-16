@@ -3380,9 +3380,11 @@
       }
 
       function getCanvasRect() {
+        const canvas = (mainRenderer && mainRenderer.domElement) ? mainRenderer.domElement : document.querySelector('#webgl-container canvas');
         const container = document.getElementById('webgl-container');
-        if (container) {
-          const r = container.getBoundingClientRect();
+        const target = canvas || container;
+        if (target) {
+          const r = target.getBoundingClientRect();
           if (r.width > 0 && r.height > 0) {
             return {
               left: r.left,
@@ -4732,11 +4734,12 @@
 
         // 2. Layer 2 Main 3D Renderer
         mainScene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3500);
+        const initRect = getCanvasRect();
+        camera = new THREE.PerspectiveCamera(60, initRect.width / initRect.height, 1, 3500);
         updateCameraDistance();
 
         mainRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: true });
-        mainRenderer.setSize(window.innerWidth, window.innerHeight);
+        mainRenderer.setSize(initRect.width, initRect.height);
         mainRenderer.setPixelRatio(targetPixelRatio);
         mainRenderer.setClearColor(0x000000, 0);
         document.getElementById('webgl-container').appendChild(mainRenderer.domElement);
@@ -4748,6 +4751,7 @@
         mainScene.add(orbGroup);
         mainScene.add(petalGroup);
 
+        onWindowResize();
         initMainTrunk();
 
         initPetalPhysics();
@@ -4756,7 +4760,6 @@
         setupPlexusMesh();
         setupFloatingPlexusOrbs();
         setupAmbientSparkles();
-        onWindowResize();
         // Lobby Form & User Setup Listeners
         const hostInputGroup = document.getElementById('hostInputGroup');
         const guestInputGroup = document.getElementById('guestInputGroup');
@@ -8829,6 +8832,8 @@
       let isDraggingBranch = false;
       let activeDragBranchOrb = null;
       let generalHoldStartTime = 0;
+      let lastPointerDownX = 0;
+      let lastPointerDownY = 0;
 
       // Coordinate converter helper: maps viewport coordinates to normalized screen & 3D world space
       function updatePointerCoordinates(clientX, clientY) {
@@ -8902,11 +8907,18 @@
         if (!isArtworkStarted || isPaused) return;
         if (e.target && (e.target.closest('.hud-layer') || e.target.closest('button') || e.target.closest('.lightbox-backdrop') || e.target.closest('.lobby-overlay') || e.target.closest('.custom-modal') || e.target.closest('input'))) return;
 
+        // Prevent iOS Safari gestures when interacting with artwork canvas
+        if (e.cancelable && (e.target.closest('#webgl-container') || e.target.tagName === 'CANVAS')) {
+          e.preventDefault();
+        }
+
         // Immediately update world coordinates at contact point (critical for touch devices)
         updatePointerCoordinates(e.clientX, e.clientY);
 
         isMouseDown = true;
         generalHoldStartTime = performance.now();
+        lastPointerDownX = e.clientX;
+        lastPointerDownY = e.clientY;
 
         triggerCursorGesture(activeUserIndex, 'mousedown');
         broadcastState('GESTURE', { gestureType: 'mousedown' });
@@ -8917,16 +8929,29 @@
           draggedPlexusCluster = null;
 
           const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
-          const plexusGrabDist = isMobile ? 130.0 : 75.0;
+          const plexusGrabDist = isMobile ? 140.0 : 75.0;
+          const rect = getCanvasRect();
 
           // Check if pointer pressed an existing free-floating Plexus cluster to drag it
           for (let i = 0; i < activePlexusClusters.length; i++) {
             const cluster = activePlexusClusters[i];
+
+            let isClusterHit = false;
+            if (camera && e.clientX !== undefined && e.clientY !== undefined) {
+              const clusterPos = new THREE.Vector3(cluster.centerX, cluster.centerY, cluster.centerZ || 0);
+              const p = clusterPos.project(camera);
+              const screenX = rect.left + ((p.x + 1) / 2) * rect.width;
+              const screenY = rect.top + ((1 - p.y) / 2) * rect.height;
+              if (Math.hypot(e.clientX - screenX, e.clientY - screenY) <= (isMobile ? 65.0 : 40.0)) {
+                isClusterHit = true;
+              }
+            }
+
             const dx = cluster.centerX - currentPos.x;
             const dy = cluster.centerY - currentPos.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist <= plexusGrabDist) {
+            if (isClusterHit || dist <= plexusGrabDist) {
               draggedPlexusCluster = cluster;
               dragOffset.set(dx, dy);
               break;
@@ -8943,19 +8968,38 @@
             plexusOriginX = currentPos.x;
             plexusOriginY = currentPos.y;
           }
-        } else if (activeMode === 'bluten' && currentPhase === 'BRANCH') {
-          const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
-          const hitDist = isMobile ? 3.6 : 1.6;
+        } else if (activeMode === 'bluten') {
+          if (currentPhase === 'BRANCH') {
+            const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
+            const rect = getCanvasRect();
+            const screenHitRadius = isMobile ? 58.0 : 38.0;
+            const hitDist = isMobile ? 3.8 : 1.6;
 
-          for (let i = 0; i < activeOrbs.length; i++) {
-            const orb = activeOrbs[i];
-            if (orb.active && !orb.userDrawn && orb.type === 'branch' && orb.alpha > 0.08) {
-              if (currentPos.distanceTo(orb.position) < hitDist) {
-                isDraggingBranch = true;
-                activeDragBranchOrb = orb;
-                break;
+            for (let i = 0; i < activeOrbs.length; i++) {
+              const orb = activeOrbs[i];
+              if (orb.active && !orb.userDrawn && orb.type === 'branch' && orb.alpha > 0.08) {
+                let hit = false;
+                if (camera && e.clientX !== undefined && e.clientY !== undefined) {
+                  const p = (orb.mesh ? orb.mesh.position : orb.position).clone().project(camera);
+                  const sX = rect.left + ((p.x + 1) / 2) * rect.width;
+                  const sY = rect.top + ((1 - p.y) / 2) * rect.height;
+                  if (Math.hypot(e.clientX - sX, e.clientY - sY) <= screenHitRadius) {
+                    hit = true;
+                  }
+                }
+                if (!hit && currentPos.distanceTo(orb.position) < hitDist) {
+                  hit = true;
+                }
+                if (hit) {
+                  isDraggingBranch = true;
+                  activeDragBranchOrb = orb;
+                  break;
+                }
               }
             }
+          } else {
+            // Instant feedback for Blossom & Petal phases directly on contact
+            checkAndTriggerOrbHit(currentPos, e.clientX, e.clientY);
           }
         }
       }
@@ -8964,13 +9008,30 @@
         if (e && e.isPrimary === false) return;
         if (!isArtworkStarted) return;
 
+        const cX = (e && e.clientX !== undefined && e.clientX !== 0) ? e.clientX : lastPointerDownX;
+        const cY = (e && e.clientY !== undefined && e.clientY !== 0) ? e.clientY : lastPointerDownY;
+        if (cX !== undefined && cY !== undefined) {
+          updatePointerCoordinates(cX, cY);
+        }
+
         triggerCursorGesture(activeUserIndex, 'mouseup');
         broadcastState('GESTURE', { gestureType: 'mouseup' });
 
-        // Immediate tap check on touch devices (tap without drag)
-        if (!isDraggingBranch && (performance.now() - generalHoldStartTime < 450)) {
-          const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
-          checkAndTriggerOrbHit(currentPos);
+        const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
+
+        // 1. Branch drag-or-tap resolution
+        if (isDraggingBranch && activeDragBranchOrb) {
+          const moveDist = Math.hypot(cX - lastPointerDownX, cY - lastPointerDownY);
+          // If the user tapped or moved slightly (< 35px or under 650ms), trigger branch growth!
+          if (moveDist < 35 || (performance.now() - generalHoldStartTime < 650)) {
+            activeDragBranchOrb.triggerExplosion();
+            spawnSubBranchFromOrb(activeDragBranchOrb);
+          }
+        } else {
+          // Standard tap check for all orbs (Blüten, Blossoms, Petals, Branches)
+          if (performance.now() - generalHoldStartTime < 750) {
+            checkAndTriggerOrbHit(currentPos, cX, cY);
+          }
         }
 
         isDraggingBranch = false;
@@ -8983,14 +9044,26 @@
             // Check if dropped near any of the 5 floating Orbs!
             let dockedOrb = null;
             const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
-            let minDist = isMobile ? 180.0 : 120.0; // Docking distance threshold
+            let minDist = isMobile ? 200.0 : 120.0; // Docking distance threshold
+            const rect = getCanvasRect();
 
             for (let i = 0; i < floatingPlexusOrbs.length; i++) {
               const orb = floatingPlexusOrbs[i];
+              let isDockHit = false;
+              if (camera) {
+                const orbScreen = new THREE.Vector3(orb.x, orb.y, orb.z).project(camera);
+                const clusterScreen = new THREE.Vector3(draggedPlexusCluster.centerX, draggedPlexusCluster.centerY, draggedPlexusCluster.centerZ || 0).project(camera);
+                const dxPx = (orbScreen.x - clusterScreen.x) * (rect.width / 2);
+                const dyPx = (orbScreen.y - clusterScreen.y) * (rect.height / 2);
+                if (Math.hypot(dxPx, dyPx) <= (isMobile ? 70.0 : 45.0)) {
+                  isDockHit = true;
+                }
+              }
+
               const dx = orb.x - draggedPlexusCluster.centerX;
               const dy = orb.y - draggedPlexusCluster.centerY;
               const dist = Math.sqrt(dx * dx + dy * dy);
-              if (dist < minDist) {
+              if (isDockHit || dist < minDist) {
                 minDist = dist;
                 dockedOrb = orb;
               }
@@ -9065,24 +9138,52 @@
         triggerCursorGesture(remoteUserIdx, 'click');
       }
 
-      function checkAndTriggerOrbHit(currentPos) {
+      function checkAndTriggerOrbHit(currentPos, clientX = null, clientY = null) {
         if (!isArtworkStarted || isPaused || activeMode !== 'bluten') return false;
         if (roundState !== 'ACTIVE') return false;
 
         const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
-        // Generous touch hit threshold for mobile & portrait screens (3.6 units vs 1.6 on desktop)
-        const hitDistance = isMobile ? 3.6 : 1.6;
+        const rect = getCanvasRect();
+        // Generous touch hit threshold for mobile & portrait screens (58px screen radius or 3.8 world units)
+        const screenHitRadius = isMobile ? 58.0 : 38.0;
+        const worldHitDistance = isMobile ? 3.8 : 1.8;
 
         for (let i = 0; i < activeOrbs.length; i++) {
           const orb = activeOrbs[i];
-          if (orb.active && !orb.userDrawn && orb.alpha > 0.08) {
-            if (currentPos.distanceTo(orb.position) < hitDistance) {
-              orb.triggerExplosion();
-              if (orb.type === 'petal') spawnPetalsFromOrb(orb);
-              else if (orb.type === 'blossom') spawnBlossomClusterFromOrb(orb);
-              else if (orb.type === 'branch') spawnSubBranchFromOrb(orb);
-              return true;
+          if (!orb.active || orb.userDrawn || orb.alpha <= 0.05) continue;
+
+          let isHit = false;
+
+          // 1. Direct Screen-Space Projected Hit Detection (immune to aspect ratio, FOV & depth)
+          if (clientX !== null && clientY !== null && camera) {
+            const orbPos = orb.mesh ? orb.mesh.position : orb.position;
+            const p = orbPos.clone().project(camera);
+            const orbScreenX = rect.left + ((p.x + 1) / 2) * rect.width;
+            const orbScreenY = rect.top + ((1 - p.y) / 2) * rect.height;
+
+            const dx = clientX - orbScreenX;
+            const dy = clientY - orbScreenY;
+            const pixelDist = Math.hypot(dx, dy);
+
+            if (pixelDist <= screenHitRadius) {
+              isHit = true;
             }
+          }
+
+          // 2. 3D World Space Distance Check (fallback & cross-device)
+          if (!isHit && currentPos) {
+            const orbWorldPos = orb.position || (orb.mesh ? orb.mesh.position : null);
+            if (orbWorldPos && currentPos.distanceTo(orbWorldPos) < worldHitDistance) {
+              isHit = true;
+            }
+          }
+
+          if (isHit) {
+            orb.triggerExplosion();
+            if (orb.type === 'petal') spawnPetalsFromOrb(orb);
+            else if (orb.type === 'blossom') spawnBlossomClusterFromOrb(orb);
+            else if (orb.type === 'branch') spawnSubBranchFromOrb(orb);
+            return true;
           }
         }
         return false;
@@ -9101,7 +9202,7 @@
         if (activeMode !== 'bluten') return;
 
         const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
-        checkAndTriggerOrbHit(currentPos);
+        checkAndTriggerOrbHit(currentPos, e.clientX, e.clientY);
       }
 
       function triggerOrbBurst(orb) {
@@ -9185,11 +9286,18 @@
           const dragVec = new THREE.Vector3().subVectors(currentPos, activeDragBranchOrb.position);
           const dist = dragVec.length();
 
-          if (dist > 0.40) {
+          // Screen space drag distance check as well
+          const rect = getCanvasRect();
+          const p = (activeDragBranchOrb.mesh ? activeDragBranchOrb.mesh.position : activeDragBranchOrb.position).clone().project(camera);
+          const sX = rect.left + ((p.x + 1) / 2) * rect.width;
+          const sY = rect.top + ((1 - p.y) / 2) * rect.height;
+          const screenDragDist = Math.hypot(event.clientX - sX, event.clientY - sY);
+
+          if (dist > 0.35 || screenDragDist > 25.0) {
             const dragDir = dragVec.clone().normalize();
             const dot = dragDir.dot(activeDragBranchOrb.guideDir);
 
-            if (dot > 0.15) {
+            if (dot > 0.05 || screenDragDist > 45.0) {
               spawnSubBranchFromOrb(activeDragBranchOrb);
               isDraggingBranch = false;
               activeDragBranchOrb = null;
