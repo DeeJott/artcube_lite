@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,9 +12,23 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#08000c",
+};
+
 export const metadata: Metadata = {
-  title: "ART.CUBE Experience",
+  title: "Sakuraverse — ART.CUBE Experience",
   description: "Interactive ART.CUBE demo experience",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Sakuraverse",
+  },
 };
 
 export default function RootLayout({

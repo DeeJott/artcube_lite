@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 
 export default function Home() {
-  const [srcUrl, setSrcUrl] = useState('sakura-v3.html?v=4.1');
+  const [srcUrl, setSrcUrl] = useState('sakura-v3.html?v=4.2');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export default function Home() {
       let base = '';
       if (path.includes('/artcube_lite')) base = '/artcube_lite';
       else if (path.includes('/art-cube-demo')) base = '/art-cube-demo';
-      const versionParam = search ? `${search}&v=4.1` : '?v=4.1';
+      const versionParam = search ? `${search}&v=4.2` : '?v=4.2';
       setSrcUrl(`${base}/sakura-v3.html${versionParam}`);
 
       // Forward Smartphone PopState Back Gestures to inner Experience

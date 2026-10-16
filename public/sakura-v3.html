@@ -3,9 +3,21 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sakuraverse">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#08000c">
   <title>Sakuraverse — A Collaborative Artwork</title>
   <style>
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -16,8 +28,12 @@
 
     body,
     html {
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      min-height: -webkit-fill-available;
+      position: fixed;
+      inset: 0;
       overflow: hidden;
       background-color: #08000c;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -200,10 +216,12 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 24px;
+      padding: max(16px, var(--sat)) max(18px, var(--sar)) max(16px, var(--sab)) max(18px, var(--sal));
       background: rgba(8, 0, 12, 0.45);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       transition: opacity 0.6s ease, visibility 0.6s ease;
     }
 
@@ -791,7 +809,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 32px 36px;
+      padding: max(22px, var(--sat)) max(26px, var(--sar)) max(22px, var(--sab)) max(26px, var(--sal));
       opacity: 0;
       transition: opacity 0.8s ease-in-out;
     }
@@ -1127,6 +1145,14 @@
       display: inline-flex;
       align-items: center;
       gap: 10px;
+    }
+
+    .btn-text-short {
+      display: none;
+    }
+
+    .btn-text-full {
+      display: inline;
     }
 
     @keyframes pulseBtnGlow {
@@ -1508,14 +1534,112 @@
       box-shadow: 0 0 6px #ffffff;
     }
 
-    /* Mobile Landscape Optimization (Phone 16:9 / 19.5:9 / 20:9 Querformat) */
-    @media (max-width: 950px) and (orientation: landscape), (max-height: 520px) and (orientation: landscape) {
+    /* =========================================================================
+       RESPONSIVE DESIGN: Mobile Landscape (Smartphones 16:9 / 19.5:9 / 20:9)
+       ========================================================================= */
+    @media (max-width: 950px) and (orientation: landscape), (max-height: 540px) and (orientation: landscape) {
 
       #webgl-container canvas,
       #bg-container canvas {
         max-width: 100vw !important;
         max-height: 100vh !important;
         object-fit: contain !important;
+      }
+
+      /* START SCREEN OVERLAY & LOBBY CARD (Mobile Landscape) */
+      .lobby-overlay {
+        padding: max(6px, var(--sat)) max(14px, var(--sar)) max(6px, var(--sab)) max(14px, var(--sal)) !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+
+      .lobby-card {
+        width: 100% !important;
+        max-width: 680px !important;
+        max-height: 96vh !important;
+        padding: 10px 22px 12px 22px !important;
+        gap: 8px !important;
+        border-radius: 20px !important;
+        margin: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 42, 157, 0.25) !important;
+      }
+
+      .lobby-brand {
+        gap: 2px !important;
+      }
+
+      .lobby-title {
+        font-size: 19px !important;
+        letter-spacing: 3px !important;
+      }
+
+      .lobby-subtitle {
+        font-size: 8.5px !important;
+        letter-spacing: 1.5px !important;
+      }
+
+      .lobby-form {
+        gap: 6px !important;
+      }
+
+      .input-group {
+        gap: 2px !important;
+      }
+
+      .input-group label {
+        font-size: 8.5px !important;
+        letter-spacing: 1.2px !important;
+      }
+
+      .name-input {
+        padding: 6px 14px !important;
+        font-size: 12px !important;
+        border-radius: 12px !important;
+      }
+
+      /* 2-Column Grid Layout for Mode Cards in Landscape: Keeps card height < 220px! */
+      .mode-options-container {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+        margin-top: 2px !important;
+      }
+
+      .mode-option-card {
+        padding: 8px 12px !important;
+        gap: 5px !important;
+        border-radius: 14px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+      }
+
+      .mode-option-title {
+        font-size: 11px !important;
+        letter-spacing: 1px !important;
+      }
+
+      .mode-option-desc {
+        font-size: 9px !important;
+        line-height: 1.22 !important;
+      }
+
+      .mode-action-btn {
+        padding: 6px 10px !important;
+        font-size: 10px !important;
+        border-radius: 12px !important;
+        letter-spacing: 0.8px !important;
+        gap: 4px !important;
+      }
+
+      .join-btn {
+        padding: 8px 14px !important;
+        font-size: 11px !important;
+        border-radius: 12px !important;
       }
 
       /* Artwork & Souvenir Lightbox Modal Scaling for Smartphone Landscape */
@@ -1648,29 +1772,56 @@
         margin-top: 2px !important;
       }
 
+      /* IN-GAME HUD LAYER (Mobile Landscape) */
+      .hud-layer {
+        padding-top: max(6px, var(--sat)) !important;
+        padding-bottom: max(6px, var(--sab)) !important;
+        padding-left: max(10px, var(--sal)) !important;
+        padding-right: max(10px, var(--sar)) !important;
+      }
+
+      .top-bar {
+        gap: 8px !important;
+      }
+
       /* Compact Infobox in Mobile Landscape */
       .instruction-box {
-        max-width: 210px !important;
-        padding: 4px 8px !important;
+        max-width: clamp(150px, 25vw, 210px) !important;
+        padding: 3px 8px !important;
         gap: 2px !important;
         border-radius: 8px !important;
       }
 
       .phase-title {
-        font-size: 8px !important;
+        font-size: 7.5px !important;
       }
 
       .instruction-body {
-        font-size: 9px !important;
+        font-size: 8.5px !important;
         line-height: 1.2 !important;
+      }
+
+      /* Top Right Group Buttons */
+      .top-right-group {
+        gap: 5px !important;
+      }
+
+      .hud-control-btn {
+        padding: 4px 8px !important;
+        font-size: 9px !important;
+        border-radius: 12px !important;
+        gap: 4px !important;
+        letter-spacing: 0.5px !important;
       }
 
       /* Compact Color Palette Sidebar in Mobile Landscape */
       .color-palette-sidebar {
-        right: 10px !important;
-        padding: 6px 5px !important;
+        right: max(6px, var(--sar)) !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        padding: 5px 4px !important;
         gap: 4px !important;
-        border-radius: 14px !important;
+        border-radius: 12px !important;
       }
 
       .color-palette-title,
@@ -1692,42 +1843,221 @@
         height: 5px !important;
       }
 
-      /* Compact HUD Layer in Mobile Landscape */
-      .hud-layer {
-        padding: 10px 14px !important;
-      }
-
-      .top-right-group {
+      /* Bottom Bar Layout: Zero Collisions on Narrow Screens */
+      .bottom-bar {
         gap: 6px !important;
+        align-items: flex-end !important;
       }
 
-      .hud-control-btn {
-        padding: 5px 10px !important;
-        font-size: 9.5px !important;
-        border-radius: 14px !important;
-        gap: 4px !important;
+      .brand-container {
+        gap: 1px !important;
+        flex-shrink: 0 !important;
       }
 
       .brand-title {
-        font-size: 15px !important;
-        letter-spacing: 2px !important;
+        font-size: clamp(11px, 2vw, 14px) !important;
+        letter-spacing: 1.5px !important;
+        white-space: nowrap !important;
       }
 
       .brand-subtitle {
-        font-size: 8px !important;
-        letter-spacing: 1px !important;
+        display: none !important;
       }
 
-      .create-btn {
-        padding: 7px 14px !important;
-        font-size: 10px !important;
-        border-radius: 18px !important;
-        gap: 6px !important;
+      .mode-selector-container {
+        gap: 2px !important;
+        flex-shrink: 0 !important;
+      }
+
+      .mode-selector-label {
+        display: none !important;
+      }
+
+      .mode-selector {
+        gap: 3px !important;
+        padding: 2px !important;
+        border-radius: 12px !important;
       }
 
       .mode-btn {
+        padding: 4px 7px !important;
+        font-size: 8.5px !important;
+        border-radius: 10px !important;
+        letter-spacing: 0.5px !important;
+      }
+
+      .creation-action-wrapper {
+        flex-shrink: 0 !important;
+      }
+
+      .create-btn {
         padding: 5px 10px !important;
-        font-size: 9.5px !important;
+        font-size: 9px !important;
+        border-radius: 14px !important;
+        letter-spacing: 0.5px !important;
+        white-space: nowrap !important;
+        gap: 4px !important;
+      }
+
+      .creation-ready-indicators {
+        min-height: 20px !important;
+        gap: 6px !important;
+      }
+
+      .ready-check-icon {
+        width: 18px !important;
+        height: 18px !important;
+        font-size: 11px !important;
+      }
+
+      .ready-user-name {
+        font-size: 9px !important;
+      }
+    }
+
+    /* Narrow Smartphone Landscape (< 740px wide): Show compact icon pills and shortened labels */
+    @media (max-width: 740px) and (orientation: landscape) {
+      .btn-text-full {
+        display: none !important;
+      }
+
+      .btn-text-short {
+        display: inline !important;
+      }
+
+      .hud-btn-label {
+        display: none !important;
+      }
+
+      .hud-control-btn {
+        padding: 5px 7px !important;
+      }
+    }
+
+    /* =========================================================================
+       RESPONSIVE DESIGN: Mobile Portrait (< 600px width)
+       ========================================================================= */
+    @media (max-width: 600px) {
+
+      .lobby-overlay {
+        padding: max(14px, var(--sat)) max(14px, var(--sar)) max(14px, var(--sab)) max(14px, var(--sal));
+        align-items: center;
+        justify-content: center;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .lobby-card {
+        max-width: 420px;
+        width: 100%;
+        padding: 22px 18px;
+        border-radius: 24px;
+        gap: 14px;
+        margin: auto;
+      }
+
+      .lobby-brand {
+        gap: 3px;
+      }
+
+      .lobby-title {
+        font-size: clamp(22px, 6.5vw, 26px);
+        letter-spacing: 3px;
+      }
+
+      .lobby-subtitle {
+        font-size: 9.5px;
+        letter-spacing: 2px;
+      }
+
+      .lobby-form {
+        gap: 12px;
+      }
+
+      .input-group label {
+        font-size: 10px;
+      }
+
+      .name-input {
+        padding: 11px 16px;
+        font-size: 13px;
+        border-radius: 14px;
+      }
+
+      .mode-options-container {
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+        margin-top: 2px;
+      }
+
+      .mode-option-card {
+        padding: 13px 15px;
+        gap: 8px;
+        border-radius: 16px;
+      }
+
+      .mode-option-title {
+        font-size: 12.5px;
+        letter-spacing: 1px;
+      }
+
+      .mode-option-desc {
+        font-size: 11px;
+        line-height: 1.35;
+      }
+
+      .mode-action-btn {
+        padding: 10px 14px;
+        font-size: 11px;
+        border-radius: 14px;
+      }
+
+      .join-btn {
+        padding: 11px 16px;
+        font-size: 12px;
+        border-radius: 14px;
+      }
+
+      .test-mode-lightbox-card {
+        max-width: 95vw;
+        max-height: 94vh;
+        padding: 20px 16px;
+        border-radius: 22px;
+        overflow-y: auto;
+      }
+
+      .artwork-lightbox-card {
+        max-width: 95vw;
+        max-height: 94vh;
+        padding: 20px 16px;
+        border-radius: 22px;
+        overflow-y: auto;
+      }
+
+      .artwork-selection-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .artwork-card-img-container {
+        height: 100px;
+      }
+
+      .landscape-modal {
+        max-width: 92vw;
+        padding: 24px 20px;
+        border-radius: 22px;
+        gap: 14px;
+      }
+
+      .landscape-title {
+        font-size: 18px;
+      }
+
+      .landscape-desc {
+        font-size: 12px;
       }
     }
   </style>
@@ -1905,17 +2235,17 @@
       <div class="top-right-group">
         <button class="hud-control-btn" id="audioToggleBtn" title="Sound An / Aus">
           <span id="audioIcon">🎵</span>
-          <span id="audioLabel">Sound ON</span>
+          <span id="audioLabel" class="hud-btn-label">Sound ON</span>
         </button>
 
         <button class="hud-control-btn" id="pauseToggleBtn" title="Pause / Play (Gilt für alle)">
           <span id="pauseIcon">⏸️</span>
-          <span id="pauseLabel">Pause</span>
+          <span id="pauseLabel" class="hud-btn-label">Pause</span>
         </button>
 
         <button class="hud-control-btn" id="restartArtBtn" title="Kunstwerk neu starten (Gilt für alle)">
           <span id="restartIcon">🔄</span>
-          <span>Restart</span>
+          <span class="hud-btn-label">Restart</span>
         </button>
       </div>
     </div>
@@ -1942,7 +2272,8 @@
       <div class="creation-action-wrapper" id="creationActionWrapper">
         <button class="create-btn active" id="openSouvenirLightboxBtn" title="In den Souvenirmodus wechseln">
           <span class="btn-content">
-            <span>🎨 Souvenirmodus starten</span>
+            <span class="btn-text-full">🎨 Souvenirmodus starten</span>
+            <span class="btn-text-short">🎨 Souvenir</span>
           </span>
         </button>
       </div>
@@ -4262,6 +4593,7 @@
         });
 
         startArtworkBtn.addEventListener('click', () => {
+          triggerIOSMinimalUI();
           launchArtworkExperience(true);
         });
 
@@ -4271,6 +4603,7 @@
         const handleLandscapeClick = (e) => {
           if (e) e.stopPropagation();
           requestLandscapeOrientation();
+          triggerIOSMinimalUI();
           if (landscapeOverlayElem) landscapeOverlayElem.classList.remove('active');
         };
         if (btnActivateLandscape) {
@@ -4281,13 +4614,30 @@
           landscapeOverlayElem.addEventListener('click', handleLandscapeClick);
         }
 
+        const handleOrientationUpdate = () => {
+          setTimeout(() => {
+            if (typeof onWindowResize === 'function') {
+              onWindowResize();
+            }
+            if (isArtworkStarted) {
+              checkAndShowLandscapeOverlay();
+            }
+            triggerIOSMinimalUI();
+          }, 200);
+        };
+
         if (typeof screen !== 'undefined' && screen.orientation) {
-          screen.orientation.addEventListener('change', () => {
-            setTimeout(() => {
-              if (isArtworkStarted) checkAndShowLandscapeOverlay();
-            }, 150);
-          });
+          try {
+            screen.orientation.addEventListener('change', handleOrientationUpdate);
+          } catch (e) { }
         }
+        window.addEventListener('orientationchange', handleOrientationUpdate);
+
+        // One-time listener on initial touch to collapse Safari toolbar on iOS
+        window.addEventListener('touchstart', function onInitialTouch() {
+          triggerIOSMinimalUI();
+          window.removeEventListener('touchstart', onInitialTouch);
+        }, { passive: true, once: true });
 
         // History State: Initialer Startzustand
         if (window.history && window.history.replaceState) {
@@ -4444,6 +4794,7 @@
         const btnOpenTestModeLobby = document.getElementById('btnOpenTestModeLobby');
         if (btnOpenTestModeLobby) {
           btnOpenTestModeLobby.addEventListener('click', () => {
+            triggerIOSMinimalUI();
             const testModal = document.getElementById('testModeLightboxOverlay');
             if (testModal) testModal.classList.add('active');
           });
@@ -4460,6 +4811,7 @@
         const btnOpenSouvenirLightbox = document.getElementById('btnOpenSouvenirLightbox');
         if (btnOpenSouvenirLightbox) {
           btnOpenSouvenirLightbox.addEventListener('click', () => {
+            triggerIOSMinimalUI();
             openArtworkLightbox(false);
           });
         }
@@ -5044,6 +5396,50 @@
         if (landscapeOverlay) landscapeOverlay.classList.remove('active');
       }
 
+      function isIOSDevice() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+          (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      }
+
+      function triggerIOSMinimalUI() {
+        if (!isIOSDevice()) return;
+
+        try {
+          const docEl = document.documentElement;
+          if (docEl && docEl.webkitRequestFullscreen) {
+            try { docEl.webkitRequestFullscreen(); } catch (e) { }
+          }
+
+          // In Safari on iOS, collapsible navigation chrome is triggered
+          // when a small scroll occurs. We temporarily add scroll space,
+          // scroll 1px down, then immediately restore.
+          const prevBodyHeight = document.body.style.height;
+          const prevDocHeight = document.documentElement.style.height;
+          const prevBodyOverflow = document.body.style.overflow;
+          const prevDocOverflow = document.documentElement.style.overflow;
+
+          document.documentElement.style.height = 'calc(100% + 40px)';
+          document.body.style.height = 'calc(100% + 40px)';
+          document.documentElement.style.overflow = 'auto';
+          document.body.style.overflow = 'auto';
+
+          window.scrollTo(0, 1);
+
+          setTimeout(() => {
+            window.scrollTo(0, 0);
+            document.documentElement.style.height = prevDocHeight;
+            document.body.style.height = prevBodyHeight;
+            document.documentElement.style.overflow = prevDocOverflow;
+            document.body.style.overflow = prevBodyOverflow;
+            if (typeof onWindowResize === 'function') {
+              onWindowResize();
+            }
+          }, 120);
+        } catch (e) {
+          console.warn('triggerIOSMinimalUI error:', e);
+        }
+      }
+
       function requestLandscapeOrientation() {
         const isMobileTouch = isMobileOrTouchDevice();
         if (!isMobileTouch) return;
@@ -5055,6 +5451,8 @@
               docEl.requestFullscreen().catch(() => {});
             } else if (docEl.webkitRequestFullscreen) {
               docEl.webkitRequestFullscreen();
+            } else if (docEl.mozRequestFullScreen) {
+              docEl.mozRequestFullScreen();
             } else if (docEl.msRequestFullscreen) {
               docEl.msRequestFullscreen();
             }
@@ -5066,6 +5464,9 @@
             });
           }
         } catch (e) { }
+
+        // Trigger iOS Minimal-UI URL bar collapse
+        triggerIOSMinimalUI();
       }
 
       // =========================================================================
