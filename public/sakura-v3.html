@@ -2087,9 +2087,9 @@
         max-height: 100vh !important;
         transform: translateY(-50%) !important;
         overflow: hidden !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
-        box-shadow: 0 0 50px rgba(0, 0, 0, 0.95), 0 0 25px rgba(255, 42, 157, 0.15) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+        box-shadow: 0 0 60px rgba(0, 0, 0, 0.95), 0 0 25px rgba(255, 42, 157, 0.2) !important;
       }
 
       #bg-container canvas,
@@ -2103,16 +2103,91 @@
         display: none !important;
       }
 
+      /* HUD Container: Uses available black space above and below the 16:9 artwork */
       .hud-layer {
-        padding: max(16px, var(--sat)) max(16px, var(--sar)) max(16px, var(--sab)) max(16px, var(--sal)) !important;
+        padding: max(14px, var(--sat)) 16px max(14px, var(--sab)) 16px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        pointer-events: none !important;
       }
 
-      .color-palette-sidebar {
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        right: 8px !important;
-        padding: 6px 4px !important;
+      /* TOP SECTION: Cleanly stacked above the 16:9 canvas */
+      .top-bar {
+        order: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+        pointer-events: none !important;
+      }
+
+      /* Control buttons (Sound, Pause, Restart) centered at the top */
+      .top-right-group {
+        order: 1 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+        pointer-events: auto !important;
+      }
+
+      .hud-control-btn {
+        padding: 7px 12px !important;
+        font-size: 12px !important;
+        border-radius: 12px !important;
+      }
+
+      .hud-btn-label {
+        display: inline !important;
+        font-size: 11px !important;
+      }
+
+      /* Instruction box centered nicely just above the canvas */
+      .instruction-box {
+        order: 2 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        text-align: center !important;
+        padding: 8px 14px !important;
         border-radius: 14px !important;
+        pointer-events: auto !important;
+      }
+
+      .instruction-header {
+        justify-content: center !important;
+      }
+
+      .instruction-body {
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+      }
+
+      /* COLOR PALETTE: Formatted horizontally right below the 16:9 canvas */
+      .color-palette-sidebar {
+        order: 2 !important;
+        position: static !important;
+        transform: none !important;
+        margin: 8px auto 4px auto !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 12px !important;
+        padding: 8px 16px !important;
+        border-radius: 20px !important;
+        background: rgba(18, 12, 28, 0.9) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 15px rgba(255, 42, 157, 0.25) !important;
+        border: 1px solid rgba(255, 105, 180, 0.4) !important;
+        pointer-events: auto !important;
+      }
+
+      .color-palette-sidebar.hidden {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
       }
 
       .color-palette-title,
@@ -2120,9 +2195,96 @@
         display: none !important;
       }
 
+      .color-palette-buttons {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px !important;
+      }
+
       .color-swatch-btn {
-        width: 22px !important;
-        height: 22px !important;
+        width: 28px !important;
+        height: 28px !important;
+        border-radius: 50% !important;
+      }
+
+      /* BOTTOM SECTION: Cleanly stacked below the 16:9 canvas */
+      .bottom-bar {
+        order: 3 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+        pointer-events: none !important;
+      }
+
+      /* Mode Selector (Blüten / Plexus) centered pill */
+      .mode-selector-container {
+        order: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 4px !important;
+        pointer-events: auto !important;
+      }
+
+      .mode-selector-label {
+        font-size: 9px !important;
+        letter-spacing: 1.5px !important;
+      }
+
+      .mode-selector {
+        padding: 4px 5px !important;
+        border-radius: 16px !important;
+      }
+
+      .mode-btn {
+        padding: 6px 16px !important;
+        font-size: 12px !important;
+      }
+
+      /* Souvenir button centered and thumb-accessible */
+      .creation-action-wrapper {
+        order: 2 !important;
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+        max-width: 320px !important;
+        pointer-events: auto !important;
+      }
+
+      .create-btn {
+        width: 100% !important;
+        padding: 11px 20px !important;
+        border-radius: 16px !important;
+      }
+
+      .btn-text-full {
+        display: inline !important;
+        font-size: 13px !important;
+      }
+
+      .btn-text-short {
+        display: none !important;
+      }
+
+      /* Brand Title centered at bottom */
+      .brand-container {
+        order: 3 !important;
+        text-align: center !important;
+        align-items: center !important;
+        gap: 2px !important;
+        pointer-events: auto !important;
+      }
+
+      .brand-title {
+        font-size: 16px !important;
+        letter-spacing: 3px !important;
+      }
+
+      .brand-subtitle {
+        font-size: 9px !important;
+        letter-spacing: 1.5px !important;
       }
     }
   </style>
@@ -3218,6 +3380,19 @@
       }
 
       function getCanvasRect() {
+        const container = document.getElementById('webgl-container');
+        if (container) {
+          const r = container.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            return {
+              left: r.left,
+              top: r.top,
+              width: r.width,
+              height: r.height,
+              isPortrait: window.innerHeight > window.innerWidth
+            };
+          }
+        }
         const isPortrait = window.innerHeight > window.innerWidth;
         if (isPortrait) {
           const w = window.innerWidth;
@@ -8741,6 +8916,9 @@
         if (activeMode === 'plexus') {
           draggedPlexusCluster = null;
 
+          const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
+          const plexusGrabDist = isMobile ? 130.0 : 75.0;
+
           // Check if pointer pressed an existing free-floating Plexus cluster to drag it
           for (let i = 0; i < activePlexusClusters.length; i++) {
             const cluster = activePlexusClusters[i];
@@ -8748,7 +8926,7 @@
             const dy = cluster.centerY - currentPos.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist <= 75.0) {
+            if (dist <= plexusGrabDist) {
               draggedPlexusCluster = cluster;
               dragOffset.set(dx, dy);
               break;
@@ -8766,10 +8944,13 @@
             plexusOriginY = currentPos.y;
           }
         } else if (activeMode === 'bluten' && currentPhase === 'BRANCH') {
+          const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
+          const hitDist = isMobile ? 3.6 : 1.6;
+
           for (let i = 0; i < activeOrbs.length; i++) {
             const orb = activeOrbs[i];
-            if (orb.active && !orb.userDrawn && orb.type === 'branch' && orb.alpha > 0.1) {
-              if (currentPos.distanceTo(orb.position) < 1.6) {
+            if (orb.active && !orb.userDrawn && orb.type === 'branch' && orb.alpha > 0.08) {
+              if (currentPos.distanceTo(orb.position) < hitDist) {
                 isDraggingBranch = true;
                 activeDragBranchOrb = orb;
                 break;
@@ -8786,6 +8967,12 @@
         triggerCursorGesture(activeUserIndex, 'mouseup');
         broadcastState('GESTURE', { gestureType: 'mouseup' });
 
+        // Immediate tap check on touch devices (tap without drag)
+        if (!isDraggingBranch && (performance.now() - generalHoldStartTime < 450)) {
+          const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
+          checkAndTriggerOrbHit(currentPos);
+        }
+
         isDraggingBranch = false;
         activeDragBranchOrb = null;
 
@@ -8795,7 +8982,8 @@
           if (draggedPlexusCluster) {
             // Check if dropped near any of the 5 floating Orbs!
             let dockedOrb = null;
-            let minDist = 120.0; // Docking distance threshold
+            const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
+            let minDist = isMobile ? 180.0 : 120.0; // Docking distance threshold
 
             for (let i = 0; i < floatingPlexusOrbs.length; i++) {
               const orb = floatingPlexusOrbs[i];
@@ -8877,6 +9065,29 @@
         triggerCursorGesture(remoteUserIdx, 'click');
       }
 
+      function checkAndTriggerOrbHit(currentPos) {
+        if (!isArtworkStarted || isPaused || activeMode !== 'bluten') return false;
+        if (roundState !== 'ACTIVE') return false;
+
+        const isMobile = isMobileOrTouchDevice() || (window.innerHeight > window.innerWidth);
+        // Generous touch hit threshold for mobile & portrait screens (3.6 units vs 1.6 on desktop)
+        const hitDistance = isMobile ? 3.6 : 1.6;
+
+        for (let i = 0; i < activeOrbs.length; i++) {
+          const orb = activeOrbs[i];
+          if (orb.active && !orb.userDrawn && orb.alpha > 0.08) {
+            if (currentPos.distanceTo(orb.position) < hitDistance) {
+              orb.triggerExplosion();
+              if (orb.type === 'petal') spawnPetalsFromOrb(orb);
+              else if (orb.type === 'blossom') spawnBlossomClusterFromOrb(orb);
+              else if (orb.type === 'branch') spawnSubBranchFromOrb(orb);
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
       function onCanvasClick(e) {
         if (!isArtworkStarted || isPaused) return;
         if (e.target && (e.target.closest('.hud-layer') || e.target.closest('button') || e.target.closest('.lightbox-backdrop') || e.target.closest('.lobby-overlay') || e.target.closest('.custom-modal') || e.target.closest('#createArtBtn') || e.target.closest('#userSwitchBtn') || e.target.closest('.mode-selector-container'))) return;
@@ -8890,21 +9101,7 @@
         if (activeMode !== 'bluten') return;
 
         const currentPos = (activeUserIndex === 1) ? mouseWorld.clone() : user2WorldPos.clone();
-
-        if (roundState === 'ACTIVE') {
-          for (let i = 0; i < activeOrbs.length; i++) {
-            const orb = activeOrbs[i];
-            if (orb.active && !orb.userDrawn && orb.alpha > 0.1) {
-              if (currentPos.distanceTo(orb.position) < 1.6) {
-                orb.triggerExplosion();
-                if (orb.type === 'petal') spawnPetalsFromOrb(orb);
-                else if (orb.type === 'blossom') spawnBlossomClusterFromOrb(orb);
-                else if (orb.type === 'branch') spawnSubBranchFromOrb(orb);
-                break;
-              }
-            }
-          }
-        }
+        checkAndTriggerOrbHit(currentPos);
       }
 
       function triggerOrbBurst(orb) {
