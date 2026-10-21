@@ -812,6 +812,151 @@
       box-shadow: 0 10px 35px rgba(255, 42, 157, 0.8);
     }
 
+    /* =========================================================================
+       iOS Landscape Block Overlay (Session Lock for iPhone/iOS)
+       ========================================================================= */
+    .ios-landscape-block-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: radial-gradient(circle at 50% 40%, rgba(255, 42, 157, 0.18), transparent 70%), rgba(7, 2, 13, 0.96);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      touch-action: none;
+    }
+
+    .ios-landscape-block-overlay.active {
+      display: flex !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    .ios-landscape-modal {
+      max-width: 440px;
+      width: 90%;
+      background: linear-gradient(145deg, rgba(32, 16, 48, 0.95), rgba(13, 5, 22, 0.98));
+      border: 1px solid rgba(255, 105, 180, 0.45);
+      border-radius: 28px;
+      padding: 30px 24px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 45px rgba(255, 42, 157, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      animation: modalPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .ios-rotate-device-wrapper {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ios-rotate-device-icon {
+      width: 52px;
+      height: 32px;
+      border: 2.5px solid #ff2a9d;
+      border-radius: 7px;
+      position: relative;
+      background: rgba(255, 42, 157, 0.08);
+      box-shadow: 0 0 22px rgba(255, 42, 157, 0.55);
+      animation: iosRotatePhoneBack 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    .ios-rotate-device-icon .ios-device-notch {
+      position: absolute;
+      left: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 1px;
+    }
+
+    .ios-rotate-arrow {
+      position: absolute;
+      font-size: 26px;
+      color: #4ee2ec;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: arrowPulse 2.4s ease-in-out infinite;
+      text-shadow: 0 0 16px rgba(78, 226, 236, 0.85);
+      pointer-events: none;
+    }
+
+    @keyframes iosRotatePhoneBack {
+      0%, 20% {
+        transform: rotate(0deg);
+      }
+      50%, 80% {
+        transform: rotate(-90deg);
+      }
+      100% {
+        transform: rotate(0deg);
+      }
+    }
+
+    .ios-lock-tag {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #4ee2ec;
+      background: rgba(78, 226, 236, 0.12);
+      border: 1px solid rgba(78, 226, 236, 0.4);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    .ios-lock-title {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      background: linear-gradient(135deg, #ffffff 0%, #ff80df 60%, #ff2a9d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-top: 2px;
+    }
+
+    .ios-lock-desc {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: rgba(255, 225, 245, 0.85);
+      font-weight: 400;
+      max-width: 340px;
+    }
+
+    .ios-lock-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.65);
+      margin-top: 4px;
+    }
+
+    .ios-status-pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ff2a9d;
+      box-shadow: 0 0 10px #ff2a9d;
+      animation: pulseGlow 1.6s ease-in-out infinite;
+    }
+
     /* Modern Glassmorphic HUD Layout */
     .hud-layer {
       position: fixed;
@@ -2429,6 +2574,27 @@
       <button type="button" class="landscape-action-btn" id="btnActivateLandscape">
         <span>🔄 Querformat starten</span>
       </button>
+    </div>
+  </div>
+
+  <!-- iOS Landscape Block Overlay (Blocks rotation to landscape on iOS during active session) -->
+  <div class="ios-landscape-block-overlay" id="iosLandscapeBlockOverlay">
+    <div class="ios-landscape-modal">
+      <div class="ios-rotate-device-wrapper">
+        <div class="ios-rotate-device-icon">
+          <div class="ios-device-notch"></div>
+        </div>
+        <div class="ios-rotate-arrow">↻</div>
+      </div>
+      <div class="ios-lock-tag">HOCHFORMAT-MODUS</div>
+      <div class="ios-lock-title">Bitte Gerät aufrecht halten</div>
+      <div class="ios-lock-desc">
+        Auf dem iPhone ist dieses Kunstwerk für die vertikale Ansicht im Hochformat optimiert. Bitte drehe dein Smartphone wieder aufrecht, um fortzufahren.
+      </div>
+      <div class="ios-lock-status">
+        <span class="ios-status-pulse"></span>
+        <span>Warte auf Drehung ins Hochformat...</span>
+      </div>
     </div>
   </div>
 
@@ -4871,6 +5037,10 @@
 
         const handleOrientationUpdate = () => {
           setTimeout(() => {
+            const isBlocked = updateIOSOrientationLock();
+            if (isBlocked) {
+              return;
+            }
             if (typeof onWindowResize === 'function') {
               onWindowResize();
             }
@@ -4878,7 +5048,7 @@
               checkAndShowLandscapeOverlay();
             }
             triggerIOSMinimalUI();
-          }, 200);
+          }, 150);
         };
 
         if (typeof screen !== 'undefined' && screen.orientation) {
@@ -4887,10 +5057,13 @@
           } catch (e) { }
         }
         window.addEventListener('orientationchange', handleOrientationUpdate);
+        window.addEventListener('resize', () => {
+          updateIOSOrientationLock();
+        });
 
-        // Maintain 1px scroll on iOS in landscape mode to prevent Safari from re-expanding the bar
+        // Maintain 1px scroll on iOS in landscape mode (only when NOT in an active session)
         const keepIOSMinimalUI = () => {
-          if (isIOSDevice() && window.innerWidth > window.innerHeight) {
+          if (isIOSDevice() && !isArtworkStarted && window.innerWidth > window.innerHeight) {
             triggerIOSMinimalUI();
             if (window.scrollY === 0) {
               window.scrollTo(0, 1);
@@ -5640,8 +5813,25 @@
         }, 2500);
       }
 
+      function updateIOSOrientationLock() {
+        const overlay = document.getElementById('iosLandscapeBlockOverlay');
+        const isIOS = isIOSDevice();
+        const isLandscape = window.innerWidth > window.innerHeight;
+
+        if (isIOS && isArtworkStarted && isLandscape) {
+          if (overlay) overlay.classList.add('active');
+          return true; // landscape orientation blocked on iOS during session
+        } else {
+          if (overlay) overlay.classList.remove('active');
+          return false;
+        }
+      }
+
       function checkAndShowLandscapeOverlay() {
-        // Portrait mode is now supported as 16:9 center display on mobile
+        if (isIOSDevice()) {
+          updateIOSOrientationLock();
+          return;
+        }
         const landscapeOverlay = document.getElementById('landscapeOverlay');
         if (landscapeOverlay) {
           landscapeOverlay.classList.remove('active');
@@ -5651,6 +5841,8 @@
       function hideLandscapePrompt() {
         const landscapeOverlay = document.getElementById('landscapeOverlay');
         if (landscapeOverlay) landscapeOverlay.classList.remove('active');
+        const iosOverlay = document.getElementById('iosLandscapeBlockOverlay');
+        if (iosOverlay) iosOverlay.classList.remove('active');
       }
 
       function isIOSDevice() {
@@ -5660,6 +5852,7 @@
 
       function triggerIOSMinimalUI() {
         if (!isIOSDevice()) return;
+        if (isArtworkStarted) return; // Do not alter viewport scroll during active portrait session
 
         try {
           const docEl = document.documentElement;
@@ -5703,6 +5896,13 @@
       function requestLandscapeOrientation() {
         const isMobileTouch = isMobileOrTouchDevice();
         if (!isMobileTouch) return;
+
+        // On iOS: Portrait mode with maximum width is preserved as the intended experience.
+        // We do not request landscape orientation or fullscreen lock on iOS.
+        if (isIOSDevice()) {
+          updateIOSOrientationLock();
+          return;
+        }
 
         try {
           const docEl = document.documentElement;
@@ -5793,6 +5993,7 @@
         }
 
         isArtworkStarted = true;
+        updateIOSOrientationLock();
         clock.start();
 
         playAudioTrack();
@@ -6330,6 +6531,7 @@
       function returnToStartScreen() {
         isArtworkStarted = false;
         isCreationSession = false;
+        updateIOSOrientationLock();
         setCreationModeUI(false);
         restartAll();
 
@@ -6391,6 +6593,7 @@
         // 2. Set Creation Session State & mark as solo
         isCreationSession = true;
         isArtworkStarted = true;
+        updateIOSOrientationLock();
         isPaused = false;
         if (clock && !clock.running) clock.start();
         playAudioTrack();
@@ -8905,6 +9108,7 @@
         // Multi-touch safety: only track primary pointer
         if (e.isPrimary === false) return;
         if (!isArtworkStarted || isPaused) return;
+        if (updateIOSOrientationLock()) return;
         if (e.target && (e.target.closest('.hud-layer') || e.target.closest('button') || e.target.closest('.lightbox-backdrop') || e.target.closest('.lobby-overlay') || e.target.closest('.custom-modal') || e.target.closest('input'))) return;
 
         // Prevent iOS Safari gestures when interacting with artwork canvas
@@ -9007,6 +9211,7 @@
       function onPointerUp(e) {
         if (e && e.isPrimary === false) return;
         if (!isArtworkStarted) return;
+        if (updateIOSOrientationLock()) return;
 
         const cX = (e && e.clientX !== undefined && e.clientX !== 0) ? e.clientX : lastPointerDownX;
         const cY = (e && e.clientY !== undefined && e.clientY !== 0) ? e.clientY : lastPointerDownY;
@@ -9191,6 +9396,7 @@
 
       function onCanvasClick(e) {
         if (!isArtworkStarted || isPaused) return;
+        if (updateIOSOrientationLock()) return;
         if (e.target && (e.target.closest('.hud-layer') || e.target.closest('button') || e.target.closest('.lightbox-backdrop') || e.target.closest('.lobby-overlay') || e.target.closest('.custom-modal') || e.target.closest('#createArtBtn') || e.target.closest('#userSwitchBtn') || e.target.closest('.mode-selector-container'))) return;
 
         const { normX, normY } = updatePointerCoordinates(e.clientX, e.clientY);
@@ -9253,6 +9459,7 @@
 
       function onPointerMove(event) {
         if (event.isPrimary === false) return;
+        if (updateIOSOrientationLock()) return;
 
         const { normX, normY } = updatePointerCoordinates(event.clientX, event.clientY);
 
@@ -9319,6 +9526,10 @@
       const onMouseUp = onPointerUp;
 
       function onWindowResize() {
+        if (updateIOSOrientationLock()) {
+          return;
+        }
+
         const rect = getCanvasRect();
         const w = rect.width;
         const h = rect.height;
