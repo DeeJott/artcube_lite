@@ -131,7 +131,7 @@ export function StartScreen({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col justify-center items-center overflow-x-hidden overflow-y-auto select-none p-4 sm:p-6",
+        "fixed inset-0 z-[100] flex flex-col justify-start sm:justify-center items-center overflow-x-hidden overflow-y-auto select-none p-3 sm:p-6 pt-[max(3.5rem,calc(var(--sat)+3rem))] pb-[max(1rem,var(--sab))]",
         "bg-[rgba(8,0,12,0.45)] backdrop-blur-md text-white transition-opacity duration-700",
         !isVisible && "opacity-0 pointer-events-none"
       )}
@@ -264,7 +264,7 @@ export function StartScreen({
 
               {/* Host Mode Options (Testmodus vs Souvenirmodus) */}
               {isHost ? (
-                <div className="flex flex-col gap-4 mt-1">
+                <div className="grid grid-cols-1 landscape:grid-cols-2 sm:grid-cols-2 gap-3 mt-1">
                   {/* Option 1: Testmodus Card */}
                   <div className="group rounded-[20px] p-4 sm:p-5 bg-white/[0.04] border border-[rgba(255,105,180,0.28)] flex flex-col gap-3 transition-all duration-300 hover:bg-white/[0.07] hover:border-[rgba(255,42,157,0.55)] hover:shadow-[0_8px_25px_rgba(255,42,157,0.2)] hover:-translate-y-0.5">
                     <div className="flex flex-col gap-1">

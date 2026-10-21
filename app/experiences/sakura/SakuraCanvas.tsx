@@ -1345,8 +1345,10 @@ export function SakuraCanvas({
   const [isHudDimmed, setIsHudDimmed] = useState(false);
   const hudInactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // iOS Landscape Block Modal State (Prevents iPhone rotation to landscape)
+  // Smartphone (Android & iOS) Orientation States
   const [isIOSLandscapeBlocked, setIsIOSLandscapeBlocked] = useState(false);
+  const [isAndroidPortraitPrompt, setIsAndroidPortraitPrompt] = useState(false);
+  const [isPortraitMode, setIsPortraitMode] = useState(false);
 
   // Souvenir Video Lightbox & NFT Direct Download State
   const [isSouvenirVideoOpen, setIsSouvenirVideoOpen] = useState(false);
@@ -1418,24 +1420,83 @@ export function SakuraCanvas({
     };
   }, [wakeHUDControls]);
 
-  // iOS Landscape Detection (locks landscape orientation on iPhone during session)
-  useEffect(() => {
-    const checkIOS = () => {
-      const isIOS = typeof navigator !== 'undefined' && (
-        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-      );
-      const isLandscape = window.innerWidth > window.innerHeight;
-      setIsIOSLandscapeBlocked(isIOS && isLandscape);
-    };
-    checkIOS();
-    window.addEventListener('resize', checkIOS);
-    window.addEventListener('orientationchange', checkIOS);
-    return () => {
-      window.removeEventListener('resize', checkIOS);
-      window.removeEventListener('orientationchange', checkIOS);
-    };
+  // Request Landscape Fullscreen & Orientation Lock (Android & non-iOS Mobile)
+  const requestLandscapeOrientation = useCallback(() => {
+    try {
+      const docEl = document.documentElement as unknown as {
+        requestFullscreen?: () => Promise<void>;
+        webkitRequestFullscreen?: () => void;
+        mozRequestFullScreen?: () => void;
+        msRequestFullscreen?: () => void;
+      };
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      }
+      const screenAny = (typeof screen !== 'undefined' ? screen : null) as unknown as {
+        orientation?: {
+          lock?: (orientation: string) => Promise<void>;
+          unlock?: () => void;
+        };
+      } | null;
+      if (screenAny?.orientation?.lock) {
+        screenAny.orientation.lock('landscape').catch(() => {
+          screenAny?.orientation?.lock?.('landscape-primary')?.catch(() => {});
+        });
+      }
+    } catch {
+      // fallback
+    }
+    setIsAndroidPortraitPrompt(false);
   }, []);
+
+  const requestLandscapeOrientationRef = useRef(requestLandscapeOrientation);
+  useEffect(() => {
+    requestLandscapeOrientationRef.current = requestLandscapeOrientation;
+  }, [requestLandscapeOrientation]);
+
+  // Smartphone Orientation Management (Android: Querformat / iOS: Hochformat)
+  useEffect(() => {
+    const checkOrientation = () => {
+      if (typeof navigator === 'undefined' || typeof window === 'undefined') return;
+
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isPortrait = !isLandscape;
+      setIsPortraitMode(isPortrait);
+
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isIPhone = /iPhone|iPod/.test(navigator.userAgent) || 
+        (isIOS && Math.min(window.innerWidth, window.innerHeight) < 768);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isAndroidPhone = isAndroid && Math.min(window.innerWidth, window.innerHeight) < 768;
+
+      // 1. iOS iPhone: Intended mode is Portrait during active session.
+      // Block rotation to landscape ONLY during active artwork session!
+      if (isRunning && isIPhone && isLandscape) {
+        setIsIOSLandscapeBlocked(true);
+      } else {
+        setIsIOSLandscapeBlocked(false);
+      }
+
+      // 2. Android: Intended mode is Landscape during active session.
+      // Prompt to rotate to landscape if in portrait during active session!
+      if (isRunning && isAndroidPhone && isPortrait) {
+        setIsAndroidPortraitPrompt(true);
+      } else {
+        setIsAndroidPortraitPrompt(false);
+      }
+    };
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, [isRunning]);
 
   // Mobile Double-Back Session Exit Gesture
   useEffect(() => {
@@ -1648,6 +1709,21 @@ export function SakuraCanvas({
   }, [showToast, updateCameraDistance]);
 
   const handleExit = useCallback(() => {
+    try {
+      if (typeof document !== 'undefined' && document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      const screenAny = (typeof screen !== 'undefined' ? screen : null) as unknown as {
+        orientation?: {
+          unlock?: () => void;
+        };
+      } | null;
+      if (screenAny?.orientation?.unlock) {
+        try { screenAny.orientation.unlock(); } catch {}
+      }
+    } catch {}
+    setIsIOSLandscapeBlocked(false);
+    setIsAndroidPortraitPrompt(false);
     if (onExitRef.current) {
       onExitRef.current();
     } else {
@@ -3053,8 +3129,13 @@ export function SakuraCanvas({
     };
 
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
-      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      if (e.cancelable && e.target instanceof HTMLElement && (e.target.tagName === 'CANVAS' || e.target.closest('canvas'))) {
+        e.preventDefault();
+      }
+      const touch = 'touches' in e && e.touches.length > 0 ? e.touches[0] : null;
+      const clientX = touch ? touch.clientX : (e as MouseEvent).clientX;
+      const clientY = touch ? touch.clientY : (e as MouseEvent).clientY;
+      if (clientX === undefined || clientY === undefined) return;
       updatePointerWorld(clientX, clientY);
 
       if (isMouseDown && draggedPlexusCluster && activeModeRef.current === 'plexus') {
@@ -3074,10 +3155,15 @@ export function SakuraCanvas({
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
       if (isPausedRef.current) return;
+      if (e.cancelable && e.target instanceof HTMLElement && (e.target.tagName === 'CANVAS' || e.target.closest('canvas'))) {
+        e.preventDefault();
+      }
       isMouseDown = true;
 
-      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      const touch = 'touches' in e && e.touches.length > 0 ? e.touches[0] : null;
+      const clientX = touch ? touch.clientX : (e as MouseEvent).clientX;
+      const clientY = touch ? touch.clientY : (e as MouseEvent).clientY;
+      if (clientX === undefined || clientY === undefined) return;
       updatePointerWorld(clientX, clientY);
 
       if (activeModeRef.current === 'bluten') {
@@ -3109,8 +3195,9 @@ export function SakuraCanvas({
 
     const handlePointerUp = (e?: MouseEvent | TouchEvent) => {
       if (e && activeModeRef.current === 'bluten') {
-        const clientX = 'changedTouches' in e ? e.changedTouches[0].clientX : (e as MouseEvent).clientX;
-        const clientY = 'changedTouches' in e ? e.changedTouches[0].clientY : (e as MouseEvent).clientY;
+        const touch = 'changedTouches' in e && e.changedTouches.length > 0 ? e.changedTouches[0] : null;
+        const clientX = touch ? touch.clientX : (e as MouseEvent).clientX;
+        const clientY = touch ? touch.clientY : (e as MouseEvent).clientY;
         if (clientX !== undefined && clientY !== undefined) {
           checkAndTriggerOrbHit(clientX, clientY);
         }
@@ -3183,9 +3270,9 @@ export function SakuraCanvas({
     window.addEventListener('mousemove', handlePointerMove);
     window.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('mouseup', handlePointerUp);
-    window.addEventListener('touchstart', handlePointerDown, { passive: true });
-    window.addEventListener('touchmove', handlePointerMove, { passive: true });
-    window.addEventListener('touchend', handlePointerUp, { passive: true });
+    window.addEventListener('touchstart', handlePointerDown, { passive: false });
+    window.addEventListener('touchmove', handlePointerMove, { passive: false });
+    window.addEventListener('touchend', handlePointerUp, { passive: false });
 
     // Restart function to reset 3D scene elements cleanly
     restartTriggerRef.current = () => {
@@ -3978,6 +4065,7 @@ export function SakuraCanvas({
       plexusFinaleUniforms.iResolution.value.set(renderer.domElement.width, renderer.domElement.height, 1);
     };
     window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
 
     // Register API
     onRendererReadyRef.current?.({
@@ -3986,6 +4074,9 @@ export function SakuraCanvas({
         isRunningRef.current = true;
         if (mode === 'plexus' || mode === 'bluten') {
           handleSwitchMode(mode);
+        }
+        if (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)) {
+          requestLandscapeOrientationRef.current?.();
         }
       },
       handlePeerMessage: (data) => {
@@ -4027,6 +4118,7 @@ export function SakuraCanvas({
       window.removeEventListener('touchmove', handlePointerMove);
       window.removeEventListener('touchend', handlePointerUp);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
       cancelAnimationFrame(animFrameId);
       renderer.dispose();
       bgMat.dispose();
@@ -4081,8 +4173,8 @@ export function SakuraCanvas({
         </div>
       )}
 
-      {/* RIGHT SIDEBAR: Color Palette (Smoothly shown during BLOSSOM phase) */}
-      {activeMode === 'bluten' && currentPhase === 'BLOSSOM' && (
+      {/* RIGHT SIDEBAR: Color Palette (Smoothly shown during BLOSSOM phase in Landscape) */}
+      {activeMode === 'bluten' && currentPhase === 'BLOSSOM' && !isPortraitMode && (
         <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-auto flex flex-col items-center gap-3.5 p-4 bg-[#120c1c]/90 backdrop-blur-xl border border-[#ff69b4]/40 rounded-3xl shadow-[0_12px_35px_rgba(0,0,0,0.6)] z-50 animate-in fade-in duration-300">
           <div className="text-[10px] font-bold tracking-[2.5px] uppercase text-[#ffc8eb]/80 [writing-mode:vertical-lr] rotate-180 py-1">
             Farbpalette
@@ -4118,139 +4210,293 @@ export function SakuraCanvas({
         </div>
       )}
 
-      {/* Modern 4-Corner Glassmorphic HUD Layer with Zen-Modus Auto-Dimming */}
-      <div className={`absolute inset-0 p-8 flex flex-col justify-between pointer-events-none z-40 transition-opacity duration-700 ${isHudDimmed ? 'opacity-20 hover:opacity-100' : 'opacity-100'}`}>
-
-        {/* TOP BAR: Instruction Box (Left) & Control Buttons (Right) */}
-        <div className="flex justify-between items-start w-full">
-          {/* Top Left: Dynamic Instruction Box */}
-          <div className="pointer-events-auto flex flex-col gap-1.5 p-4 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] max-w-[440px]">
-            {(roundInfo || isPaused) && (
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d] animate-ping" />
-                <span className="text-[11px] font-bold tracking-[2px] uppercase text-[#ffb4dc]/95">
-                  {roundInfo ? `${roundInfo}${isPaused ? ' (Pausiert)' : ''}` : 'Pausiert'}
-                </span>
-              </div>
-            )}
-            <p className="text-xs leading-relaxed text-white/90 font-normal">
-              {instructionBody}
-            </p>
-          </div>
-
-          {/* Top Right: Sound, Pause, Restart & EXIT Control Buttons */}
-          <div className="pointer-events-auto flex items-center gap-2.5">
-            <button
-              onClick={toggleAudio}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
-            >
-              <span>{isAudioMuted ? '🔇' : '🎵'}</span>
-              <span>{isAudioMuted ? 'Sound OFF' : 'Sound ON'}</span>
-            </button>
-
-            <button
-              onClick={togglePause}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
-            >
-              <span>{isPaused ? '▶️' : '⏸️'}</span>
-              <span>{isPaused ? 'Play' : 'Pause'}</span>
-            </button>
-
-            <button
-              onClick={handleRestart}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
-            >
-              <span>🔄</span>
-              <span>Restart</span>
-            </button>
-
-            <button
-              onClick={handleExit}
-              className="inline-flex items-center gap-2 px-4.5 py-2 bg-gradient-to-r from-pink-500/80 to-rose-600/80 hover:from-pink-500 hover:to-rose-600 backdrop-blur-md border border-pink-400/60 text-white text-[11px] font-bold tracking-[1.5px] uppercase rounded-full shadow-[0_0_15px_rgba(255,42,157,0.4)] transition-all cursor-pointer"
-              title="Zurück zur Startseite"
-            >
-              <span>🚪</span>
-              <span>Exit</span>
-            </button>
-          </div>
-        </div>
-
-        {/* BOTTOM BAR: Brand Title (Left), Mode Selector (Center), Action Button (Right) */}
-        <div className="flex justify-between items-end w-full">
-          {/* Bottom Left: Brand Title */}
-          <div className="flex flex-col gap-1 select-none">
-            <h1 className="text-2xl font-bold tracking-[4px] uppercase text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] drop-shadow-[0_0_20px_rgba(255,42,157,0.7)]">
-              Sakuraverse
-            </h1>
-            <p className="text-[11px] font-medium tracking-[2.5px] uppercase text-[#ffc8eb]/75">
-              A Collaborative Artwork
-            </p>
-          </div>
-
-          {/* Bottom Center: Mode Selector / Creation Mode Badge */}
-          <div className="pointer-events-auto flex flex-col gap-1.5 items-center">
-            {isCreationMode ? (
-              <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#160e22]/90 backdrop-blur-md border border-[#ff69b4]/50 shadow-[0_0_20px_rgba(255,42,157,0.4)]">
-                <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_8px_#ff2a9d] animate-pulse" />
-                <span className="text-xs font-bold tracking-[2.5px] uppercase text-white">
-                  Souvenir Mode
-                </span>
-              </div>
-            ) : (
-              <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
-                <button
-                  onClick={() => handleSwitchMode('bluten')}
-                  className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'bluten'
-                    ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_15px_rgba(255,42,157,0.5)]'
-                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
-                    }`}
-                >
-                  Blüten
-                </button>
-
-                <button
-                  onClick={() => handleSwitchMode('plexus')}
-                  className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'plexus'
-                    ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_15px_rgba(0,240,255,0.5)]'
-                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
-                    }`}
-                >
-                  Plexus
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Right: Creation Button & Readiness Indicators */}
-          <div className="pointer-events-auto flex flex-col items-center gap-2">
-            {/* Ready Status Badges with Green Checkmarks */}
-            <div className="flex items-center gap-4 min-h-[44px]">
-              <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${hostCreationReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}>
-                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#10e782] to-[#00b045] text-[#051a0e] flex items-center justify-center text-xs font-black shadow-[0_0_14px_rgba(16,231,130,0.8)]">✓</span>
-                <span className="text-[10px] font-bold tracking-wider uppercase text-white shadow-sm">Host</span>
-              </div>
-              <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${guestCreationReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}>
-                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#10e782] to-[#00b045] text-[#051a0e] flex items-center justify-center text-xs font-black shadow-[0_0_14px_rgba(16,231,130,0.8)]">✓</span>
-                <span className="text-[10px] font-bold tracking-wider uppercase text-white shadow-sm">Gast</span>
-              </div>
+      {/* Modern HUD Layer: Portrait Stacked on Smartphones vs 4-Corner Glassmorphic in Landscape */}
+      {isPortraitMode ? (
+        /* PORTRAIT STACKED HUD (iPhone & Portrait Smartphones) */
+        <div className={`absolute inset-0 px-4 py-3 pt-[max(12px,var(--sat))] pb-[max(14px,var(--sab))] flex flex-col justify-between pointer-events-none z-40 transition-opacity duration-700 ${isHudDimmed ? 'opacity-20 hover:opacity-100' : 'opacity-100'}`}>
+          {/* TOP SECTION: Cleanly stacked above the 16:9 canvas */}
+          <div className="flex flex-col items-center gap-2.5 w-full">
+            {/* Control Buttons Centered Row */}
+            <div className="pointer-events-auto flex items-center justify-center gap-2 w-full flex-wrap">
+              <button
+                onClick={toggleAudio}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] text-white text-[10px] font-semibold tracking-wider uppercase rounded-full shadow-lg transition-all"
+              >
+                <span>{isAudioMuted ? '🔇' : '🎵'}</span>
+                <span>{isAudioMuted ? 'Mute' : 'Sound'}</span>
+              </button>
+              <button
+                onClick={togglePause}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] text-white text-[10px] font-semibold tracking-wider uppercase rounded-full shadow-lg transition-all"
+              >
+                <span>{isPaused ? '▶️' : '⏸️'}</span>
+                <span>{isPaused ? 'Play' : 'Pause'}</span>
+              </button>
+              <button
+                onClick={handleRestart}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] text-white text-[10px] font-semibold tracking-wider uppercase rounded-full shadow-lg transition-all"
+              >
+                <span>🔄</span>
+                <span>Restart</span>
+              </button>
+              <button
+                onClick={handleExit}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-pink-500/80 to-rose-600/80 backdrop-blur-md border border-pink-400/60 text-white text-[10px] font-bold tracking-wider uppercase rounded-full shadow-[0_0_12px_rgba(255,42,157,0.4)] transition-all cursor-pointer"
+                title="Zurück zur Startseite"
+              >
+                <span>🚪</span>
+                <span>Exit</span>
+              </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Dynamic Instruction Box Centered */}
+            <div className="pointer-events-auto flex flex-col items-center gap-1 p-2.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 rounded-xl shadow-[0_6px_20px_rgba(0,0,0,0.4)] w-full max-w-[380px] text-center">
+              {(roundInfo || isPaused) && (
+                <div className="flex items-center justify-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_8px_#ff2a9d] animate-ping" />
+                  <span className="text-[10px] font-bold tracking-[2px] uppercase text-[#ffb4dc]/95">
+                    {roundInfo ? `${roundInfo}${isPaused ? ' (Pausiert)' : ''}` : 'Pausiert'}
+                  </span>
+                </div>
+              )}
+              <p className="text-[11px] leading-tight text-white/90 font-normal">
+                {instructionBody}
+              </p>
+            </div>
+          </div>
+
+          {/* MIDDLE SECTION: Horizontal Color Palette centered right below the 16:9 canvas */}
+          {activeMode === 'bluten' && currentPhase === 'BLOSSOM' && (
+            <div className="pointer-events-auto flex items-center justify-center gap-3 py-2 px-4 bg-[#120c1c]/90 backdrop-blur-xl border border-[#ff69b4]/40 rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.6)] mx-auto my-1 z-50 animate-in fade-in duration-300">
+              {(Object.keys(BLOSSOM_PALETTES) as BlossomColorId[]).map((colorKey) => {
+                const pal = BLOSSOM_PALETTES[colorKey];
+                const isSelected = selectedColor === colorKey;
+                return (
+                  <button
+                    key={colorKey}
+                    onClick={() => handleColorSelect(colorKey)}
+                    title={`Farbe wählen: ${pal.name}`}
+                    className={`relative w-7 h-7 rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer ${
+                      isSelected
+                        ? 'scale-120 ring-2 ring-white shadow-[0_0_14px_' + pal.uiColor + ']'
+                        : 'opacity-70 hover:opacity-100 hover:scale-110'
+                    }`}
+                    style={{ backgroundColor: pal.uiColor }}
+                  >
+                    {isSelected && (
+                      <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_6px_white]" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* BOTTOM SECTION: Mode Selector, Souvenir Button, Brand Title stacked below 16:9 canvas */}
+          <div className="flex flex-col items-center gap-2.5 w-full">
+            {/* Mode Selector */}
+            <div className="pointer-events-auto flex items-center justify-center">
+              {isCreationMode ? (
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#160e22]/90 backdrop-blur-md border border-[#ff69b4]/50 shadow-[0_0_15px_rgba(255,42,157,0.4)]">
+                  <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_8px_#ff2a9d] animate-pulse" />
+                  <span className="text-[10px] font-bold tracking-[2px] uppercase text-white">
+                    Souvenir Mode
+                  </span>
+                </div>
+              ) : (
+                <div className="flex gap-1.5 p-1 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-lg">
+                  <button
+                    onClick={() => handleSwitchMode('bluten')}
+                    className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase transition-all ${
+                      activeMode === 'bluten'
+                        ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_12px_rgba(255,42,157,0.5)]'
+                        : 'text-[#ffc8eb]/60 hover:text-white'
+                    }`}
+                  >
+                    Blüten
+                  </button>
+                  <button
+                    onClick={() => handleSwitchMode('plexus')}
+                    className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase transition-all ${
+                      activeMode === 'plexus'
+                        ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_12px_rgba(0,240,255,0.5)]'
+                        : 'text-[#ffc8eb]/60 hover:text-white'
+                    }`}
+                  >
+                    Plexus
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Souvenir Action Button & Badges */}
+            <div className="pointer-events-auto flex flex-col items-center gap-1.5 w-full max-w-[280px]">
+              {(hostCreationReady || guestCreationReady) && (
+                <div className="flex items-center gap-3">
+                  <div className={`flex items-center gap-1 text-[9px] font-bold uppercase text-white transition-opacity ${hostCreationReady ? 'opacity-100' : 'opacity-0'}`}>
+                    <span className="w-4 h-4 rounded-full bg-[#10e782] text-black flex items-center justify-center font-black">✓</span> Host
+                  </div>
+                  <div className={`flex items-center gap-1 text-[9px] font-bold uppercase text-white transition-opacity ${guestCreationReady ? 'opacity-100' : 'opacity-0'}`}>
+                    <span className="w-4 h-4 rounded-full bg-[#10e782] text-black flex items-center justify-center font-black">✓</span> Gast
+                  </div>
+                </div>
+              )}
               <button
                 onClick={toggleCreationReady}
-                className="relative overflow-hidden px-8 py-3.5 rounded-full text-xs font-bold tracking-[2px] uppercase transition-all shadow-2xl flex items-center gap-2.5 bg-gradient-to-r from-[#ff2a9d] via-[#a855f7] to-[#4ee2ec] text-white border border-[#4ee2ec] shadow-[0_12px_35px_rgba(255,42,157,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
+                className="w-full py-2.5 px-5 rounded-full text-[11px] font-bold tracking-[1.5px] uppercase transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[#ff2a9d] via-[#a855f7] to-[#4ee2ec] text-white border border-[#4ee2ec] shadow-[0_8px_25px_rgba(255,42,157,0.4)] cursor-pointer"
                 title="In den Souvenirmodus wechseln"
               >
                 <span>🎨</span>
-                <span className="relative z-10">
-                  Souvenirmodus starten
-                </span>
+                <span>Souvenirmodus starten</span>
+              </button>
+            </div>
+
+            {/* Brand Title */}
+            <div className="text-center select-none pt-0.5">
+              <h1 className="text-lg font-bold tracking-[3px] uppercase text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] drop-shadow-[0_0_12px_rgba(255,42,157,0.7)] leading-none">
+                Sakuraverse
+              </h1>
+              <p className="text-[9px] font-medium tracking-[2px] uppercase text-[#ffc8eb]/70 mt-0.5">
+                A Collaborative Artwork
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* LANDSCAPE 4-CORNER GLASSMORPHIC HUD (Desktop & Mobile Landscape) */
+        <div className={`absolute inset-0 p-8 flex flex-col justify-between pointer-events-none z-40 transition-opacity duration-700 ${isHudDimmed ? 'opacity-20 hover:opacity-100' : 'opacity-100'}`}>
+
+          {/* TOP BAR: Instruction Box (Left) & Control Buttons (Right) */}
+          <div className="flex justify-between items-start w-full">
+            {/* Top Left: Dynamic Instruction Box */}
+            <div className="pointer-events-auto flex flex-col gap-1.5 p-4 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] max-w-[440px]">
+              {(roundInfo || isPaused) && (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d] animate-ping" />
+                  <span className="text-[11px] font-bold tracking-[2px] uppercase text-[#ffb4dc]/95">
+                    {roundInfo ? `${roundInfo}${isPaused ? ' (Pausiert)' : ''}` : 'Pausiert'}
+                  </span>
+                </div>
+              )}
+              <p className="text-xs leading-relaxed text-white/90 font-normal">
+                {instructionBody}
+              </p>
+            </div>
+
+            {/* Top Right: Sound, Pause, Restart & EXIT Control Buttons */}
+            <div className="pointer-events-auto flex items-center gap-2.5">
+              <button
+                onClick={toggleAudio}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
+              >
+                <span>{isAudioMuted ? '🔇' : '🎵'}</span>
+                <span>{isAudioMuted ? 'Sound OFF' : 'Sound ON'}</span>
+              </button>
+
+              <button
+                onClick={togglePause}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
+              >
+                <span>{isPaused ? '▶️' : '⏸️'}</span>
+                <span>{isPaused ? 'Play' : 'Pause'}</span>
+              </button>
+
+              <button
+                onClick={handleRestart}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/40 hover:border-[#ff2a9d] hover:bg-[#ff2a9d]/30 text-white text-[11px] font-semibold tracking-[1.5px] uppercase rounded-full shadow-lg transition-all"
+              >
+                <span>🔄</span>
+                <span>Restart</span>
+              </button>
+
+              <button
+                onClick={handleExit}
+                className="inline-flex items-center gap-2 px-4.5 py-2 bg-gradient-to-r from-pink-500/80 to-rose-600/80 hover:from-pink-500 hover:to-rose-600 backdrop-blur-md border border-pink-400/60 text-white text-[11px] font-bold tracking-[1.5px] uppercase rounded-full shadow-[0_0_15px_rgba(255,42,157,0.4)] transition-all cursor-pointer"
+                title="Zurück zur Startseite"
+              >
+                <span>🚪</span>
+                <span>Exit</span>
               </button>
             </div>
           </div>
 
+          {/* BOTTOM BAR: Brand Title (Left), Mode Selector (Center), Action Button (Right) */}
+          <div className="flex justify-between items-end w-full">
+            {/* Bottom Left: Brand Title */}
+            <div className="flex flex-col gap-1 select-none">
+              <h1 className="text-2xl font-bold tracking-[4px] uppercase text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] drop-shadow-[0_0_20px_rgba(255,42,157,0.7)]">
+                Sakuraverse
+              </h1>
+              <p className="text-[11px] font-medium tracking-[2.5px] uppercase text-[#ffc8eb]/75">
+                A Collaborative Artwork
+              </p>
+            </div>
+
+            {/* Bottom Center: Mode Selector / Creation Mode Badge */}
+            <div className="pointer-events-auto flex flex-col gap-1.5 items-center">
+              {isCreationMode ? (
+                <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#160e22]/90 backdrop-blur-md border border-[#ff69b4]/50 shadow-[0_0_20px_rgba(255,42,157,0.4)]">
+                  <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_8px_#ff2a9d] animate-pulse" />
+                  <span className="text-xs font-bold tracking-[2.5px] uppercase text-white">
+                    Souvenir Mode
+                  </span>
+                </div>
+              ) : (
+                <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
+                  <button
+                    onClick={() => handleSwitchMode('bluten')}
+                    className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'bluten'
+                      ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_15px_rgba(255,42,157,0.5)]'
+                      : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                      }`}
+                  >
+                    Blüten
+                  </button>
+
+                  <button
+                    onClick={() => handleSwitchMode('plexus')}
+                    className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'plexus'
+                      ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_15px_rgba(0,240,255,0.5)]'
+                      : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                      }`}
+                  >
+                    Plexus
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Right: Creation Button & Readiness Indicators */}
+            <div className="pointer-events-auto flex flex-col items-center gap-2">
+              {/* Ready Status Badges with Green Checkmarks */}
+              <div className="flex items-center gap-4 min-h-[44px]">
+                <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${hostCreationReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}>
+                  <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#10e782] to-[#00b045] text-[#051a0e] flex items-center justify-center text-xs font-black shadow-[0_0_14px_rgba(16,231,130,0.8)]">✓</span>
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-white shadow-sm">Host</span>
+                </div>
+                <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${guestCreationReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}>
+                  <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#10e782] to-[#00b045] text-[#051a0e] flex items-center justify-center text-xs font-black shadow-[0_0_14px_rgba(16,231,130,0.8)]">✓</span>
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-white shadow-sm">Gast</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={toggleCreationReady}
+                  className="relative overflow-hidden px-8 py-3.5 rounded-full text-xs font-bold tracking-[2px] uppercase transition-all shadow-2xl flex items-center gap-2.5 bg-gradient-to-r from-[#ff2a9d] via-[#a855f7] to-[#4ee2ec] text-white border border-[#4ee2ec] shadow-[0_12px_35px_rgba(255,42,157,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
+                  title="In den Souvenirmodus wechseln"
+                >
+                  <span>🎨</span>
+                  <span className="relative z-10">
+                    Souvenirmodus starten
+                  </span>
+                </button>
+              </div>
+            </div>
+
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Lightbox: Artwork Selection Modal */}
       {isLightboxOpen && (
@@ -4364,25 +4610,71 @@ export function SakuraCanvas({
         </div>
       )}
 
+      {/* Android Landscape Switch Prompt Overlay */}
+      {isAndroidPortraitPrompt && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#06020c]/94 backdrop-blur-3xl animate-fade-in pointer-events-auto">
+          <div className="relative w-full max-w-sm bg-gradient-to-br from-[#201030]/95 to-[#0d0516]/98 border border-[#ff69b4]/45 rounded-3xl p-7 text-center shadow-[0_25px_60px_rgba(0,0,0,0.85),0_0_45px_rgba(255,42,157,0.3)] flex flex-col items-center gap-4">
+            <div className="relative w-18 h-18 flex items-center justify-center">
+              <div 
+                className="w-8 h-14 border-2 border-[#ff2a9d] rounded-lg relative bg-[#ff2a9d]/10 shadow-[0_0_20px_rgba(255,42,157,0.55)] flex items-start justify-center pt-1"
+                style={{ animation: 'phoneRotateAnim 2.4s ease-in-out infinite' }}
+              >
+                <div className="w-2.5 h-0.5 bg-white/70 rounded-full" />
+              </div>
+              <div 
+                className="absolute top-1/2 left-1/2 text-2xl text-[#4ee2ec] font-bold pointer-events-none drop-shadow-[0_0_12px_rgba(78,226,236,0.85)]"
+                style={{ animation: 'arrowPulse 2.4s ease-in-out infinite' }}
+              >
+                ↻
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold tracking-widest uppercase bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] bg-clip-text text-transparent">
+              Querformat
+            </h3>
+
+            <p className="text-xs leading-relaxed text-[#ffdcf5]/85">
+              Host hat die Session gestartet! Tippe auf den Bildschirm oder drehe dein Smartphone ins Querformat für das Kunstwerk.
+            </p>
+
+            <button
+              type="button"
+              onClick={requestLandscapeOrientation}
+              className="w-full py-3 px-6 bg-gradient-to-r from-[#ff2a9d] to-[#a855f7] border border-white/40 rounded-full text-white text-xs font-bold tracking-widest uppercase shadow-[0_8px_25px_rgba(255,42,157,0.55)] hover:scale-102 active:scale-98 transition-all cursor-pointer"
+            >
+              <span>🔄 Querformat starten</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* iOS Landscape Block Modal (Blocks rotation to landscape on iPhones) */}
       {isIOSLandscapeBlocked && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#06020c]/94 backdrop-blur-3xl animate-fade-in pointer-events-auto">
           <div className="relative w-full max-w-md bg-gradient-to-br from-[#201030]/95 to-[#0d0516]/98 border border-[#ff69b4]/45 rounded-3xl p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.85),0_0_45px_rgba(255,42,157,0.3)] flex flex-col items-center gap-4">
-            <div className="relative w-16 h-16 flex items-center justify-center">
-              <div className="w-9 h-14 border-2 border-white/80 rounded-lg flex flex-col items-center justify-start pt-1">
-                <div className="w-3 h-1 bg-white/60 rounded-full" />
+            <div className="relative w-18 h-18 flex items-center justify-center">
+              <div
+                className="w-14 h-8 border-2 border-[#ff2a9d] rounded-lg relative bg-[#ff2a9d]/10 shadow-[0_0_22px_rgba(255,42,157,0.55)] flex items-center pl-1"
+                style={{ animation: 'iosRotatePhoneBack 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite' }}
+              >
+                <div className="w-0.5 h-2.5 bg-white/70 rounded-full" />
               </div>
-              <div className="absolute inset-0 flex items-center justify-center text-2xl text-[#ff2a9d] animate-spin font-bold">↻</div>
+              <div
+                className="absolute top-1/2 left-1/2 text-2xl text-[#4ee2ec] font-bold pointer-events-none drop-shadow-[0_0_16px_rgba(78,226,236,0.85)]"
+                style={{ animation: 'arrowPulse 2.4s ease-in-out infinite' }}
+              >
+                ↻
+              </div>
             </div>
-            <div className="text-[10px] font-extrabold tracking-[2px] uppercase text-[#ff2a9d] bg-[#ff2a9d]/15 px-3 py-1 rounded-full border border-[#ff2a9d]/30">
+            <div className="text-[10px] font-extrabold tracking-[2px] uppercase text-[#4ee2ec] bg-[#4ee2ec]/15 px-3 py-1 rounded-full border border-[#4ee2ec]/40">
               HOCHFORMAT-MODUS
             </div>
             <h3 className="text-xl font-bold tracking-wider text-white">Bitte Gerät aufrecht halten</h3>
-            <p className="text-xs leading-relaxed text-white/80">
+            <p className="text-xs leading-relaxed text-[#ffdcf5]/85">
               Auf dem iPhone ist dieses Kunstwerk für die vertikale Ansicht im Hochformat optimiert. Bitte drehe dein Smartphone wieder aufrecht, um fortzufahren.
             </p>
-            <div className="flex items-center gap-2 text-[11px] text-[#4ee2ec] font-mono tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-[#4ee2ec] animate-ping" />
+            <div className="flex items-center gap-2 text-[11px] text-[#ffc8eb]/70 tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d] animate-ping" />
               <span>Warte auf Drehung ins Hochformat...</span>
             </div>
           </div>
