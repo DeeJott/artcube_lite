@@ -1285,13 +1285,17 @@ interface SakuraCanvasProps extends ExperienceComponentProps {
 }
 
 export function SakuraCanvas({
+  isMobile = false,
   sendInteraction,
+  onCanvasesReady,
   onRendererReady,
   onExit
 }: SakuraCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const baseCamPosRef = useRef(new THREE.Vector3(0, -0.4, 16));
+  const baseLookAtRef = useRef(new THREE.Vector3(0, -0.4, 0));
 
   // App & Artwork Mode State
   const [activeMode, setActiveMode] = useState<'bluten' | 'plexus'>('bluten');
@@ -1462,15 +1466,19 @@ export function SakuraCanvas({
       camera.updateProjectionMatrix();
       const visibleWidth = 2 * Math.tan(THREE.MathUtils.degToRad(22.5)) * 16 * aspect;
       const targetCamX = -9.6 + (visibleWidth * 0.48);
-      camera.position.set(targetCamX, -0.4, 16);
-      camera.lookAt(new THREE.Vector3(targetCamX, -0.4, 0));
+      baseCamPosRef.current.set(targetCamX, -0.4, 16);
+      baseLookAtRef.current.set(targetCamX, -0.4, 0);
+      camera.position.copy(baseCamPosRef.current);
+      camera.lookAt(baseLookAtRef.current);
     } else {
       camera.fov = 60;
       camera.updateProjectionMatrix();
       const widthScale = Math.max(0.35, Math.min(1.0, w / 1440));
       const baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
-      camera.position.set(0, 0, baseDist / 3.5);
-      camera.lookAt(new THREE.Vector3(0, 0, 0));
+      baseCamPosRef.current.set(0, 0, baseDist / 3.5);
+      baseLookAtRef.current.set(0, 0, 0);
+      camera.position.copy(baseCamPosRef.current);
+      camera.lookAt(baseLookAtRef.current);
     }
   }, []);
 
@@ -1619,9 +1627,15 @@ export function SakuraCanvas({
       alpha: true,
       powerPreference: 'high-performance'
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+    const targetPixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.0) : Math.min(window.devicePixelRatio, 1.25);
+    renderer.setPixelRatio(targetPixelRatio);
     renderer.setSize(width, height);
     renderer.autoClear = false;
+
+    // Call onCanvasesReady contract (architecture.md)
+    if (onCanvasesReady && canvasRef.current) {
+      onCanvasesReady(canvasRef.current, canvasRef.current);
+    }
 
     // Background Scene
     const bgScene = new THREE.Scene();
@@ -1783,7 +1797,8 @@ export function SakuraCanvas({
 
       petalMat.color.set(0xffffff);
 
-      for (let i = 0; i < MAX_PETALS; i++) {
+      const vortexPetalLimit = isMobile ? 320 : MAX_PETALS;
+      for (let i = 0; i < vortexPetalLimit; i++) {
         const colorKey = weightedColorPool[i % weightedColorPool.length];
         const pal = BLOSSOM_PALETTES[colorKey] || BLOSSOM_PALETTES.pink;
         const colorHex = pal.shades[Math.floor(Math.random() * pal.shades.length)];
@@ -1795,7 +1810,7 @@ export function SakuraCanvas({
 
       isVortexActive = true;
       vortexTimer = 0.0;
-      activePetalCount = MAX_PETALS;
+      activePetalCount = vortexPetalLimit;
       instancedPetalMesh.visible = true;
       setCurrentPhase('VORTEX');
 
@@ -1950,11 +1965,11 @@ export function SakuraCanvas({
     const tpG = new Float32Array(MAX_TRAIL_PARTICLES);
     const tpB = new Float32Array(MAX_TRAIL_PARTICLES);
     const tpRot = new Float32Array(MAX_TRAIL_PARTICLES);
+    const activeTrailBudget = isMobile ? 800 : MAX_TRAIL_PARTICLES;
     let tpNextFreeIndex = 0;
-
     const emitExplosionStarParticle = (x: number, y: number, z: number, vx: number, vy: number, vz: number) => {
       const idx = tpNextFreeIndex;
-      tpNextFreeIndex = (tpNextFreeIndex + 1) % MAX_TRAIL_PARTICLES;
+      tpNextFreeIndex = (tpNextFreeIndex + 1) % activeTrailBudget;
 
       tpX[idx] = x;
       tpY[idx] = y;
@@ -2903,6 +2918,12 @@ export function SakuraCanvas({
       });
     };
 
+    // Scratch instances for zero-allocation pointer & camera math (quality_and_performance.md)
+    const unprojectScratch = new THREE.Vector3();
+    const rayDirScratch = new THREE.Vector3();
+    const targetParallax = new THREE.Vector2(0, 0);
+    const currentParallax = new THREE.Vector2(0, 0);
+
     // Interactive Pointer Handlers
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
@@ -2911,12 +2932,16 @@ export function SakuraCanvas({
       mouseScreen.x = clientX / window.innerWidth;
       mouseScreen.y = 1.0 - (clientY / window.innerHeight);
 
+      // Synthesize mouse/touch coordinates into target parallax [-1, 1] (technical_excellence.md 3.C)
+      targetParallax.x = (mouseScreen.x - 0.5) * 2.0;
+      targetParallax.y = (mouseScreen.y - 0.5) * 2.0;
+
       if (cameraRef.current) {
-        const vector = new THREE.Vector3(mouseScreen.x * 2 - 1, mouseScreen.y * 2 - 1, 0.5);
-        vector.unproject(cameraRef.current);
-        const dir = vector.sub(cameraRef.current.position).normalize();
-        const dist = -cameraRef.current.position.z / dir.z;
-        mouseWorld.copy(cameraRef.current.position).add(dir.multiplyScalar(dist));
+        unprojectScratch.set(mouseScreen.x * 2 - 1, mouseScreen.y * 2 - 1, 0.5);
+        unprojectScratch.unproject(cameraRef.current);
+        rayDirScratch.copy(unprojectScratch).sub(cameraRef.current.position).normalize();
+        const dist = -cameraRef.current.position.z / rayDirScratch.z;
+        mouseWorld.copy(cameraRef.current.position).add(rayDirScratch.multiplyScalar(dist));
       }
 
       if (isMouseDown && draggedPlexusCluster && activeModeRef.current === 'plexus') {
@@ -2941,8 +2966,9 @@ export function SakuraCanvas({
 
       if (activeModeRef.current === 'bluten') {
         if (!isTrunkGrowthFinished || isVortexActive) return;
+        const touchHitDistance = isMobile ? 3.8 : 2.5;
         activeOrbs.forEach(orb => {
-          if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < 2.5) {
+          if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < touchHitDistance) {
             orb.triggerExplosion();
 
             const curPh = currentPhaseRef.current;
@@ -3156,6 +3182,30 @@ export function SakuraCanvas({
       bgUniforms.iTime.value = totalAnimTime;
       bgUniforms.uGridVibe.value = 0.0; // Raster explicitly removed as requested
 
+      // Punkt 4: Cinematic Camera Parallax & Subtle Organic Breathing (technical_excellence.md 3.C)
+      if (cameraRef.current) {
+        const cam = cameraRef.current;
+        currentParallax.x += (targetParallax.x - currentParallax.x) * Math.min(1.0, delta * 3.0);
+        currentParallax.y += (targetParallax.y - currentParallax.y) * Math.min(1.0, delta * 3.0);
+
+        const isBluten = (activeModeRef.current === 'bluten');
+        const breathingY = Math.sin(totalAnimTime * 0.4) * (isBluten ? 0.08 : 2.0);
+        const parallaxScaleX = isBluten ? 0.35 : 12.0;
+        const parallaxScaleY = isBluten ? 0.25 : 8.0;
+
+        const basePos = baseCamPosRef.current;
+        const baseLook = baseLookAtRef.current;
+
+        cam.position.x = basePos.x + currentParallax.x * parallaxScaleX;
+        cam.position.y = basePos.y + currentParallax.y * parallaxScaleY + breathingY;
+        cam.position.z = basePos.z;
+        cam.lookAt(
+          baseLook.x + currentParallax.x * (parallaxScaleX * 0.25),
+          baseLook.y + currentParallax.y * (parallaxScaleY * 0.25),
+          baseLook.z
+        );
+      }
+
       if (bgUniforms.uRippleActive.value > 0.5) {
         bgUniforms.uRippleTime.value += delta;
         if (bgUniforms.uRippleTime.value > 3.0) {
@@ -3241,10 +3291,10 @@ export function SakuraCanvas({
             const blend = alignProgress * alignProgress * (3.0 - 2.0 * alignProgress);
             const spinMultiplier = 0.65 + blend * 2.8;
 
-            for (let i = 0; i < MAX_PETALS; i++) {
+            for (let i = 0; i < activePetalCount; i++) {
               petalAngle[i] += petalSpeed[i] * delta * spinMultiplier;
               const a = petalAngle[i];
-              const normH = (i / MAX_PETALS);
+              const normH = (i / activePetalCount);
 
               // Initial floating drift position
               const driftX = petalOriginX[i] + Math.sin(totalAnimTime * 0.4 + petalPhaseZ[i]) * petalRadiusX[i] * 0.5;
@@ -3277,10 +3327,10 @@ export function SakuraCanvas({
             const stormProgress = Math.min(1.0, stormTimer / VORTEX_STORM_TIME);
             const spinMultiplier = 3.6 + Math.sin(stormProgress * Math.PI) * 1.6;
 
-            for (let i = 0; i < MAX_PETALS; i++) {
+            for (let i = 0; i < activePetalCount; i++) {
               petalAngle[i] += petalSpeed[i] * delta * spinMultiplier;
               const a = petalAngle[i];
-              const normH = (i / MAX_PETALS);
+              const normH = (i / activePetalCount);
 
               const tubeRadius = (7.5 + (petalRadiusX[i] % 2.5)) * (0.85 + 0.35 * Math.sin(stormProgress * Math.PI));
               const rawY = (normH - 0.5) * 16.0;
@@ -3781,7 +3831,7 @@ export function SakuraCanvas({
         const tpRotAngles = trailGeo.attributes.rotAngle.array as Float32Array;
         let activeTrailCount = 0;
 
-        for (let k = 0; k < MAX_TRAIL_PARTICLES; k++) {
+        for (let k = 0; k < activeTrailBudget; k++) {
           if (tpLife[k] < tpMaxLife[k]) {
             tpLife[k] += delta;
             activeTrailCount++;
@@ -3840,6 +3890,8 @@ export function SakuraCanvas({
       const w = containerRef.current.clientWidth || window.innerWidth;
       const h = containerRef.current.clientHeight || window.innerHeight;
       updateCameraDistance(w, h, activeModeRef.current);
+      const targetPR = isMobile ? Math.min(window.devicePixelRatio, 1.0) : Math.min(window.devicePixelRatio, 1.25);
+      renderer.setPixelRatio(targetPR);
       renderer.setSize(w, h);
       bgUniforms.iResolution.value.set(w, h, 1);
       plexusFinaleUniforms.iResolution.value.set(w, h, 1);
