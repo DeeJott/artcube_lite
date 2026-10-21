@@ -194,7 +194,7 @@ const bgFragmentShader = /* glsl */ `
     }
 
     vec2 distortedFragCoord = fragCoord + rippleOffset * iResolution.xy;
-    vec2 distortedUv = uv + rippleOffset;
+    vec2 distortedUv = clamp(uv + rippleOffset, 0.0, 1.0);
 
     if (uKaleidoscope > 0.001) {
       vec2 p = distortedUv - vec2(0.5);
@@ -1312,7 +1312,6 @@ export function SakuraCanvas({
   const [hostCreationReady, setHostCreationReady] = useState(false);
   const [guestCreationReady, setGuestCreationReady] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [isTestUnlockActive, setIsTestUnlockActive] = useState(false);
   const [isCreationMode, setIsCreationMode] = useState(false);
 
   // Zen Mode HUD Auto-Dimming State (Zen Mode after 4.5s inactivity)
@@ -1643,7 +1642,7 @@ export function SakuraCanvas({
     const noiseTex = createNoiseTexture();
 
     const bgUniforms = {
-      iResolution: { value: new THREE.Vector3(width, height, 1) },
+      iResolution: { value: new THREE.Vector3(renderer.domElement.width, renderer.domElement.height, 1) },
       iTime: { value: 0 },
       iChannel0: { value: noiseTex },
       uKaleidoscope: { value: 0.0 },
@@ -2067,7 +2066,7 @@ export function SakuraCanvas({
     // Plexus Finale Shader Mesh (The Universe Within multi-layer network)
     const plexusFinaleGeo = new THREE.PlaneGeometry(2, 2);
     const plexusFinaleUniforms = {
-      iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
+      iResolution: { value: new THREE.Vector3(renderer.domElement.width, renderer.domElement.height, 1) },
       iTime: { value: 0.0 },
       iMouse: { value: new THREE.Vector2(0, 0) },
       uAlpha: { value: 0.0 },
@@ -3893,8 +3892,8 @@ export function SakuraCanvas({
       const targetPR = isMobile ? Math.min(window.devicePixelRatio, 1.0) : Math.min(window.devicePixelRatio, 1.25);
       renderer.setPixelRatio(targetPR);
       renderer.setSize(w, h);
-      bgUniforms.iResolution.value.set(w, h, 1);
-      plexusFinaleUniforms.iResolution.value.set(w, h, 1);
+      bgUniforms.iResolution.value.set(renderer.domElement.width, renderer.domElement.height, 1);
+      plexusFinaleUniforms.iResolution.value.set(renderer.domElement.width, renderer.domElement.height, 1);
     };
     window.addEventListener('resize', handleResize);
 
@@ -3956,8 +3955,6 @@ export function SakuraCanvas({
       floatingPlexusOrbs.forEach(orb => orb.destroy());
     };
   }, [onRendererReady, handleSwitchMode, markArtworkCompleted, showToast, updateCameraDistance]);
-
-  const isCreationUnlocked = isTestUnlockActive || completedArtworksCount >= 2;
 
   // Dynamic Instruction Text Calculation based on step-by-step phase
   const roundInfo = activeMode === 'bluten' && (currentPhase === 'BRANCH' || currentPhase === 'BLOSSOM')
@@ -4102,36 +4099,31 @@ export function SakuraCanvas({
               <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#160e22]/90 backdrop-blur-md border border-[#ff69b4]/50 shadow-[0_0_20px_rgba(255,42,157,0.4)]">
                 <span className="w-2 h-2 rounded-full bg-[#ff2a9d] shadow-[0_0_8px_#ff2a9d] animate-pulse" />
                 <span className="text-xs font-bold tracking-[2.5px] uppercase text-white">
-                  Creation Mode
+                  Souvenir Mode
                 </span>
               </div>
             ) : (
-              <>
-                <span className="text-[10px] font-semibold tracking-[2px] uppercase text-[#ffb4dc]/70">
-                  Test Mode
-                </span>
-                <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
-                  <button
-                    onClick={() => handleSwitchMode('bluten')}
-                    className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'bluten'
-                      ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_15px_rgba(255,42,157,0.5)]'
-                      : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
-                      }`}
-                  >
-                    Blüten
-                  </button>
+              <div className="flex gap-2 p-1.5 bg-[#120c1c]/85 backdrop-blur-md border border-[#ff69b4]/30 rounded-full shadow-xl">
+                <button
+                  onClick={() => handleSwitchMode('bluten')}
+                  className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'bluten'
+                    ? 'bg-gradient-to-r from-[#ff2a9d]/80 to-[#120c1c]/90 text-white border border-[#ffb4dc]/80 shadow-[0_0_15px_rgba(255,42,157,0.5)]'
+                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                    }`}
+                >
+                  Blüten
+                </button>
 
-                  <button
-                    onClick={() => handleSwitchMode('plexus')}
-                    className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'plexus'
-                      ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_15px_rgba(0,240,255,0.5)]'
-                      : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
-                      }`}
-                  >
-                    Plexus
-                  </button>
-                </div>
-              </>
+                <button
+                  onClick={() => handleSwitchMode('plexus')}
+                  className={`px-4.5 py-2 rounded-full text-xs font-semibold tracking-[1.5px] uppercase transition-all ${activeMode === 'plexus'
+                    ? 'bg-gradient-to-r from-[#00f0ff]/80 to-[#120c1c]/90 text-white border border-[#4ee2ec]/80 shadow-[0_0_15px_rgba(0,240,255,0.5)]'
+                    : 'text-[#ffc8eb]/60 hover:text-white hover:bg-[#ff69b4]/20'
+                    }`}
+                >
+                  Plexus
+                </button>
+              </div>
             )}
           </div>
 
@@ -4151,33 +4143,15 @@ export function SakuraCanvas({
 
             <div className="flex items-center gap-3">
               <button
-                disabled={!isCreationUnlocked}
                 onClick={toggleCreationReady}
-                className={`relative overflow-hidden px-8 py-3.5 rounded-full text-xs font-bold tracking-[2px] uppercase transition-all shadow-2xl flex items-center gap-2.5 ${isCreationUnlocked
-                  ? 'bg-gradient-to-r from-[#ff2a9d]/55 to-[#4ee2ec]/30 text-white border border-[#4ee2ec] shadow-[0_12px_35px_rgba(255,42,157,0.4)] hover:scale-105 active:scale-95 cursor-pointer'
-                  : 'bg-[#120c1c]/85 text-white/40 border border-[#ff69b4]/20 cursor-not-allowed opacity-60'
-                  }`}
+                className="relative overflow-hidden px-8 py-3.5 rounded-full text-xs font-bold tracking-[2px] uppercase transition-all shadow-2xl flex items-center gap-2.5 bg-gradient-to-r from-[#ff2a9d] via-[#a855f7] to-[#4ee2ec] text-white border border-[#4ee2ec] shadow-[0_12px_35px_rgba(255,42,157,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
+                title="In den Souvenirmodus wechseln"
               >
-                <span className="font-mono text-[11px] px-2 py-0.5 bg-white/10 rounded-full text-white/80">
-                  {isTestUnlockActive ? '⚡ Test' : `(${completedArtworksCount}/2)`}
-                </span>
+                <span>🎨</span>
                 <span className="relative z-10">
-                  Kunstwerk erstellen
+                  Souvenirmodus starten
                 </span>
               </button>
-
-              <label className="inline-flex items-center gap-2 px-3 py-2 bg-[#120c1c]/75 backdrop-blur-md border border-[#4ee2ec]/40 rounded-full text-[11px] font-bold text-white/85 cursor-pointer hover:border-[#4ee2ec] transition-all" title="Test Unlock Toggle">
-                <input
-                  type="checkbox"
-                  checked={isTestUnlockActive}
-                  onChange={(e) => {
-                    setIsTestUnlockActive(e.target.checked);
-                    showToast(e.target.checked ? "⚡ Test-Unlock: Button aktiviert!" : "Test-Unlock deaktiviert");
-                  }}
-                  className="w-4 h-4 rounded accent-[#10e782] cursor-pointer"
-                />
-                <span>⚡ Unlock</span>
-              </label>
             </div>
           </div>
 
