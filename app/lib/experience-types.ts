@@ -22,6 +22,7 @@ export interface ExperienceComponentProps {
   sendInteraction: (kind: string, data: Record<string, unknown>) => void;
   onCanvasesReady: (flare: HTMLCanvasElement, star: HTMLCanvasElement) => void;
   onRendererReady: (api: ExperienceRendererAPI) => void;
+  onExit?: () => void;
 }
 
 export interface ExperienceDefinition {

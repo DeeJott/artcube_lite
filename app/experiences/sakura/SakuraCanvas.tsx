@@ -1311,6 +1311,22 @@ export function SakuraCanvas({
   const [isTestUnlockActive, setIsTestUnlockActive] = useState(false);
   const [isCreationMode, setIsCreationMode] = useState(false);
 
+  // Zen Mode HUD Auto-Dimming State (Zen Mode after 4.5s inactivity)
+  const [isHudDimmed, setIsHudDimmed] = useState(false);
+  const hudInactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // iOS Landscape Block Modal State (Prevents iPhone rotation to landscape)
+  const [isIOSLandscapeBlocked, setIsIOSLandscapeBlocked] = useState(false);
+
+  // Souvenir Video Lightbox & NFT Direct Download State
+  const [isSouvenirVideoOpen, setIsSouvenirVideoOpen] = useState(false);
+  const [souvenirVideoBlob, setSouvenirVideoBlob] = useState<Blob | null>(null);
+  const [souvenirVideoUrl, setSouvenirVideoUrl] = useState<string | null>(null);
+  const [isNftSaved, setIsNftSaved] = useState(false);
+
+  // Mobile Double-Back Notice State
+  const [backNoticeVisible, setBackNoticeVisible] = useState(false);
+
   // Step-by-Step Artwork Phase Lifecycle State
   const [currentPhase, setCurrentPhase] = useState<'BRANCH' | 'BLOSSOM' | 'VORTEX' | 'DONE'>('BRANCH');
   const [currentRound, setCurrentRound] = useState(1);
@@ -1340,6 +1356,91 @@ export function SakuraCanvas({
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
+
+  // Wake HUD Controls upon any user interaction
+  const wakeHUDControls = useCallback(() => {
+    setIsHudDimmed(false);
+    if (hudInactivityTimerRef.current) {
+      clearTimeout(hudInactivityTimerRef.current);
+      hudInactivityTimerRef.current = null;
+    }
+    if (!isPausedRef.current) {
+      hudInactivityTimerRef.current = setTimeout(() => {
+        if (!isPausedRef.current) {
+          setIsHudDimmed(true);
+        }
+      }, 4500);
+    }
+  }, []);
+
+  // Listeners for HUD wake
+  useEffect(() => {
+    window.addEventListener('pointerdown', wakeHUDControls, { passive: true });
+    window.addEventListener('pointermove', wakeHUDControls, { passive: true });
+    window.addEventListener('touchstart', wakeHUDControls, { passive: true });
+    window.addEventListener('touchmove', wakeHUDControls, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', wakeHUDControls);
+      window.removeEventListener('pointermove', wakeHUDControls);
+      window.removeEventListener('touchstart', wakeHUDControls);
+      window.removeEventListener('touchmove', wakeHUDControls);
+      if (hudInactivityTimerRef.current) clearTimeout(hudInactivityTimerRef.current);
+    };
+  }, [wakeHUDControls]);
+
+  // iOS Landscape Detection (locks landscape orientation on iPhone during session)
+  useEffect(() => {
+    const checkIOS = () => {
+      const isIOS = typeof navigator !== 'undefined' && (
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      );
+      const isLandscape = window.innerWidth > window.innerHeight;
+      setIsIOSLandscapeBlocked(isIOS && isLandscape);
+    };
+    checkIOS();
+    window.addEventListener('resize', checkIOS);
+    window.addEventListener('orientationchange', checkIOS);
+    return () => {
+      window.removeEventListener('resize', checkIOS);
+      window.removeEventListener('orientationchange', checkIOS);
+    };
+  }, []);
+
+  // Mobile Double-Back Session Exit Gesture
+  useEffect(() => {
+    let lastBack = 0;
+    const onPop = () => {
+      const now = Date.now();
+      if (now - lastBack < 2500) {
+        if (onExit) onExit();
+      } else {
+        lastBack = now;
+        setBackNoticeVisible(true);
+        setTimeout(() => setBackNoticeVisible(false), 2500);
+        window.history.pushState(null, '', window.location.href);
+      }
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [onExit]);
+
+  // Direct NFT Download Handler
+  const handleSaveNFT = useCallback(() => {
+    const url = souvenirVideoUrl || (souvenirVideoBlob ? URL.createObjectURL(souvenirVideoBlob) : '');
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sakuraverse_souvenir_${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+    }, 1000);
+    setIsNftSaved(true);
+    showToast('✨ Video auf dein Gerät heruntergeladen! Bereit als NFT.');
+  }, [souvenirVideoBlob, souvenirVideoUrl, showToast]);
 
   const markArtworkCompleted = useCallback((type: 'bluten' | 'plexus') => {
     if (type === 'bluten' && !blutenCounted) {
@@ -1443,6 +1544,51 @@ export function SakuraCanvas({
     setPlexusAttachedCount(0);
     setIsPlexusFinale(false);
     restartTriggerRef.current();
+
+    // Start 14s Souvenir Recording from the live canvas
+    if (canvasRef.current && typeof MediaRecorder !== 'undefined') {
+      try {
+        const stream = canvasRef.current.captureStream(60);
+        let selectedMimeType = 'video/webm';
+        const mimeTypes = [
+          'video/mp4;codecs=avc1',
+          'video/mp4;codecs=h264',
+          'video/mp4',
+          'video/webm;codecs=h264',
+          'video/webm;codecs=vp9',
+          'video/webm'
+        ];
+        for (const mt of mimeTypes) {
+          if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(mt)) {
+            selectedMimeType = mt;
+            break;
+          }
+        }
+        const chunks: Blob[] = [];
+        const recorder = new MediaRecorder(stream, {
+          mimeType: selectedMimeType,
+          videoBitsPerSecond: 15000000
+        });
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: selectedMimeType });
+          const url = URL.createObjectURL(blob);
+          setSouvenirVideoBlob(blob);
+          setSouvenirVideoUrl(url);
+          setIsNftSaved(false);
+          setIsSouvenirVideoOpen(true);
+          showToast('✨ Dein 14s Video-Souvenir ist fertig!');
+        };
+        recorder.start(100);
+        setTimeout(() => {
+          if (recorder.state !== 'inactive') recorder.stop();
+        }, 14000);
+      } catch (err) {
+        console.warn('Canvas recorder fallback:', err);
+      }
+    }
 
     showToast(type === 'bluten' ? '🌸 Sumi-e Kunstwerk gestartet (Creation Mode)' : '✨ Plexus Kunstwerk gestartet (Creation Mode)');
     sendInteraction('ARTWORK_SELECT', { artwork: type });
@@ -3829,8 +3975,8 @@ export function SakuraCanvas({
         </div>
       )}
 
-      {/* Modern 4-Corner Glassmorphic HUD Layer */}
-      <div className="absolute inset-0 p-8 flex flex-col justify-between pointer-events-none z-40">
+      {/* Modern 4-Corner Glassmorphic HUD Layer with Zen-Modus Auto-Dimming */}
+      <div className={`absolute inset-0 p-8 flex flex-col justify-between pointer-events-none z-40 transition-opacity duration-700 ${isHudDimmed ? 'opacity-20 hover:opacity-100' : 'opacity-100'}`}>
 
         {/* TOP BAR: Instruction Box (Left) & Control Buttons (Right) */}
         <div className="flex justify-between items-start w-full">
@@ -4040,6 +4186,95 @@ export function SakuraCanvas({
                 </div>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox 2: 16:9 Souvenir Video Preview & NFT Modal */}
+      {isSouvenirVideoOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 md:p-6 bg-[#06020c]/90 backdrop-blur-2xl animate-fade-in pointer-events-auto">
+          <div className="relative w-full max-w-2xl bg-gradient-to-br from-[#1a0e26]/95 to-[#0e0816]/98 border border-[#ff69b4]/50 rounded-3xl p-6 md:p-8 text-center shadow-[0_30px_80px_rgba(0,0,0,0.9),0_0_50px_rgba(255,42,157,0.35)] flex flex-col items-center gap-5">
+            <button
+              onClick={() => setIsSouvenirVideoOpen(false)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-[#ff2a9d]/40 border border-white/20 hover:border-[#ff2a9d] text-white flex items-center justify-center text-sm transition-all cursor-pointer"
+            >
+              ✕
+            </button>
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="text-[10px] font-extrabold tracking-[2px] uppercase text-[#ff2a9d] bg-[#ff2a9d]/15 px-3 py-1 rounded-full border border-[#ff2a9d]/30">
+                14s VIDEO SOUVENIR
+              </div>
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-wider text-white">
+                Dein Kunstwerk ist fertig!
+              </h2>
+              <p className="text-xs text-white/70">
+                Einzigartiges Unikat deiner Schöpfungs-Session
+              </p>
+            </div>
+
+            {/* 16:9 Video Player */}
+            <div className="w-full max-w-[560px] aspect-video bg-black/80 rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center">
+              {souvenirVideoUrl ? (
+                <video
+                  src={souvenirVideoUrl}
+                  controls
+                  autoPlay
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="text-xs font-mono text-white/50 animate-pulse">Video wird vorbereitet...</div>
+              )}
+            </div>
+
+            {/* Direct NFT Save Button */}
+            <button
+              type="button"
+              onClick={handleSaveNFT}
+              className={`w-full max-w-[320px] py-3.5 px-6 rounded-full font-extrabold text-sm tracking-wider uppercase transition-all duration-300 shadow-xl cursor-pointer flex items-center justify-center gap-2 ${
+                isNftSaved
+                  ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-emerald-500/40 border border-emerald-300'
+                  : 'bg-gradient-to-r from-[#ff2a9d] via-[#a855f7] to-[#4ee2ec] text-white hover:scale-103 hover:shadow-[0_0_25px_rgba(255,42,157,0.6)] border border-white/30'
+              }`}
+            >
+              <span>{isNftSaved ? '✅ Video gesichert!' : '✨ Als NFT sichern'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* iOS Landscape Block Modal (Blocks rotation to landscape on iPhones) */}
+      {isIOSLandscapeBlocked && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#06020c]/94 backdrop-blur-3xl animate-fade-in pointer-events-auto">
+          <div className="relative w-full max-w-md bg-gradient-to-br from-[#201030]/95 to-[#0d0516]/98 border border-[#ff69b4]/45 rounded-3xl p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.85),0_0_45px_rgba(255,42,157,0.3)] flex flex-col items-center gap-4">
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="w-9 h-14 border-2 border-white/80 rounded-lg flex flex-col items-center justify-start pt-1">
+                <div className="w-3 h-1 bg-white/60 rounded-full" />
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center text-2xl text-[#ff2a9d] animate-spin font-bold">↻</div>
+            </div>
+            <div className="text-[10px] font-extrabold tracking-[2px] uppercase text-[#ff2a9d] bg-[#ff2a9d]/15 px-3 py-1 rounded-full border border-[#ff2a9d]/30">
+              HOCHFORMAT-MODUS
+            </div>
+            <h3 className="text-xl font-bold tracking-wider text-white">Bitte Gerät aufrecht halten</h3>
+            <p className="text-xs leading-relaxed text-white/80">
+              Auf dem iPhone ist dieses Kunstwerk für die vertikale Ansicht im Hochformat optimiert. Bitte drehe dein Smartphone wieder aufrecht, um fortzufahren.
+            </p>
+            <div className="flex items-center gap-2 text-[11px] text-[#4ee2ec] font-mono tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-[#4ee2ec] animate-ping" />
+              <span>Warte auf Drehung ins Hochformat...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Double-Back Notice Toast */}
+      {backNoticeVisible && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[250] pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#160a22]/90 backdrop-blur-xl border border-white/20 text-white text-xs font-semibold tracking-wide shadow-2xl">
+            <span>↩️</span>
+            <span>Nochmal „Zurück“ wischen, um die Session zu beenden</span>
           </div>
         </div>
       )}

@@ -11,8 +11,8 @@ import { sakuraExperience } from './sakura';
 import type { ExperienceDefinition } from '../lib/experience-types';
 
 export const EXPERIENCES: ExperienceDefinition[] = [
-  berlinParticlesExperience,
   sakuraExperience,
+  berlinParticlesExperience,
   spectralMixExperience,
   particles2dExperience,
   quantumExperience,
@@ -23,5 +23,5 @@ export const EXPERIENCES: ExperienceDefinition[] = [
   tidalExperience,
 ];
 
-export const DEFAULT_EXPERIENCE_ID = EXPERIENCES[0].id;
+export const DEFAULT_EXPERIENCE_ID = sakuraExperience.id;
 
