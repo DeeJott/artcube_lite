@@ -1,18 +1,18 @@
 # Projekt-Richtlinien für Antigravity / Gemini
 
-## Automatisches Pushen auf GitHub (DeeJott)
+## Automatisches Pushen auf GitHub (artboxdev)
 
-Für alle Änderungen und Konversationen in diesem Projekt gilt die verbindliche Vorgabe, dass abgeschlossene Code-Änderungen direkt auf das GitHub-Repository des verknüpften Accounts **DeeJott** gepusht werden.
+Für alle Änderungen und Konversationen in diesem Projekt gilt die verbindliche Vorgabe, dass abgeschlossene Code-Änderungen direkt auf das GitHub-Repository des Accounts **artboxdev** gepusht werden.
 
 ### Git-Konfiguration & Remotes
-* **GitHub-Account:** `DeeJott`
+* **GitHub-Account:** `artboxdev`
 * **Remote-Name:** `artcube_lite`
-* **Remote-URL:** `https://github.com/DeeJott/artcube_lite.git`
+* **Remote-URL:** `https://github.com/artboxdev/artcube_lite.git`
 * **Arbeits-Branch:** `dawda-new-experience`
-* **Deployment-Branch (GitHub Pages):** `main`
+* **Deployment-Branch (Vercel / Production):** `main`
 
 ### Standard-Ablauf nach Code-Änderungen:
-Sobald Änderungen an Kunstwerken (z. B. `public/sakura-v3.html`), der Next.js-App oder der Konfiguration vorgenommen und validiert wurden:
+Sobald Änderungen an der Next.js-App (z. B. `app/experiences/sakura/SakuraCanvas.tsx`), den Komponenten oder der Konfiguration vorgenommen und validiert wurden:
 
 1. **Dateien stagen:**
    ```bash
@@ -22,15 +22,14 @@ Sobald Änderungen an Kunstwerken (z. B. `public/sakura-v3.html`), der Next.js-A
    ```bash
    git commit -m "feat/fix: <prägnante Beschreibung der Änderung>"
    ```
-3. **Auf DeeJott Arbeits-Branch pushen:**
+3. **Auf artboxdev Arbeits-Branch pushen:**
    ```bash
    git push artcube_lite dawda-new-experience
    ```
-4. **Auf DeeJott `main` für GitHub Actions / GitHub Pages spiegeln:**
+4. **Auf artboxdev `main` für Vercel Auto-Deployment spiegeln:**
    ```bash
    git push artcube_lite dawda-new-experience:main
    ```
 
-### Live-URLs für Tests auf Smartphones:
-* **Direktes Kunstwerk:** [https://deejott.github.io/artcube_lite/sakura-v3.html](https://deejott.github.io/artcube_lite/sakura-v3.html)
-* **Next.js Portal:** [https://deejott.github.io/artcube_lite/](https://deejott.github.io/artcube_lite/)
+### Live-URL:
+* **Next.js Portal / Vercel:** [https://artboxdev.github.io/artcube_lite/](https://artboxdev.github.io/artcube_lite/)
