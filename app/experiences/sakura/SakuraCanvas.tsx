@@ -1284,14 +1284,17 @@ class OrbNode {
 
 interface SakuraCanvasProps extends ExperienceComponentProps {
   onExit?: () => void;
+  initialMode?: 'bluten' | 'plexus' | string;
 }
 
 export function SakuraCanvas({
+  isRunning = false,
   isMobile = false,
   sendInteraction,
   onCanvasesReady,
   onRendererReady,
-  onExit
+  onExit,
+  initialMode = 'bluten'
 }: SakuraCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1300,7 +1303,15 @@ export function SakuraCanvas({
   const baseLookAtRef = useRef(new THREE.Vector3(0, -0.4, 0));
 
   // App & Artwork Mode State
-  const [activeMode, setActiveMode] = useState<'bluten' | 'plexus'>('bluten');
+  const [activeMode, setActiveMode] = useState<'bluten' | 'plexus'>(
+    initialMode === 'plexus' ? 'plexus' : 'bluten'
+  );
+  const isRunningRef = useRef(isRunning);
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
+
+
   const [isPaused, setIsPaused] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [completedArtworksCount, setCompletedArtworksCount] = useState(0);
@@ -1475,9 +1486,8 @@ export function SakuraCanvas({
     } else {
       camera.fov = 60;
       camera.updateProjectionMatrix();
-      const widthScale = Math.max(0.35, Math.min(1.0, w / 1440));
-      const baseDist = (aspect < 1.0 ? 680 : 540) / widthScale;
-      baseCamPosRef.current.set(0, 0, baseDist / 3.5);
+      const baseDist = aspect < 1.0 ? 640 : 540;
+      baseCamPosRef.current.set(0, 0, baseDist);
       baseLookAtRef.current.set(0, 0, 0);
       camera.position.copy(baseCamPosRef.current);
       camera.lookAt(baseLookAtRef.current);
@@ -1487,7 +1497,7 @@ export function SakuraCanvas({
   const modeTransitionTimerRef = useRef(1.0);
 
   const handleSwitchMode = useCallback((newMode: 'bluten' | 'plexus') => {
-    if (activeModeRef.current === newMode) return;
+    activeModeRef.current = newMode;
     setActiveMode(newMode);
     modeTransitionTimerRef.current = 0.0;
     if (containerRef.current) {
@@ -1497,6 +1507,12 @@ export function SakuraCanvas({
     }
     sendInteraction('MODE_SWITCH', { mode: newMode });
   }, [sendInteraction, updateCameraDistance]);
+
+  useEffect(() => {
+    if (initialMode && (initialMode === 'bluten' || initialMode === 'plexus') && initialMode !== activeModeRef.current) {
+      handleSwitchMode(initialMode);
+    }
+  }, [initialMode, handleSwitchMode]);
 
   const handleColorSelect = useCallback((color: BlossomColorId) => {
     setSelectedColor(color);
@@ -3243,6 +3259,15 @@ export function SakuraCanvas({
           bgUniforms.uRippleActive.value = 0.0;
         }
       }
+
+      // While on the start screen, ONLY render the living metallic background shader pass!
+      // Do NOT start trunk growth, branch spawning, or Plexus physics!
+      if (!isRunningRef.current) {
+        renderer.clear();
+        renderer.render(bgScene, bgCamera);
+        return;
+      }
+
       // Mode visibility sync
       const showBlüten = (activeModeRef.current === 'bluten');
       blutenSceneGroup.visible = showBlüten;
@@ -3932,7 +3957,13 @@ export function SakuraCanvas({
 
     // Register API
     onRendererReady({
-      start: () => clock.start(),
+      start: (mode?: 'bluten' | 'plexus' | string) => {
+        clock.start();
+        isRunningRef.current = true;
+        if (mode === 'plexus' || mode === 'bluten') {
+          handleSwitchMode(mode);
+        }
+      },
       handlePeerMessage: (data) => {
         if (!data) return;
         const msg = data as unknown as Record<string, unknown>;

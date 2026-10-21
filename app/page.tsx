@@ -40,12 +40,16 @@ function ArtCubeApp() {
     }
   }, []);
 
-  const handleStart = useCallback(() => {
+  const [activeArtworkMode, setActiveArtworkMode] = useState<'bluten' | 'plexus'>('bluten');
+
+  const handleStart = useCallback((mode?: 'bluten' | 'plexus') => {
+    const targetMode = mode || 'bluten';
+    setActiveArtworkMode(targetMode);
     setIsStarted(true);
     setElapsed(0);
     elapsedRef.current = 0;
     setTimeout(() => {
-      rendererApiRef.current?.start?.();
+      rendererApiRef.current?.start?.(targetMode);
     }, 50);
   }, []);
 
@@ -58,9 +62,9 @@ function ArtCubeApp() {
   const handleRendererReady = useCallback((api: ExperienceRendererAPI) => {
     rendererApiRef.current = api;
     if (isStarted) {
-      api.start?.();
+      api.start?.(activeArtworkMode);
     }
-  }, [isStarted]);
+  }, [isStarted, activeArtworkMode]);
 
   const selectedExperience = EXPERIENCES.find((e) => e.id === selectedExperienceId) || EXPERIENCES[0];
   const ExperienceComponent = selectedExperience.Component;
@@ -70,8 +74,9 @@ function ArtCubeApp() {
       {/* 1. EINGEBETTETES KUNSTWERK (Hintergrund-Shader & 3D-Szene laufen live hinter dem StartScreen) */}
       <div className="absolute inset-0 w-full h-full z-0">
         <ExperienceComponent
-          key={selectedExperienceId}
+          key={`${selectedExperienceId}-${activeArtworkMode}`}
           isRunning={isStarted}
+          initialMode={activeArtworkMode}
           elapsed={elapsed}
           elapsedRef={elapsedRef}
           intensity={0.5}

@@ -49,6 +49,7 @@ export function StartScreen({
   const [testModeModalOpen, setTestModeModalOpen] = useState(false);
   const [souvenirModalOpen, setSouvenirModalOpen] = useState(false);
   const [showExperienceMenu, setShowExperienceMenu] = useState(false);
+  const [testModeArtwork, setTestModeArtwork] = useState<'bluten' | 'plexus'>('bluten');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -109,8 +110,8 @@ export function StartScreen({
 
   const handleStartFromTestMode = useCallback(() => {
     setTestModeModalOpen(false);
-    onStart('bluten');
-  }, [onStart]);
+    onStart(testModeArtwork);
+  }, [onStart, testModeArtwork]);
 
   const handleStartSouvenirArtwork = useCallback((mode: 'bluten' | 'plexus') => {
     setSouvenirModalOpen(false);
@@ -408,6 +409,40 @@ export function StartScreen({
                 </div>
                 <div className="text-[10px] font-mono text-cyan-200/50 truncate bg-black/40 px-3 py-1.5 rounded-xl border border-white/5 select-all">
                   {shareUrl}
+                </div>
+              </div>
+
+              {/* Kunstwerk Auswahl für Testmodus */}
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-semibold tracking-[2px] uppercase text-[rgba(255,180,220,0.85)]">
+                  Kunstwerk wählen
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTestModeArtwork('bluten')}
+                    className={cn(
+                      "py-2.5 px-3 rounded-2xl text-xs font-semibold tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer",
+                      testModeArtwork === 'bluten'
+                        ? "bg-gradient-to-r from-pink-600/50 to-pink-900/50 border border-[#ff2a9d] text-white shadow-[0_0_15px_rgba(255,42,157,0.4)]"
+                        : "bg-white/[0.04] border border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08]"
+                    )}
+                  >
+                    <span>🌸 Sumi-e</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTestModeArtwork('plexus')}
+                    className={cn(
+                      "py-2.5 px-3 rounded-2xl text-xs font-semibold tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer",
+                      testModeArtwork === 'plexus'
+                        ? "bg-gradient-to-r from-cyan-600/50 to-cyan-900/50 border border-[#4ee2ec] text-white shadow-[0_0_15px_rgba(78,226,236,0.4)]"
+                        : "bg-white/[0.04] border border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08]"
+                    )}
+                  >
+                    <span>✨ Plexus</span>
+                  </button>
                 </div>
               </div>
 

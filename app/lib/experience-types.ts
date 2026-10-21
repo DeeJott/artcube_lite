@@ -2,7 +2,7 @@ import type { MutableRefObject, ComponentType } from 'react';
 import type { PeerMessage } from './types';
 
 export interface ExperienceRendererAPI {
-  start: () => void;
+  start: (mode?: 'bluten' | 'plexus' | string) => void;
   handlePeerMessage?: (msg: PeerMessage) => void;
 }
 
@@ -23,6 +23,7 @@ export interface ExperienceComponentProps {
   onCanvasesReady: (flare: HTMLCanvasElement, star: HTMLCanvasElement) => void;
   onRendererReady: (api: ExperienceRendererAPI) => void;
   onExit?: () => void;
+  initialMode?: 'bluten' | 'plexus' | string;
 }
 
 export interface ExperienceDefinition {
