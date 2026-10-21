@@ -1311,6 +1311,20 @@ export function SakuraCanvas({
     isRunningRef.current = isRunning;
   }, [isRunning]);
 
+  const sendInteractionRef = useRef(sendInteraction);
+  useEffect(() => {
+    sendInteractionRef.current = sendInteraction;
+  }, [sendInteraction]);
+
+  const onRendererReadyRef = useRef(onRendererReady);
+  useEffect(() => {
+    onRendererReadyRef.current = onRendererReady;
+  }, [onRendererReady]);
+
+  const onExitRef = useRef(onExit);
+  useEffect(() => {
+    onExitRef.current = onExit;
+  }, [onExit]);
 
   const [isPaused, setIsPaused] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -1468,6 +1482,16 @@ export function SakuraCanvas({
     }
   }, [blutenCounted, plexusCounted]);
 
+  const markArtworkCompletedRef = useRef(markArtworkCompleted);
+  useEffect(() => {
+    markArtworkCompletedRef.current = markArtworkCompleted;
+  }, [markArtworkCompleted]);
+
+  const showToastRef = useRef(showToast);
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
   const updateCameraDistance = useCallback((w: number, h: number, mode: 'bluten' | 'plexus') => {
     if (!cameraRef.current) return;
     const camera = cameraRef.current;
@@ -1505,8 +1529,8 @@ export function SakuraCanvas({
       const h = containerRef.current.clientHeight || window.innerHeight;
       updateCameraDistance(w, h, newMode);
     }
-    sendInteraction('MODE_SWITCH', { mode: newMode });
-  }, [sendInteraction, updateCameraDistance]);
+    sendInteractionRef.current?.('MODE_SWITCH', { mode: newMode });
+  }, [updateCameraDistance]);
 
   useEffect(() => {
     if (initialMode && (initialMode === 'bluten' || initialMode === 'plexus') && initialMode !== activeModeRef.current) {
@@ -1517,14 +1541,14 @@ export function SakuraCanvas({
   const handleColorSelect = useCallback((color: BlossomColorId) => {
     setSelectedColor(color);
     showToast(`Farbe: ${BLOSSOM_PALETTES[color].name} ausgewählt`);
-    sendInteraction('COLOR_SELECT', { color });
-  }, [sendInteraction, showToast]);
+    sendInteractionRef.current?.('COLOR_SELECT', { color });
+  }, [showToast]);
 
   const togglePause = useCallback(() => {
     setIsPaused(p => !p);
     showToast(!isPaused ? 'Session pausiert' : 'Session fortgesetzt');
-    sendInteraction('PAUSE_TOGGLE', { isPaused: !isPaused });
-  }, [isPaused, sendInteraction, showToast]);
+    sendInteractionRef.current?.('PAUSE_TOGGLE', { isPaused: !isPaused });
+  }, [isPaused, showToast]);
 
   const toggleAudio = useCallback(() => {
     setIsAudioMuted(m => !m);
@@ -1541,18 +1565,18 @@ export function SakuraCanvas({
     setIsPlexusFinale(false);
     restartTriggerRef.current();
     showToast('Kunstwerk zurückgesetzt — Beginn von vorn!');
-    sendInteraction('RESTART_ARTWORK', {});
-  }, [sendInteraction, showToast]);
+    sendInteractionRef.current?.('RESTART_ARTWORK', {});
+  }, [showToast]);
 
   const toggleCreationReady = useCallback(() => {
     setHostCreationReady(prev => {
       const next = !prev;
-      sendInteraction('CREATION_READY', { ready: next });
+      sendInteractionRef.current?.('CREATION_READY', { ready: next });
       // In single-player host mode or when guest is also ready, open Lightbox
       setIsLightboxOpen(true);
       return next;
     });
-  }, [sendInteraction]);
+  }, []);
 
   const selectArtworkChoice = useCallback((type: 'bluten' | 'plexus') => {
     setIsCreationMode(true);
@@ -1617,19 +1641,19 @@ export function SakuraCanvas({
     }
 
     showToast(type === 'bluten' ? '🌸 Sumi-e Kunstwerk gestartet (Creation Mode)' : '✨ Plexus Kunstwerk gestartet (Creation Mode)');
-    sendInteraction('ARTWORK_SELECT', { artwork: type });
+    sendInteractionRef.current?.('ARTWORK_SELECT', { artwork: type });
     setIsLightboxOpen(false);
     setHostCreationReady(false);
     setGuestCreationReady(false);
-  }, [sendInteraction, showToast, updateCameraDistance]);
+  }, [showToast, updateCameraDistance]);
 
   const handleExit = useCallback(() => {
-    if (onExit) {
-      onExit();
+    if (onExitRef.current) {
+      onExitRef.current();
     } else {
       window.location.reload();
     }
-  }, [onExit]);
+  }, []);
 
   // Main Three.js Scene Setup & Native WebGL Engine
   useEffect(() => {
@@ -3417,9 +3441,9 @@ export function SakuraCanvas({
             if (bgUniforms.uRippleActive) bgUniforms.uRippleActive.value = 0.0;
             if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
 
-            markArtworkCompleted('bluten');
+            markArtworkCompletedRef.current?.('bluten');
             setCurrentPhase('DONE');
-            showToast('🌸 Blütenkunstwerk nach 10s vollendet!');
+            showToastRef.current?.('🌸 Blütenkunstwerk nach 10s vollendet!');
           }
         }
 
@@ -3486,8 +3510,8 @@ export function SakuraCanvas({
           if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
           if (!isPlexusCompleted) {
             isPlexusCompleted = true;
-            markArtworkCompleted('plexus');
-            showToast('✨ Plexus-Netzwerk nach 14s vollendet!');
+            markArtworkCompletedRef.current?.('plexus');
+            showToastRef.current?.('✨ Plexus-Netzwerk nach 14s vollendet!');
           }
         }
 
@@ -3956,7 +3980,7 @@ export function SakuraCanvas({
     window.addEventListener('resize', handleResize);
 
     // Register API
-    onRendererReady({
+    onRendererReadyRef.current?.({
       start: (mode?: 'bluten' | 'plexus' | string) => {
         clock.start();
         isRunningRef.current = true;
@@ -4019,7 +4043,7 @@ export function SakuraCanvas({
       noiseTex.dispose();
       floatingPlexusOrbs.forEach(orb => orb.destroy());
     };
-  }, [onRendererReady, handleSwitchMode, markArtworkCompleted, showToast, updateCameraDistance]);
+  }, []);
 
   // Dynamic Instruction Text Calculation based on step-by-step phase
   const roundInfo = activeMode === 'bluten' && (currentPhase === 'BRANCH' || currentPhase === 'BLOSSOM')

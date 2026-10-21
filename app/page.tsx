@@ -66,6 +66,9 @@ function ArtCubeApp() {
     }
   }, [isStarted, activeArtworkMode]);
 
+  const handleSendInteraction = useCallback(() => {}, []);
+  const handleCanvasesReady = useCallback(() => {}, []);
+
   const selectedExperience = EXPERIENCES.find((e) => e.id === selectedExperienceId) || EXPERIENCES[0];
   const ExperienceComponent = selectedExperience.Component;
 
@@ -74,7 +77,7 @@ function ArtCubeApp() {
       {/* 1. EINGEBETTETES KUNSTWERK (Hintergrund-Shader & 3D-Szene laufen live hinter dem StartScreen) */}
       <div className="absolute inset-0 w-full h-full z-0">
         <ExperienceComponent
-          key={`${selectedExperienceId}-${activeArtworkMode}`}
+          key={selectedExperienceId}
           isRunning={isStarted}
           initialMode={activeArtworkMode}
           elapsed={elapsed}
@@ -88,8 +91,8 @@ function ArtCubeApp() {
           isRecording={false}
           isHost={isHost}
           myName={myName || (isHost ? 'Host' : 'Gast')}
-          sendInteraction={() => {}}
-          onCanvasesReady={() => {}}
+          sendInteraction={handleSendInteraction}
+          onCanvasesReady={handleCanvasesReady}
           onRendererReady={handleRendererReady}
           onExit={handleExit}
         />
