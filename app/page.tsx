@@ -67,7 +67,30 @@ function ArtCubeApp() {
 
   return (
     <main className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c]">
-      {/* 1. SEPARATE ART.CUBE STARTSEITE (Unabhängig anpassbar mit allen Kunstwerk-Buttons) */}
+      {/* 1. EINGEBETTETES KUNSTWERK (Hintergrund-Shader & 3D-Szene laufen live hinter dem StartScreen) */}
+      <div className="absolute inset-0 w-full h-full z-0">
+        <ExperienceComponent
+          key={selectedExperienceId}
+          isRunning={isStarted}
+          elapsed={elapsed}
+          elapsedRef={elapsedRef}
+          intensity={0.5}
+          bass={0.5}
+          mid={0.5}
+          treble={0.5}
+          lastBeatTime={0}
+          isMobile={isMobile}
+          isRecording={false}
+          isHost={isHost}
+          myName={myName || (isHost ? 'Host' : 'Gast')}
+          sendInteraction={() => {}}
+          onCanvasesReady={() => {}}
+          onRendererReady={handleRendererReady}
+          onExit={handleExit}
+        />
+      </div>
+
+      {/* 2. SEPARATE ART.CUBE STARTSEITE (Transparenter Frosted-Glass-Startbildschirm aus sakura v3) */}
       <StartScreen
         isVisible={!isStarted}
         isHost={isHost}
@@ -81,32 +104,8 @@ function ArtCubeApp() {
         selectedExperienceId={selectedExperienceId}
         onSelectExperience={setSelectedExperienceId}
       />
-
-      {/* 2. EINGEBETTETES KUNSTWERK (z. B. SakuraCanvas) */}
-      {isStarted && (
-        <div className="absolute inset-0 w-full h-full z-10">
-          <ExperienceComponent
-            key={selectedExperienceId}
-            isRunning={isStarted}
-            elapsed={elapsed}
-            elapsedRef={elapsedRef}
-            intensity={0.5}
-            bass={0.5}
-            mid={0.5}
-            treble={0.5}
-            lastBeatTime={0}
-            isMobile={isMobile}
-            isRecording={false}
-            isHost={isHost}
-            myName={myName || (isHost ? 'Host' : 'Gast')}
-            sendInteraction={() => {}}
-            onCanvasesReady={() => {}}
-            onRendererReady={handleRendererReady}
-            onExit={handleExit}
-          />
-        </div>
-      )}
     </main>
+
   );
 }
 

@@ -130,17 +130,11 @@ export function StartScreen({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col justify-between overflow-x-hidden overflow-y-auto select-none",
-        "bg-[#08000c] text-white transition-opacity duration-700",
+        "fixed inset-0 z-[100] flex flex-col justify-center items-center overflow-x-hidden overflow-y-auto select-none p-4 sm:p-6",
+        "bg-[rgba(8,0,12,0.45)] backdrop-blur-md text-white transition-opacity duration-700",
         !isVisible && "opacity-0 pointer-events-none"
       )}
-      style={{
-        background: 'radial-gradient(ellipse at 50% 25%, rgba(65, 12, 50, 0.45) 0%, #08000c 75%, #040006 100%)',
-      }}
     >
-      {/* Background Ambience Layers */}
-      <div className="absolute inset-0 opacity-40 pointer-events-none art-cube-noise" />
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none art-cube-grid" />
 
       {/* Top Header Navigation (ART.CUBE Brand & Connect Wallet) */}
       <header className="fixed top-0 left-0 right-0 z-20 h-12 border-b border-white/10 backdrop-blur-md bg-[rgba(8,0,12,0.65)]">
@@ -179,7 +173,7 @@ export function StartScreen({
       </header>
 
       {/* Main Center Content: Authentic Sakuraverse Lobby Card */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-6 pt-20 pb-12">
+      <div className="relative z-10 w-full flex items-center justify-center px-4 sm:px-6 py-8">
         <div className="w-full max-w-[540px]">
           {/* Lobby Card */}
           <div
