@@ -169,7 +169,7 @@ const bgFragmentShader = /* glsl */ `
 
   void main() {
     vec2 fragCoord = gl_FragCoord.xy;
-    vec2 uv = fragCoord / iResolution.xy;
+    vec2 uv = clamp(fragCoord / max(iResolution.xy, vec2(1.0)), 0.0, 1.0);
     
     vec2 rippleOffset = vec2(0.0);
     float waveNormal = 0.0;
@@ -234,7 +234,8 @@ const bgFragmentShader = /* glsl */ `
       col += uRippleCrest * waveNormal * waveFade * 0.65;
     }
 
-    col *= 0.80 * (0.70 + 0.65 * sqrt(70.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y)));
+    float vignetteVal = max(0.0, 70.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y));
+    col *= 0.80 * (0.70 + 0.65 * sqrt(vignetteVal));
     
     gl_FragColor = vec4(col, 1.0);
   }
@@ -1141,6 +1142,7 @@ class OrbNode {
   alpha = 0.0;
   active = false;
   userDrawn = false;
+  branchSpawned = false;
   seed = Math.random();
   isExploding = false;
   explosionTimer = 0.0;
@@ -1460,6 +1462,7 @@ export function SakuraCanvas({
     const camera = cameraRef.current;
     const aspect = w / h;
 
+    camera.aspect = aspect;
     if (mode === 'bluten') {
       camera.fov = 45;
       camera.updateProjectionMatrix();
@@ -1616,8 +1619,9 @@ export function SakuraCanvas({
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
-    const width = containerRef.current.clientWidth || window.innerWidth;
-    const height = containerRef.current.clientHeight || window.innerHeight;
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const width = window.innerWidth;
+    const height = isPortrait ? Math.round(window.innerWidth * 9 / 16) : window.innerHeight;
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({
@@ -1857,8 +1861,10 @@ export function SakuraCanvas({
     };
 
     const spawnSubBranchFromOrb = (orb: OrbNode) => {
-      if (isPausedRef.current || orb.userDrawn) return;
+      if (isPausedRef.current || orb.branchSpawned) return;
+      orb.branchSpawned = true;
       orb.userDrawn = true;
+      orb.triggerExplosion();
       orb.setAlpha(0.15);
 
       const startPos = orb.basePosition.clone();
@@ -1904,8 +1910,10 @@ export function SakuraCanvas({
     };
 
     const spawnBlossomClusterFromOrb = (orb: OrbNode) => {
-      if (isPausedRef.current || orb.userDrawn) return;
+      if (isPausedRef.current || orb.branchSpawned) return;
+      orb.branchSpawned = true;
       orb.userDrawn = true;
+      orb.triggerExplosion();
       orb.setAlpha(0.15);
 
       const curColor = selectedColorRef.current;
@@ -2924,30 +2932,95 @@ export function SakuraCanvas({
     const currentParallax = new THREE.Vector2(0, 0);
 
     // Interactive Pointer Handlers
-    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
-      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+    const updatePointerWorld = (clientX: number, clientY: number) => {
+      if (canvasRef.current && cameraRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        mouseScreen.x = Math.max(0.0, Math.min(1.0, (clientX - rect.left) / rect.width));
+        mouseScreen.y = Math.max(0.0, Math.min(1.0, 1.0 - ((clientY - rect.top) / rect.height)));
 
-      mouseScreen.x = clientX / window.innerWidth;
-      mouseScreen.y = 1.0 - (clientY / window.innerHeight);
-
-      // Synthesize mouse/touch coordinates into target parallax [-1, 1] (technical_excellence.md 3.C)
-      targetParallax.x = (mouseScreen.x - 0.5) * 2.0;
-      targetParallax.y = (mouseScreen.y - 0.5) * 2.0;
-
-      if (cameraRef.current) {
         unprojectScratch.set(mouseScreen.x * 2 - 1, mouseScreen.y * 2 - 1, 0.5);
         unprojectScratch.unproject(cameraRef.current);
         rayDirScratch.copy(unprojectScratch).sub(cameraRef.current.position).normalize();
         const dist = -cameraRef.current.position.z / rayDirScratch.z;
         mouseWorld.copy(cameraRef.current.position).add(rayDirScratch.multiplyScalar(dist));
       }
+    };
+
+    const checkAndTriggerOrbHit = (clientX: number, clientY: number) => {
+      if (isPausedRef.current || activeModeRef.current !== 'bluten') return false;
+      if (!isTrunkGrowthFinished || isVortexActive) return false;
+      if (!cameraRef.current || !canvasRef.current) return false;
+
+      const rect = canvasRef.current.getBoundingClientRect();
+      const screenRadius = isMobile ? 65.0 : 42.0;
+      const worldHitDistance = isMobile ? 4.2 : 2.5;
+
+      for (let i = 0; i < activeOrbs.length; i++) {
+        const orb = activeOrbs[i];
+        if (orb.userDrawn || orb.branchSpawned) continue;
+
+        let hit = false;
+
+        // 1. Direct Screen-space projected hit detection
+        const orbPos = orb.position;
+        const p = orbPos.clone().project(cameraRef.current);
+        const orbScreenX = rect.left + ((p.x + 1) / 2) * rect.width;
+        const orbScreenY = rect.top + ((1 - p.y) / 2) * rect.height;
+        const pixelDist = Math.hypot(clientX - orbScreenX, clientY - orbScreenY);
+
+        if (pixelDist <= screenRadius) {
+          hit = true;
+        }
+
+        // 2. World-space distance check fallback
+        if (!hit && mouseWorld.distanceTo(orb.position) < worldHitDistance) {
+          hit = true;
+        }
+
+        if (hit) {
+          const curPh = currentPhaseRef.current;
+          if (curPh === 'BRANCH') {
+            spawnSubBranchFromOrb(orb);
+          } else if (curPh === 'BLOSSOM') {
+            spawnBlossomClusterFromOrb(orb);
+          }
+
+          showToast('🌸 Interaktiver Knotenpunkt aktiviert!');
+
+          const remainingOrbs = activeOrbs.filter(o => !o.userDrawn && !o.branchSpawned);
+          if (remainingOrbs.length === 0) {
+            setTimeout(() => {
+              if (currentPhaseRef.current === 'BRANCH') {
+                if (currentRound < maxRoundsPerPhase) {
+                  spawnOrbRound(currentRound + 1, 'BRANCH');
+                } else {
+                  spawnOrbRound(1, 'BLOSSOM');
+                  showToast('🌸 Blütenphase gestartet! Wähle rechts deine Wunschfarbe.');
+                }
+              } else if (currentPhaseRef.current === 'BLOSSOM') {
+                if (currentRound < maxRoundsPerPhase) {
+                  spawnOrbRound(currentRound + 1, 'BLOSSOM');
+                } else {
+                  startVortexFinale();
+                }
+              }
+            }, 800);
+          }
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      updatePointerWorld(clientX, clientY);
 
       if (isMouseDown && draggedPlexusCluster && activeModeRef.current === 'plexus') {
         draggedPlexusCluster.centerX = mouseWorld.x + dragOffset.x;
         draggedPlexusCluster.centerY = mouseWorld.y + dragOffset.y;
 
-        // Hover wobble reaction when dragging over orb
         for (let i = 0; i < floatingPlexusOrbs.length; i++) {
           const orb = floatingPlexusOrbs[i];
           const dx = orb.x - draggedPlexusCluster.centerX;
@@ -2959,47 +3032,16 @@ export function SakuraCanvas({
       }
     };
 
-    const handlePointerDown = () => {
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
       if (isPausedRef.current) return;
       isMouseDown = true;
 
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      updatePointerWorld(clientX, clientY);
+
       if (activeModeRef.current === 'bluten') {
-        if (!isTrunkGrowthFinished || isVortexActive) return;
-        const touchHitDistance = isMobile ? 3.8 : 2.5;
-        activeOrbs.forEach(orb => {
-          if (!orb.userDrawn && mouseWorld.distanceTo(orb.position) < touchHitDistance) {
-            orb.triggerExplosion();
-
-            const curPh = currentPhaseRef.current;
-            if (curPh === 'BRANCH') {
-              spawnSubBranchFromOrb(orb);
-            } else if (curPh === 'BLOSSOM') {
-              spawnBlossomClusterFromOrb(orb);
-            }
-
-            showToast('🌸 Interaktiver Knotenpunkt aktiviert!');
-
-            const remainingOrbs = activeOrbs.filter(o => !o.userDrawn);
-            if (remainingOrbs.length === 0) {
-              setTimeout(() => {
-                if (currentPhaseRef.current === 'BRANCH') {
-                  if (currentRound < maxRoundsPerPhase) {
-                    spawnOrbRound(currentRound + 1, 'BRANCH');
-                  } else {
-                    spawnOrbRound(1, 'BLOSSOM');
-                    showToast('🌸 Blütenphase gestartet! Wähle rechts deine Wunschfarbe.');
-                  }
-                } else if (currentPhaseRef.current === 'BLOSSOM') {
-                  if (currentRound < maxRoundsPerPhase) {
-                    spawnOrbRound(currentRound + 1, 'BLOSSOM');
-                  } else {
-                    startVortexFinale();
-                  }
-                }
-              }, 1000);
-            }
-          }
-        });
+        checkAndTriggerOrbHit(clientX, clientY);
       } else if (activeModeRef.current === 'plexus') {
         draggedPlexusCluster = null;
 
@@ -3025,7 +3067,14 @@ export function SakuraCanvas({
       }
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e?: MouseEvent | TouchEvent) => {
+      if (e && activeModeRef.current === 'bluten') {
+        const clientX = 'changedTouches' in e ? e.changedTouches[0].clientX : (e as MouseEvent).clientX;
+        const clientY = 'changedTouches' in e ? e.changedTouches[0].clientY : (e as MouseEvent).clientY;
+        if (clientX !== undefined && clientY !== undefined) {
+          checkAndTriggerOrbHit(clientX, clientY);
+        }
+      }
       if (isMouseDown && activeModeRef.current === 'plexus') {
         if (draggedPlexusCluster) {
           let dockedOrb: FloatingPlexusOrbInstance | null = null;
@@ -3094,8 +3143,9 @@ export function SakuraCanvas({
     window.addEventListener('mousemove', handlePointerMove);
     window.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('mouseup', handlePointerUp);
-    window.addEventListener('touchstart', handlePointerMove);
-    window.addEventListener('touchend', handlePointerUp);
+    window.addEventListener('touchstart', handlePointerDown, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+    window.addEventListener('touchend', handlePointerUp, { passive: true });
 
     // Restart function to reset 3D scene elements cleanly
     restartTriggerRef.current = () => {
@@ -3181,28 +3231,10 @@ export function SakuraCanvas({
       bgUniforms.iTime.value = totalAnimTime;
       bgUniforms.uGridVibe.value = 0.0; // Raster explicitly removed as requested
 
-      // Punkt 4: Cinematic Camera Parallax & Subtle Organic Breathing (technical_excellence.md 3.C)
+      // Stable camera alignment for pixel-accurate hit detection
       if (cameraRef.current) {
-        const cam = cameraRef.current;
-        currentParallax.x += (targetParallax.x - currentParallax.x) * Math.min(1.0, delta * 3.0);
-        currentParallax.y += (targetParallax.y - currentParallax.y) * Math.min(1.0, delta * 3.0);
-
-        const isBluten = (activeModeRef.current === 'bluten');
-        const breathingY = Math.sin(totalAnimTime * 0.4) * (isBluten ? 0.08 : 2.0);
-        const parallaxScaleX = isBluten ? 0.35 : 12.0;
-        const parallaxScaleY = isBluten ? 0.25 : 8.0;
-
-        const basePos = baseCamPosRef.current;
-        const baseLook = baseLookAtRef.current;
-
-        cam.position.x = basePos.x + currentParallax.x * parallaxScaleX;
-        cam.position.y = basePos.y + currentParallax.y * parallaxScaleY + breathingY;
-        cam.position.z = basePos.z;
-        cam.lookAt(
-          baseLook.x + currentParallax.x * (parallaxScaleX * 0.25),
-          baseLook.y + currentParallax.y * (parallaxScaleY * 0.25),
-          baseLook.z
-        );
+        cameraRef.current.position.copy(baseCamPosRef.current);
+        cameraRef.current.lookAt(baseLookAtRef.current);
       }
 
       if (bgUniforms.uRippleActive.value > 0.5) {
@@ -3885,9 +3917,10 @@ export function SakuraCanvas({
 
     // Resize Handler
     const handleResize = () => {
-      if (!containerRef.current) return;
-      const w = containerRef.current.clientWidth || window.innerWidth;
-      const h = containerRef.current.clientHeight || window.innerHeight;
+      if (!canvasRef.current) return;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      const w = window.innerWidth;
+      const h = isPortrait ? Math.round(window.innerWidth * 9 / 16) : window.innerHeight;
       updateCameraDistance(w, h, activeModeRef.current);
       const targetPR = isMobile ? Math.min(window.devicePixelRatio, 1.0) : Math.min(window.devicePixelRatio, 1.25);
       renderer.setPixelRatio(targetPR);
@@ -3935,7 +3968,8 @@ export function SakuraCanvas({
       window.removeEventListener('mousemove', handlePointerMove);
       window.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('mouseup', handlePointerUp);
-      window.removeEventListener('touchstart', handlePointerMove);
+      window.removeEventListener('touchstart', handlePointerDown);
+      window.removeEventListener('touchmove', handlePointerMove);
       window.removeEventListener('touchend', handlePointerUp);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animFrameId);
@@ -3977,8 +4011,13 @@ export function SakuraCanvas({
 
   return (
     <div ref={containerRef} className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c] select-none z-0">
-      {/* Three.js Fullscreen Canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block cursor-pointer" />
+      {/* 16:9 Centered Artwork Wrapper on Mobile Portrait */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <canvas
+          ref={canvasRef}
+          className="pointer-events-auto block cursor-pointer portrait:w-screen portrait:h-[calc(100vw*9/16)] portrait:border-y portrait:border-white/15 portrait:shadow-[0_0_60px_rgba(0,0,0,0.95),0_0_25px_rgba(255,42,157,0.2)] landscape:w-full landscape:h-full"
+        />
+      </div>
 
       {/* Toast Notification Message */}
       {toastMessage && (
