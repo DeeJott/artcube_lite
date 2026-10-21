@@ -686,70 +686,70 @@ const FRACTAL_ORB_PRESETS: Record<BlossomColorId, {
   pink: {
     primary: '#ff1a8c',
     secondary: '#ff99e6',
-    density: 2.2,
+    density: 2.6,
     speed: 0.55,
     fractalIters: 4,
-    fractalScale: 0.92,
-    fractalDecay: -16.5,
+    fractalScale: 0.95,
+    fractalDecay: -16.7,
     smoothness: 0.031,
     asymmetry: 0.48,
-    atmosphereGlow: 0.22,
+    atmosphereGlow: 0.85,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   red: {
     primary: '#ff2244',
     secondary: '#ff8800',
-    density: 2.0,
+    density: 2.6,
     speed: 0.55,
     fractalIters: 4,
-    fractalScale: 0.86,
-    fractalDecay: -18.0,
-    smoothness: 0.035,
-    asymmetry: 0.40,
-    atmosphereGlow: 0.22,
+    fractalScale: 0.95,
+    fractalDecay: -16.7,
+    smoothness: 0.031,
+    asymmetry: 0.48,
+    atmosphereGlow: 0.85,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   blue: {
     primary: '#00b3ff',
     secondary: '#6e00ff',
-    density: 2.2,
+    density: 2.6,
     speed: 0.55,
     fractalIters: 4,
     fractalScale: 0.95,
     fractalDecay: -16.7,
     smoothness: 0.031,
-    asymmetry: 0.52,
-    atmosphereGlow: 0.22,
+    asymmetry: 0.48,
+    atmosphereGlow: 0.85,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   green: {
     primary: '#00e676',
     secondary: '#0062ff',
-    density: 1.8,
-    speed: 0.60,
+    density: 2.6,
+    speed: 0.55,
     fractalIters: 4,
-    fractalScale: 0.89,
-    fractalDecay: -20.0,
-    smoothness: 0.05,
-    asymmetry: 0.30,
-    atmosphereGlow: 0.22,
+    fractalScale: 0.95,
+    fractalDecay: -16.7,
+    smoothness: 0.031,
+    asymmetry: 0.48,
+    atmosphereGlow: 0.85,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   yellow: {
     primary: '#ffbb00',
-    secondary: '#2eff9d',
-    density: 2.1,
+    secondary: '#ff7700',
+    density: 2.6,
     speed: 0.55,
-    fractalIters: 3,
-    fractalScale: 0.72,
-    fractalDecay: -14.5,
-    smoothness: 0.015,
-    asymmetry: 0.35,
-    atmosphereGlow: 0.22,
+    fractalIters: 4,
+    fractalScale: 0.95,
+    fractalDecay: -16.7,
+    smoothness: 0.031,
+    asymmetry: 0.48,
+    atmosphereGlow: 0.85,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   }
@@ -2271,13 +2271,13 @@ export function SakuraCanvas({
       b: number;
     }
 
-    // Planetary orbital configurations (Keplerian orbits around center at moderate individual speeds)
+    // Planetary orbital configurations (Uniform focal depth so all orbs have identical visual size)
     const PLANETARY_ORBIT_CONFIGS = [
-      { radiusX: 115.0, radiusY: 72.0, baseZ: -12.0, speed: 0.38, zPhase: 0.0, zAmp: 18.0 },  // Pink (Innermost)
-      { radiusX: 162.0, radiusY: 98.0, baseZ: 14.0, speed: 0.30, zPhase: 1.2, zAmp: 22.0 },   // Rot
-      { radiusX: 210.0, radiusY: 128.0, baseZ: -18.0, speed: 0.23, zPhase: 2.5, zAmp: 25.0 }, // Blau
-      { radiusX: 255.0, radiusY: 155.0, baseZ: 16.0, speed: 0.18, zPhase: 3.8, zAmp: 20.0 },  // Grün
-      { radiusX: 300.0, radiusY: 178.0, baseZ: -8.0, speed: 0.14, zPhase: 5.0, zAmp: 16.0 }   // Gold (Outermost)
+      { radiusX: 115.0, radiusY: 72.0, baseZ: 0.0, speed: 0.38, zPhase: 0.0, zAmp: 0.0 },  // Pink (Innermost)
+      { radiusX: 162.0, radiusY: 98.0, baseZ: 0.0, speed: 0.30, zPhase: 1.2, zAmp: 0.0 },  // Rot
+      { radiusX: 210.0, radiusY: 128.0, baseZ: 0.0, speed: 0.23, zPhase: 2.5, zAmp: 0.0 }, // Blau
+      { radiusX: 255.0, radiusY: 155.0, baseZ: 0.0, speed: 0.18, zPhase: 3.8, zAmp: 0.0 }, // Grün
+      { radiusX: 300.0, radiusY: 178.0, baseZ: 0.0, speed: 0.14, zPhase: 5.0, zAmp: 0.0 }  // Gold (Outermost)
     ];
 
     class FloatingPlexusOrbInstance {
