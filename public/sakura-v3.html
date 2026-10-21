@@ -975,6 +975,48 @@
       opacity: 1;
     }
 
+    /* Auto-Dimming HUD Controls (Zen Mode with Full Opacity on Hover / Touch / Click) */
+    .hud-layer .top-right-group,
+    .hud-layer .instruction-box,
+    .hud-layer .mode-selector-container,
+    .hud-layer .creation-action-wrapper,
+    .hud-layer .color-palette-sidebar,
+    .hud-layer .brand-container {
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s ease !important;
+    }
+
+    .hud-layer.hud-dimmed .top-right-group,
+    .hud-layer.hud-dimmed .instruction-box,
+    .hud-layer.hud-dimmed .mode-selector-container,
+    .hud-layer.hud-dimmed .creation-action-wrapper,
+    .hud-layer.hud-dimmed .color-palette-sidebar,
+    .hud-layer.hud-dimmed .brand-container {
+      opacity: 0.16;
+    }
+
+    /* Immediately restore full 100% opacity when hovered, touched, clicked or focused */
+    .hud-layer.hud-dimmed .top-right-group:hover,
+    .hud-layer.hud-dimmed .top-right-group:active,
+    .hud-layer.hud-dimmed .instruction-box:hover,
+    .hud-layer.hud-dimmed .instruction-box:active,
+    .hud-layer.hud-dimmed .mode-selector-container:hover,
+    .hud-layer.hud-dimmed .mode-selector-container:active,
+    .hud-layer.hud-dimmed .creation-action-wrapper:hover,
+    .hud-layer.hud-dimmed .creation-action-wrapper:active,
+    .hud-layer.hud-dimmed .color-palette-sidebar:hover,
+    .hud-layer.hud-dimmed .color-palette-sidebar:active,
+    .hud-layer.hud-dimmed .brand-container:hover,
+    .hud-layer.hud-dimmed .hud-control-btn:hover,
+    .hud-layer.hud-dimmed .hud-control-btn:active,
+    .hud-layer.hud-dimmed .mode-btn:hover,
+    .hud-layer.hud-dimmed .mode-btn:active,
+    .hud-layer.hud-dimmed .create-btn:hover,
+    .hud-layer.hud-dimmed .create-btn:active,
+    .hud-layer.hud-dimmed .color-swatch-btn:hover,
+    .hud-layer.hud-dimmed .color-swatch-btn:active {
+      opacity: 1 !important;
+    }
+
     /* Top Info Bar */
     .top-bar {
       display: flex;
@@ -1406,6 +1448,91 @@
       text-transform: uppercase;
       color: rgba(255, 200, 235, 0.75);
       font-weight: 500;
+    }
+
+    /* =========================================================================
+       Souvenir Video Lightbox & NFT Button
+       ========================================================================= */
+    .souvenir-video-card {
+      max-width: 640px !important;
+      padding: 34px 28px !important;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .souvenir-video-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 105, 180, 0.45);
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 42, 157, 0.25);
+      background: #08020d;
+    }
+
+    .souvenir-video-element {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000000;
+    }
+
+    .souvenir-actions-row {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    .btn-nft-save {
+      width: 100%;
+      max-width: 320px;
+      padding: 15px 30px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #ffffff;
+      background: linear-gradient(135deg, #ff2a9d 0%, #a855f7 50%, #4ee2ec 100%);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      border-radius: 9999px;
+      box-shadow: 0 10px 30px rgba(255, 42, 157, 0.55), 0 0 20px rgba(78, 226, 236, 0.35);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      touch-action: manipulation;
+    }
+
+    .btn-nft-save:hover,
+    .btn-nft-save:active {
+      transform: scale(1.03) translateY(-2px);
+      box-shadow: 0 14px 40px rgba(255, 42, 157, 0.8), 0 0 30px rgba(78, 226, 236, 0.6);
+      border-color: #ffffff;
+    }
+
+    .btn-nft-save.saved {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.5) !important;
+      border-color: rgba(255, 255, 255, 0.6) !important;
+    }
+
+    @media (max-width: 600px) {
+      .souvenir-video-card {
+        padding: 24px 16px !important;
+        border-radius: 22px !important;
+      }
+
+      .btn-nft-save {
+        padding: 13px 20px !important;
+        font-size: 13.5px !important;
+      }
     }
 
     .artwork-selection-grid {
@@ -2715,6 +2842,28 @@
             <div class="artwork-card-gradient"></div>
             <div class="artwork-card-title-overlay">Plexus</div>
           </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox: Souvenir Video Preview & NFT Modal -->
+  <div class="artwork-lightbox-overlay" id="souvenirVideoLightboxOverlay">
+    <div class="artwork-lightbox-card souvenir-video-card">
+      <button class="lightbox-close-btn" id="souvenirVideoCloseBtn" title="Schließen">✕</button>
+      <div class="lightbox-header">
+        <div class="ios-lock-tag" style="margin-bottom: 6px;">14s VIDEO SOUVENIR</div>
+        <h2 class="lightbox-title">Dein Kunstwerk ist fertig!</h2>
+        <div class="lightbox-subtitle">Einzigartiges Unikat deiner Schöpfungs-Session</div>
+      </div>
+      
+      <div class="souvenir-video-wrapper">
+        <video id="souvenirVideoPlayer" class="souvenir-video-element" controls autoplay loop playsinline></video>
+      </div>
+
+      <div class="souvenir-actions-row">
+        <button type="button" class="btn-nft-save" id="btnSaveNFT">
+          <span>✨ Als NFT sichern</span>
         </button>
       </div>
     </div>
@@ -5115,6 +5264,11 @@
               closeArtworkLightbox();
               return;
             }
+            const videoModal = document.getElementById('souvenirVideoLightboxOverlay');
+            if (videoModal && videoModal.classList.contains('active')) {
+              closeSouvenirVideoLightbox();
+              return;
+            }
           }
         }
 
@@ -5174,6 +5328,9 @@
             if (bgAudio && !bgAudio.paused) {
               bgAudio.pause();
             }
+            if (hudInactivityTimer) clearTimeout(hudInactivityTimer);
+            const h = document.getElementById('hudLayer');
+            if (h) h.classList.remove('hud-dimmed');
             showToast("Session pausiert");
           } else {
             pauseIcon.textContent = "⏸️";
@@ -5181,6 +5338,7 @@
             if (!isAudioMuted) {
               playAudioTrack();
             }
+            wakeHUDControls();
             showToast("Session fortgesetzt");
           }
           updateInstructionUI();
@@ -5255,6 +5413,37 @@
           lightboxCloseBtn.addEventListener('click', () => {
             closeArtworkLightbox();
           });
+        }
+
+        const souvenirVideoCloseBtn = document.getElementById('souvenirVideoCloseBtn');
+        if (souvenirVideoCloseBtn) {
+          souvenirVideoCloseBtn.addEventListener('click', () => {
+            closeSouvenirVideoLightbox();
+          });
+        }
+
+        const btnSaveNFT = document.getElementById('btnSaveNFT');
+        if (btnSaveNFT) {
+          btnSaveNFT.addEventListener('click', () => {
+            if (activeSouvenirBlob && activeSouvenirFilename) {
+              downloadVideoDirectly(activeSouvenirBlob, activeSouvenirFilename);
+              btnSaveNFT.classList.add('saved');
+              btnSaveNFT.innerHTML = '<span>✅ Video gesichert!</span>';
+              showToast("💾 Video auf dein Gerät heruntergeladen! Bereit als NFT.");
+            }
+          });
+        }
+
+        // Global HUD Wake-up listeners for touch and pointer
+        window.addEventListener('pointerdown', wakeHUDControls, { passive: true });
+        window.addEventListener('pointermove', wakeHUDControls, { passive: true });
+        window.addEventListener('touchstart', wakeHUDControls, { passive: true });
+        window.addEventListener('touchmove', wakeHUDControls, { passive: true });
+
+        const hudLayerElem = document.getElementById('hudLayer');
+        if (hudLayerElem) {
+          hudLayerElem.addEventListener('mouseenter', wakeHUDControls);
+          hudLayerElem.addEventListener('touchstart', wakeHUDControls, { passive: true });
         }
 
         const artworkCardSumie = document.getElementById('artworkCardSumie');
@@ -6004,6 +6193,7 @@
         lobbyOverlay.classList.add('hidden');
         document.getElementById('webgl-container').classList.add('active');
         document.getElementById('hudLayer').classList.add('active');
+        wakeHUDControls();
         const c1 = document.getElementById('userCursor1');
         const c2 = document.getElementById('userCursor2');
         if (c1) { c1.classList.add('active'); c1.style.display = ''; }
@@ -6528,12 +6718,111 @@
         stopLightboxPreviews();
       }
 
+      // ==========================================
+      // AUTO-DIMMING HUD CONTROLS (ZEN MODE)
+      // ==========================================
+      let hudInactivityTimer = null;
+      const HUD_INACTIVITY_DELAY = 4500;
+
+      function wakeHUDControls() {
+        const hud = document.getElementById('hudLayer');
+        if (hud) hud.classList.remove('hud-dimmed');
+
+        if (hudInactivityTimer) {
+          clearTimeout(hudInactivityTimer);
+          hudInactivityTimer = null;
+        }
+
+        if (isArtworkStarted && !isPaused) {
+          hudInactivityTimer = setTimeout(() => {
+            if (isArtworkStarted && !isPaused) {
+              const h = document.getElementById('hudLayer');
+              if (h) h.classList.add('hud-dimmed');
+            }
+          }, HUD_INACTIVITY_DELAY);
+        }
+      }
+
+      // ==========================================
+      // SOUVENIR VIDEO LIGHTBOX & NFT SAVING
+      // ==========================================
+      let activeSouvenirBlob = null;
+      let activeSouvenirFilename = '';
+
+      function openSouvenirVideoLightbox(blob, filename, artworkType) {
+        activeSouvenirBlob = blob;
+        activeSouvenirFilename = filename;
+
+        const overlay = document.getElementById('souvenirVideoLightboxOverlay');
+        const player = document.getElementById('souvenirVideoPlayer');
+        const btnSaveNFT = document.getElementById('btnSaveNFT');
+
+        if (player) {
+          try {
+            if (player.src) URL.revokeObjectURL(player.src);
+            player.src = URL.createObjectURL(blob);
+            player.load();
+            player.play().catch(() => {});
+          } catch (e) {
+            console.warn('Error loading video preview:', e);
+          }
+        }
+
+        if (btnSaveNFT) {
+          btnSaveNFT.classList.remove('saved');
+          btnSaveNFT.innerHTML = '<span>✨ Als NFT sichern</span>';
+        }
+
+        if (overlay) {
+          overlay.classList.add('active');
+        }
+
+        showToast("✨ Dein 14s Video-Souvenir ist fertig!");
+      }
+
+      function closeSouvenirVideoLightbox() {
+        const overlay = document.getElementById('souvenirVideoLightboxOverlay');
+        const player = document.getElementById('souvenirVideoPlayer');
+        if (player) {
+          player.pause();
+          try {
+            if (player.src) URL.revokeObjectURL(player.src);
+            player.removeAttribute('src');
+            player.load();
+          } catch (e) { }
+        }
+        if (overlay) {
+          overlay.classList.remove('active');
+        }
+        activeSouvenirBlob = null;
+        activeSouvenirFilename = '';
+        returnToStartScreen();
+      }
+
       function returnToStartScreen() {
         isArtworkStarted = false;
         isCreationSession = false;
         updateIOSOrientationLock();
         setCreationModeUI(false);
         restartAll();
+
+        const videoModal = document.getElementById('souvenirVideoLightboxOverlay');
+        if (videoModal && videoModal.classList.contains('active')) {
+          videoModal.classList.remove('active');
+          const player = document.getElementById('souvenirVideoPlayer');
+          if (player) {
+            player.pause();
+            if (player.src) URL.revokeObjectURL(player.src);
+            player.removeAttribute('src');
+          }
+        }
+
+        if (hudInactivityTimer) {
+          clearTimeout(hudInactivityTimer);
+          hudInactivityTimer = null;
+        }
+        const hudElem = document.getElementById('hudLayer');
+        if (hudElem) hudElem.classList.remove('hud-dimmed');
 
         hideLandscapePrompt();
         releaseScreenWakeLock();
@@ -6615,7 +6904,10 @@
         const webglCont = document.getElementById('webgl-container');
         if (webglCont) webglCont.classList.add('active');
         const hudLayerElem = document.getElementById('hudLayer');
-        if (hudLayerElem) hudLayerElem.classList.add('active');
+        if (hudLayerElem) {
+          hudLayerElem.classList.add('active');
+          wakeHUDControls();
+        }
 
         // 5. Strictly SOLO cursors:
         // Show ONLY my own cursor element. Completely hide and deactivate the other person's cursor element!
@@ -6844,36 +7136,31 @@
         const timestamp = Date.now();
         const filename = `${artworkType}_finale_${timestamp}.mp4`;
 
-        console.log(`[Recorder] 14s Recording completed: ${blob.size} bytes. Saving to nft_imageupload_test as ${filename}...`);
+        console.log(`[Recorder] 14s Recording completed: ${blob.size} bytes. Opening Souvenir Video Lightbox...`);
 
+        isCreationSession = false;
+        setCreationModeUI(false);
+
+        // Open Lightbox with Video Preview & single "Als NFT sichern" button
+        openSouvenirVideoLightbox(blob, filename, artworkType);
+
+        // Background server upload attempt (non-blocking)
         try {
           const formData = new FormData();
           formData.append('video', blob, filename);
           formData.append('filename', filename);
           formData.append('artwork', artworkType);
 
-          const response = await fetch('/api/save-video', {
+          fetch('/api/save-video', {
             method: 'POST',
             body: formData
-          });
-
-          const result = await response.json();
-          if (result.success) {
-            console.log(`[Recorder] Successfully saved to nft_imageupload_test/${filename}`);
-            showToast(`💾 14s Finale als MP4 in nft_imageupload_test gespeichert!`);
-          } else {
-            console.warn('[Recorder] Server response:', result);
-            downloadVideoDirectly(blob, filename);
-          }
+          }).then(res => res.json()).then(result => {
+            if (result && result.success) {
+              console.log(`[Recorder] Successfully saved to nft_imageupload_test/${filename}`);
+            }
+          }).catch(() => {});
         } catch (fetchErr) {
-          console.warn('[Recorder] Upload fetch error:', fetchErr);
-          downloadVideoDirectly(blob, filename);
-        } finally {
-          isCreationSession = false;
-          setCreationModeUI(false);
-          setTimeout(() => {
-            returnToStartScreen();
-          }, 2000);
+          console.warn('[Recorder] Background upload fetch error:', fetchErr);
         }
       }
 
@@ -9118,6 +9405,7 @@
 
         // Immediately update world coordinates at contact point (critical for touch devices)
         updatePointerCoordinates(e.clientX, e.clientY);
+        wakeHUDControls();
 
         isMouseDown = true;
         generalHoldStartTime = performance.now();
@@ -9218,6 +9506,7 @@
         if (cX !== undefined && cY !== undefined) {
           updatePointerCoordinates(cX, cY);
         }
+        wakeHUDControls();
 
         triggerCursorGesture(activeUserIndex, 'mouseup');
         broadcastState('GESTURE', { gestureType: 'mouseup' });
@@ -9462,6 +9751,7 @@
         if (updateIOSOrientationLock()) return;
 
         const { normX, normY } = updatePointerCoordinates(event.clientX, event.clientY);
+        wakeHUDControls();
 
         // Update dragged plexus cluster position and broadcast drag position
         if (isMouseDown && draggedPlexusCluster && activeMode === 'plexus') {
