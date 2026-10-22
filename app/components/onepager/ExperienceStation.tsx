@@ -85,35 +85,166 @@ export function ExperienceStation({
   };
 
   return (
-    <section id="erleben" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+    <section id="erleben" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
       
       {/* Glow Center Background */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[650px] h-[350px] sm:h-[650px] bg-gradient-to-tr from-[#ff2a9d]/20 via-[#7928ca]/20 to-[#4ee2ec]/20 blur-[100px] pointer-events-none -z-10" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#ff2a9d]/20 via-[#7928ca]/20 to-[#4ee2ec]/20 blur-[110px] pointer-events-none -z-10" />
 
       {/* Section Header */}
-      <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
+      <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-300 text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-          Interactive Live-Station
+          Jetzt das Kunstwerk erleben
         </div>
         <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-          Jetzt Sakuraverse{' '}
+          Willkommen im{' '}
           <span className="bg-gradient-to-r from-[#ff80df] via-[#ff2a9d] to-[#4ee2ec] bg-clip-text text-transparent">
-            erleben.
+            Sakuraverse.
           </span>
         </h2>
-        <p className="mt-3 text-base sm:text-lg text-white/80 font-light">
-          Starte die Kunstwerke allein oder mit einer weiteren Person.
+        <p className="mt-3 text-base sm:text-lg text-white/80 font-light leading-relaxed">
+          Zwei kontrastreiche Ästhetiken, eine kollaborative Welt. Wähle deinen Stil und starte allein oder gemeinsam mit einer weiteren Person.
         </p>
       </div>
 
-      {/* Main Glassmorphic Start-Console */}
-      <div className="relative rounded-[32px] sm:rounded-[38px] p-6 sm:p-10 bg-[rgba(16,10,26,0.92)] border border-pink-500/40 backdrop-blur-2xl shadow-[0_25px_70px_rgba(0,0,0,0.8),0_0_50px_rgba(255,42,157,0.25)] flex flex-col gap-8">
+      {/* Step 1: Interactive Artwork Selection Cards (Sumi-e vs. Plexus) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-10">
         
-        {/* Step 1: Name Input */}
+        {/* Card 1: Sumi-e */}
+        <div
+          onClick={() => onSelectArtwork('bluten')}
+          className={`relative rounded-[30px] p-6 sm:p-8 bg-[rgba(18,12,28,0.88)] border backdrop-blur-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer group hover:-translate-y-1 select-none ${
+            activeArtwork === 'bluten'
+              ? 'border-[#ff2a9d] shadow-[0_20px_50px_rgba(255,42,157,0.35)] ring-2 ring-[#ff2a9d]/50'
+              : 'border-pink-500/25 hover:border-pink-500/60 shadow-[0_15px_40px_rgba(0,0,0,0.5)]'
+          }`}
+        >
+          <div className="absolute top-0 right-0 w-56 h-56 bg-radial from-pink-500/20 via-pink-900/10 to-transparent blur-2xl pointer-events-none" />
+          
+          <div>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-pink-300/80">
+                Organischer Stil
+              </span>
+              <span className="text-3xl sm:text-4xl opacity-90 group-hover:scale-110 transition-transform duration-300">
+                🌸
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 mb-2.5">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wide">
+                Sumi-e
+              </h3>
+              {activeArtwork === 'bluten' && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-[#ff2a9d] text-white shadow-[0_0_12px_rgba(255,42,157,0.8)]">
+                  ✓ Ausgewählt
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs sm:text-sm text-white/80 leading-relaxed font-light mb-5">
+              Ästhetik traditioneller japanischer Tuschemalerei vereint mit fließendem organischem Wachstum. Jeder Klick entfaltet zarte Äste, knospende Blüten und dichte Blütenstürme im Raum.
+            </p>
+
+            <div className="space-y-2 mb-6">
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <FiCheck className="text-pink-400 shrink-0" />
+                <span>Reaktive Verästelungen an interaktiven Knotenpunkten</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <FiCheck className="text-pink-400 shrink-0" />
+                <span>Sanft schwebende Blütenpartikel mit Winddynamik</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <FiCheck className="text-pink-400 shrink-0" />
+                <span>Audioreaktive Farb- und Dichteveränderungen</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`w-full py-3 px-4 rounded-xl font-bold text-xs tracking-wider uppercase text-center transition-all duration-300 ${
+              activeArtwork === 'bluten'
+                ? 'bg-gradient-to-r from-[#ff2a9d] to-pink-700 text-white shadow-[0_0_18px_rgba(255,42,157,0.6)]'
+                : 'bg-white/[0.05] text-white/70 group-hover:bg-pink-500/15 group-hover:text-white'
+            }`}
+          >
+            {activeArtwork === 'bluten' ? '🌸 Sumi-e ist aktiv' : '🌸 Sumi-e auswählen'}
+          </div>
+        </div>
+
+        {/* Card 2: Plexus */}
+        <div
+          onClick={() => onSelectArtwork('plexus')}
+          className={`relative rounded-[30px] p-6 sm:p-8 bg-[rgba(18,12,28,0.88)] border backdrop-blur-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer group hover:-translate-y-1 select-none ${
+            activeArtwork === 'plexus'
+              ? 'border-[#4ee2ec] shadow-[0_20px_50px_rgba(78,226,236,0.35)] ring-2 ring-[#4ee2ec]/50'
+              : 'border-cyan-500/25 hover:border-cyan-500/60 shadow-[0_15px_40px_rgba(0,0,0,0.5)]'
+          }`}
+        >
+          <div className="absolute top-0 right-0 w-56 h-56 bg-radial from-cyan-500/20 via-cyan-900/10 to-transparent blur-2xl pointer-events-none" />
+          
+          <div>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-cyan-300/80">
+                Cybernetic Flow
+              </span>
+              <span className="text-3xl sm:text-4xl opacity-90 group-hover:scale-110 transition-transform duration-300">
+                ✨
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 mb-2.5">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wide">
+                Plexus
+              </h3>
+              {activeArtwork === 'plexus' && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-[#4ee2ec] text-black shadow-[0_0_12px_rgba(78,226,236,0.8)]">
+                  ✓ Ausgewählt
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs sm:text-sm text-white/80 leading-relaxed font-light mb-5">
+              Kosmische Netzwerke und rotierende fraktale Planetenkerne. Energiegeladene Filamente verbinden eure Berührungen zu dynamischen Gravitationsfeldern im Raum.
+            </p>
+
+            <div className="space-y-2 mb-6">
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <FiCheck className="text-cyan-400 shrink-0" />
+                <span>5 fraktale Himmelskörper in einheitlicher Umlaufbahn</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <FiCheck className="text-cyan-400 shrink-0" />
+                <span>Reaktive Laser-Filamente & Magnetfeld-Linien</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <FiCheck className="text-cyan-400 shrink-0" />
+                <span>Audiogesteuerte Pulsationen und Schockwellen</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`w-full py-3 px-4 rounded-xl font-bold text-xs tracking-wider uppercase text-center transition-all duration-300 ${
+              activeArtwork === 'plexus'
+                ? 'bg-gradient-to-r from-[#4ee2ec] to-cyan-600 text-black font-extrabold shadow-[0_0_18px_rgba(78,226,236,0.6)]'
+                : 'bg-white/[0.05] text-white/70 group-hover:bg-cyan-500/15 group-hover:text-white'
+            }`}
+          >
+            {activeArtwork === 'plexus' ? '✨ Plexus ist aktiv' : '✨ Plexus auswählen'}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Step 2: Consolidated Start Console */}
+      <div className="relative rounded-[32px] sm:rounded-[38px] p-6 sm:p-10 bg-[rgba(16,10,26,0.94)] border border-pink-500/40 backdrop-blur-2xl shadow-[0_25px_70px_rgba(0,0,0,0.8),0_0_50px_rgba(255,42,157,0.25)] flex flex-col gap-7">
+        
+        {/* Name Input */}
         <div className="flex flex-col gap-2.5">
           <label htmlFor="stationNameInput" className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
             <FiUser className="text-[#ff80df]" />
-            <span>1. Dein Künstler-Name</span>
+            <span>Dein Künstler-Name</span>
           </label>
           <input
             id="stationNameInput"
@@ -130,11 +261,11 @@ export function ExperienceStation({
           />
         </div>
 
-        {/* Step 2: Mode Selection (Testmodus vs. Souvenirmodus) */}
+        {/* Mode Selection (Testmodus vs. Souvenirmodus) */}
         <div className="flex flex-col gap-2.5">
           <label className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
             <FiLayers className="text-[#ff80df]" />
-            <span>2. Wähle deinen Modus</span>
+            <span>Wähle deinen Modus</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
@@ -187,44 +318,7 @@ export function ExperienceStation({
           </div>
         </div>
 
-        {/* Step 3: Artwork Choice (Sumi-e vs. Plexus) */}
-        <div className="flex flex-col gap-2.5">
-          <label className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
-            <span>🌸</span>
-            <span>3. Kunstwerk wählen</span>
-          </label>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            
-            {/* Sumi-e Button */}
-            <button
-              type="button"
-              onClick={() => onSelectArtwork('bluten')}
-              className={`py-3.5 px-4 rounded-2xl border font-bold text-xs sm:text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
-                activeArtwork === 'bluten'
-                  ? 'bg-gradient-to-r from-pink-600/50 to-pink-900/40 border-[#ff2a9d] text-white shadow-[0_0_20px_rgba(255,42,157,0.4)]'
-                  : 'bg-white/[0.04] border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08]'
-              }`}
-            >
-              <span>🌸 Sumi-e</span>
-            </button>
-
-            {/* Plexus Button */}
-            <button
-              type="button"
-              onClick={() => onSelectArtwork('plexus')}
-              className={`py-3.5 px-4 rounded-2xl border font-bold text-xs sm:text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
-                activeArtwork === 'plexus'
-                  ? 'bg-gradient-to-r from-cyan-600/50 to-cyan-900/40 border-[#4ee2ec] text-white shadow-[0_0_20px_rgba(78,226,236,0.4)]'
-                  : 'bg-white/[0.04] border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08]'
-              }`}
-            >
-              <span>✨ Plexus</span>
-            </button>
-
-          </div>
-        </div>
-
-        {/* Step 4: Collaboration Invite (If Host) */}
+        {/* Collaboration Invite (If Host) */}
         {isHost && (
           <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 flex flex-col gap-3">
             <div className="flex items-center justify-between text-xs">

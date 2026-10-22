@@ -13,7 +13,7 @@ export function PhysicalCubeSection() {
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-20">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-          Die Physische Dimension
+          Die Mission
         </div>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
           Im artcube wirst du die{' '}

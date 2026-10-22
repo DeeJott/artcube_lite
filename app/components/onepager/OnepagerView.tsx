@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { OnepagerHeader } from './OnepagerHeader';
 import { HeroSection } from './HeroSection';
 import { StorySection } from './StorySection';
-import { ArtworksSection } from './ArtworksSection';
 import { ExperienceStation } from './ExperienceStation';
 import { PhysicalCubeSection } from './PhysicalCubeSection';
 import { RoadmapSection } from './RoadmapSection';
@@ -100,14 +99,7 @@ export function OnepagerView({
       {/* 3. Story Section: Digital zu Physisch */}
       <StorySection />
 
-      {/* 4. Artworks Showcase: Sumi-e & Plexus */}
-      <ArtworksSection
-        activeArtwork={activeArtwork}
-        onSelectArtwork={setActiveArtwork}
-        onNavigateTo={handleNavigateTo}
-      />
-
-      {/* 5. Live Experience Station */}
+      {/* 4. Live Experience Station (Unified Sakuraverse Artworks & Launch Console) */}
       <ExperienceStation
         myName={myName}
         onNameChange={handleNameUpdate}

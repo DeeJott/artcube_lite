@@ -15,14 +15,6 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
 
       <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8">
         
-        {/* Subtle Pill Tag */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-pink-500/30 bg-pink-500/10 backdrop-blur-md shadow-[0_0_20px_rgba(255,42,157,0.2)]">
-          <span className="w-2 h-2 rounded-full bg-[#ff2a9d] animate-pulse" />
-          <span className="text-[10px] sm:text-xs font-bold tracking-[0.25em] text-pink-200 uppercase">
-            Interactive Art in Connection
-          </span>
-        </div>
-
         {/* Main Headline */}
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.08] drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
           Art in{' '}
@@ -33,7 +25,7 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
 
         {/* Lead Text */}
         <p className="max-w-2xl text-base sm:text-xl text-white/85 font-light leading-relaxed tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
-          Mit artcube werden Kunstwerke lebendig. Entdeckt gemeinsam das erste Kunstwerk und erstellt dabei eure eigenen Souvenirs.
+          Mit artcube werden Kunstwerke lebendig. Entdeckt SAKURAVERSE allein oder gemeinsam und erstellt dabei eure eigenen Souvenirs.
         </p>
 
         {/* Action Buttons */}
@@ -75,7 +67,7 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-semibold text-white">Kollaborativer Modus</span>
-              <span className="text-[10px] text-white/60">Gemeinsam via Smartphone</span>
+              <span className="text-[10px] text-white/60">Über PC und Smartphone</span>
             </div>
           </div>
 
@@ -84,8 +76,8 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
               <FiBox className="w-4 h-4" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-white">Real Life Installation</span>
-              <span className="text-[10px] text-white/60">In the making (Cube Vision)</span>
+              <span className="text-xs font-semibold text-white">Digitale Souvenirs</span>
+              <span className="text-[10px] text-white/60">Erstelle ein &quot;unzerstörbares&quot; Souvenir</span>
             </div>
           </div>
         </div>

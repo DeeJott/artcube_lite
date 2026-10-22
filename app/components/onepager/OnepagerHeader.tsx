@@ -13,10 +13,9 @@ export function OnepagerHeader({ onOpenWallet, onNavigateTo }: OnepagerHeaderPro
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: 'Vision', href: 'vision' },
-    { label: 'Sakuraverse', href: 'sakuraverse' },
-    { label: 'Jetzt erleben', href: 'erleben' },
-    { label: 'artcube', href: 'cube' },
+    { label: 'Was ist art.cube?', href: 'vision' },
+    { label: 'Jetzt das Kunstwerk erleben', href: 'erleben' },
+    { label: 'Die Mission', href: 'cube' },
     { label: 'Roadmap', href: 'roadmap' },
   ];
 
@@ -77,7 +76,7 @@ export function OnepagerHeader({ onOpenWallet, onNavigateTo }: OnepagerHeaderPro
             onClick={() => handleNavClick('erleben')}
             className="px-4 py-1.5 sm:px-5 sm:py-2 rounded-full font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-[#ff2a9d] to-[#4ee2ec] shadow-[0_0_20px_rgba(255,42,157,0.4)] hover:shadow-[0_0_30px_rgba(78,226,236,0.6)] hover:scale-[1.03] transition-all duration-300 cursor-pointer"
           >
-            Jetzt erleben
+            Kunstwerke starten
           </button>
 
           {/* Mobile Menu Hamburger */}
@@ -122,7 +121,7 @@ export function OnepagerHeader({ onOpenWallet, onNavigateTo }: OnepagerHeaderPro
                 onClick={() => handleNavClick('erleben')}
                 className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-[#ff2a9d] to-[#4ee2ec] text-white"
               >
-                Starten
+                Kunstwerke starten
               </button>
             </div>
           </div>
