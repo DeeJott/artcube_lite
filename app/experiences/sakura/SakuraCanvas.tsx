@@ -1306,7 +1306,16 @@ export function SakuraCanvas({
   const [activeMode, setActiveMode] = useState<'bluten' | 'plexus'>(
     initialMode === 'plexus' ? 'plexus' : 'bluten'
   );
+
+  useEffect(() => {
+    if (initialMode === 'plexus' || initialMode === 'bluten') {
+      setActiveMode(initialMode);
+      activeModeRef.current = initialMode;
+    }
+  }, [initialMode]);
+
   const isRunningRef = useRef(isRunning);
+
   useEffect(() => {
     isRunningRef.current = isRunning;
   }, [isRunning]);

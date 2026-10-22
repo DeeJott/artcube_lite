@@ -2,7 +2,7 @@
 
 import { useState, useCallback, Suspense, useEffect, useRef } from 'react';
 import { EXPERIENCES, DEFAULT_EXPERIENCE_ID } from './experiences';
-import { StartScreen } from './components/StartScreen';
+import { OnepagerView } from './components/onepager/OnepagerView';
 import type { ExperienceRendererAPI } from './lib/experience-types';
 
 function ArtCubeApp() {
@@ -42,7 +42,7 @@ function ArtCubeApp() {
 
   const [activeArtworkMode, setActiveArtworkMode] = useState<'bluten' | 'plexus'>('bluten');
 
-  const handleStart = useCallback((mode?: 'bluten' | 'plexus') => {
+  const handleStart = useCallback((mode?: 'bluten' | 'plexus', expMode?: 'test' | 'souvenir') => {
     const targetMode = mode || 'bluten';
     setActiveArtworkMode(targetMode);
     setIsStarted(true);
@@ -74,7 +74,7 @@ function ArtCubeApp() {
 
   return (
     <main className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#08000c]">
-      {/* 1. EINGEBETTETES KUNSTWERK (Hintergrund-Shader & 3D-Szene laufen live hinter dem StartScreen) */}
+      {/* 1. EINGEBETTETES KUNSTWERK (Hintergrund-Shader & 3D-Szene laufen live hinter dem Onepager) */}
       <div className="absolute inset-0 w-full h-full z-0">
         <ExperienceComponent
           key={selectedExperienceId}
@@ -98,8 +98,8 @@ function ArtCubeApp() {
         />
       </div>
 
-      {/* 2. SEPARATE ART.CUBE STARTSEITE (Transparenter Frosted-Glass-Startbildschirm aus sakura v3) */}
-      <StartScreen
+      {/* 2. ART.CUBE ONEPAGER (Transparente scrollbare Präsentations- und Erlebnisebene über dem flüssigen Shader) */}
+      <OnepagerView
         isVisible={!isStarted}
         isHost={isHost}
         sessionId={sessionId}
@@ -108,13 +108,10 @@ function ArtCubeApp() {
         onJoin={() => setIsJoined(true)}
         onStart={handleStart}
         isJoined={isJoined}
-        experiences={EXPERIENCES}
-        selectedExperienceId={selectedExperienceId}
-        onSelectExperience={setSelectedExperienceId}
       />
     </main>
-
   );
+
 }
 
 export default function Home() {

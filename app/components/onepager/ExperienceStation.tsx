@@ -1,0 +1,314 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { FiCopy, FiCheck, FiShare2, FiUser, FiPlay, FiInfo, FiLayers } from 'react-icons/fi';
+
+interface ExperienceStationProps {
+  myName: string;
+  onNameChange: (name: string) => void;
+  isHost: boolean;
+  sessionId: string;
+  isJoined: boolean;
+  onJoin: () => void;
+  activeArtwork: 'bluten' | 'plexus';
+  onSelectArtwork: (artwork: 'bluten' | 'plexus') => void;
+  onStart: (artwork: 'bluten' | 'plexus', mode: 'test' | 'souvenir') => void;
+  showToast: (msg: string) => void;
+}
+
+export function ExperienceStation({
+  myName,
+  onNameChange,
+  isHost,
+  sessionId,
+  isJoined,
+  onJoin,
+  activeArtwork,
+  onSelectArtwork,
+  onStart,
+  showToast,
+}: ExperienceStationProps) {
+  const [activeMode, setActiveMode] = useState<'test' | 'souvenir'>('test');
+  const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [showValidation, setShowValidation] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const baseUrl = window.location.href.split('?')[0];
+      setShareUrl(`${baseUrl}?sid=${sessionId}`);
+    }
+  }, [sessionId]);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = shareUrl;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      showToast('🔗 Einladungslink in Zwischenablage kopiert!');
+      setTimeout(() => setCopied(false), 2400);
+    } catch {
+      prompt('Link manuell kopieren:', shareUrl);
+    }
+  }, [shareUrl, showToast]);
+
+  const validate = useCallback(() => {
+    if (!myName.trim()) {
+      setShowValidation(true);
+      showToast('⚠️ Bitte gib zuerst deinen Namen ein!');
+      setTimeout(() => setShowValidation(false), 1600);
+      return false;
+    }
+    return true;
+  }, [myName, showToast]);
+
+  const handleStartArtwork = () => {
+    if (!validate()) return;
+    onStart(activeArtwork, activeMode);
+  };
+
+  const handleGuestJoin = () => {
+    if (!validate()) return;
+    onJoin();
+    showToast('✨ Beitritt erfolgreich! Warte auf den Host...');
+  };
+
+  return (
+    <section id="erleben" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+      
+      {/* Glow Center Background */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[650px] h-[350px] sm:h-[650px] bg-gradient-to-tr from-[#ff2a9d]/20 via-[#7928ca]/20 to-[#4ee2ec]/20 blur-[100px] pointer-events-none -z-10" />
+
+      {/* Section Header */}
+      <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-300 text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
+          Interactive Live-Station
+        </div>
+        <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+          Jetzt Sakuraverse{' '}
+          <span className="bg-gradient-to-r from-[#ff80df] via-[#ff2a9d] to-[#4ee2ec] bg-clip-text text-transparent">
+            erleben.
+          </span>
+        </h2>
+        <p className="mt-3 text-base sm:text-lg text-white/80 font-light">
+          Starte die Kunstwerke allein oder mit einer weiteren Person.
+        </p>
+      </div>
+
+      {/* Main Glassmorphic Start-Console */}
+      <div className="relative rounded-[32px] sm:rounded-[38px] p-6 sm:p-10 bg-[rgba(16,10,26,0.92)] border border-pink-500/40 backdrop-blur-2xl shadow-[0_25px_70px_rgba(0,0,0,0.8),0_0_50px_rgba(255,42,157,0.25)] flex flex-col gap-8">
+        
+        {/* Step 1: Name Input */}
+        <div className="flex flex-col gap-2.5">
+          <label htmlFor="stationNameInput" className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
+            <FiUser className="text-[#ff80df]" />
+            <span>1. Dein Künstler-Name</span>
+          </label>
+          <input
+            id="stationNameInput"
+            type="text"
+            value={myName}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="Wie heißt du?"
+            maxLength={20}
+            className={`w-full px-5 py-4 rounded-2xl bg-white/[0.06] border text-white text-base font-semibold tracking-wide placeholder:text-white/30 outline-none transition-all duration-300 ${
+              showValidation
+                ? 'border-red-400 shadow-[0_0_20px_rgba(248,113,113,0.5)]'
+                : 'border-pink-500/30 focus:border-[#ff2a9d] focus:bg-white/[0.1] focus:shadow-[0_0_20px_rgba(255,42,157,0.4)]'
+            }`}
+          />
+        </div>
+
+        {/* Step 2: Mode Selection (Testmodus vs. Souvenirmodus) */}
+        <div className="flex flex-col gap-2.5">
+          <label className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
+            <FiLayers className="text-[#ff80df]" />
+            <span>2. Wähle deinen Modus</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            {/* Testmodus Card */}
+            <button
+              type="button"
+              onClick={() => setActiveMode('test')}
+              className={`p-5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between gap-3 cursor-pointer ${
+                activeMode === 'test'
+                  ? 'bg-cyan-500/15 border-[#4ee2ec] shadow-[0_0_25px_rgba(78,226,236,0.3)]'
+                  : 'bg-white/[0.03] border-white/10 hover:border-white/30 hover:bg-white/[0.06]'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold tracking-wider uppercase text-[#4ee2ec]">
+                  🤝 Testmodus
+                </span>
+                {activeMode === 'test' && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#4ee2ec] shadow-[0_0_10px_#4ee2ec]" />
+                )}
+              </div>
+              <p className="text-xs text-white/75 leading-relaxed font-light">
+                Freies, unbegrenztes Erkunden und Zeichnen. Ideal zum Kennenlernen allein oder zu zweit.
+              </p>
+            </button>
+
+            {/* Souvenirmodus Card */}
+            <button
+              type="button"
+              onClick={() => setActiveMode('souvenir')}
+              className={`p-5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between gap-3 cursor-pointer ${
+                activeMode === 'souvenir'
+                  ? 'bg-pink-500/15 border-[#ff2a9d] shadow-[0_0_25px_rgba(255,42,157,0.3)]'
+                  : 'bg-white/[0.03] border-white/10 hover:border-white/30 hover:bg-white/[0.06]'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold tracking-wider uppercase text-[#ff80df]">
+                  🎨 Souvenirmodus
+                </span>
+                {activeMode === 'souvenir' && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d]" />
+                )}
+              </div>
+              <p className="text-xs text-white/75 leading-relaxed font-light">
+                Gezielte Interaktionsphase mit anschließendem 14s Video-Souvenir eurer Schöpfung.
+              </p>
+            </button>
+
+          </div>
+        </div>
+
+        {/* Step 3: Artwork Choice (Sumi-e vs. Plexus) */}
+        <div className="flex flex-col gap-2.5">
+          <label className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
+            <span>🌸</span>
+            <span>3. Kunstwerk wählen</span>
+          </label>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            
+            {/* Sumi-e Button */}
+            <button
+              type="button"
+              onClick={() => onSelectArtwork('bluten')}
+              className={`py-3.5 px-4 rounded-2xl border font-bold text-xs sm:text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+                activeArtwork === 'bluten'
+                  ? 'bg-gradient-to-r from-pink-600/50 to-pink-900/40 border-[#ff2a9d] text-white shadow-[0_0_20px_rgba(255,42,157,0.4)]'
+                  : 'bg-white/[0.04] border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08]'
+              }`}
+            >
+              <span>🌸 Sumi-e</span>
+            </button>
+
+            {/* Plexus Button */}
+            <button
+              type="button"
+              onClick={() => onSelectArtwork('plexus')}
+              className={`py-3.5 px-4 rounded-2xl border font-bold text-xs sm:text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+                activeArtwork === 'plexus'
+                  ? 'bg-gradient-to-r from-cyan-600/50 to-cyan-900/40 border-[#4ee2ec] text-white shadow-[0_0_20px_rgba(78,226,236,0.4)]'
+                  : 'bg-white/[0.04] border-white/10 text-white/60 hover:text-white hover:bg-white/[0.08]'
+              }`}
+            >
+              <span>✨ Plexus</span>
+            </button>
+
+          </div>
+        </div>
+
+        {/* Step 4: Collaboration Invite (If Host) */}
+        {isHost && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 flex flex-col gap-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold tracking-wider uppercase text-white/80 flex items-center gap-1.5">
+                <FiShare2 className="text-[#4ee2ec]" />
+                Mitspieler einladen (Optional)
+              </span>
+              <span className="text-[10px] text-white/50 tracking-wider">MAX. 2 TEILNEHMER</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs tracking-wider uppercase cursor-pointer border transition-all duration-300 flex items-center justify-center gap-2 ${
+                  copied
+                    ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
+                    : 'bg-white/[0.06] border-white/15 text-white hover:bg-white/[0.12] hover:border-pink-500/40'
+                }`}
+              >
+                {copied ? <FiCheck className="w-4 h-4" /> : <FiCopy className="w-4 h-4" />}
+                <span>{copied ? 'Link kopiert!' : 'Einladungslink kopieren'}</span>
+              </button>
+            </div>
+
+            <div className="text-[10px] font-mono text-cyan-200/50 truncate bg-black/50 px-3 py-1.5 rounded-lg border border-white/5 select-all">
+              {shareUrl}
+            </div>
+
+            {/* Status Indicators */}
+            <div className="grid grid-cols-2 gap-2 mt-1 pt-2 border-t border-white/5 text-[11px]">
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Host: {myName || 'Du'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-white/50">
+                <span className={`w-2 h-2 rounded-full ${isJoined ? 'bg-emerald-400' : 'bg-white/20'}`} />
+                <span>Gast: {isJoined ? 'Verbunden' : 'Wartet auf Beitritt...'}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notice on Souvenir mode if active */}
+        {activeMode === 'souvenir' && (
+          <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+            <FiInfo className="w-4 h-4 shrink-0 text-amber-300" />
+            <span>Im Souvenirmodus erstellst du dein individuelles 14-Sekunden Video-Souvenir.</span>
+          </div>
+        )}
+
+        {/* Main Action Start Button */}
+        <div>
+          {isHost ? (
+            <button
+              type="button"
+              onClick={handleStartArtwork}
+              className="w-full py-5 px-8 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#4ee2ec] shadow-[0_10px_35px_rgba(255,42,157,0.5),0_0_20px_rgba(78,226,236,0.3)] hover:shadow-[0_15px_45px_rgba(255,42,157,0.7),0_0_30px_rgba(78,226,236,0.6)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
+            >
+              <FiPlay className="w-5 h-5 fill-current" />
+              <span>
+                {activeArtwork === 'bluten' ? '🌸 Sumi-e' : '✨ Plexus'} {activeMode === 'souvenir' ? 'Souvenirmodus' : 'Testmodus'} starten
+              </span>
+            </button>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {!isJoined ? (
+                <button
+                  type="button"
+                  onClick={handleGuestJoin}
+                  className="w-full py-5 px-8 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#4ee2ec] to-[#0284c7] shadow-[0_10px_35px_rgba(78,226,236,0.4)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.6)] hover:scale-[1.01] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>✨ Session beitreten</span>
+                </button>
+              ) : (
+                <div className="p-4 rounded-2xl bg-white/[0.06] border border-white/15 text-center text-xs tracking-wider text-white/80 animate-pulse">
+                  ⏳ Du bist beigetreten. Warte darauf, dass der Host das Kunstwerk startet...
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </section>
+  );
+}
