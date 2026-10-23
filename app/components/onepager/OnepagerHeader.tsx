@@ -17,6 +17,7 @@ export function OnepagerHeader({ onOpenWallet, onNavigateTo }: OnepagerHeaderPro
     { label: 'Jetzt das Kunstwerk erleben', href: 'erleben' },
     { label: 'Unsere Vision', href: 'cube' },
     { label: 'Roadmap', href: 'roadmap' },
+    { label: 'Community', href: 'newsletter' },
   ];
 
   const handleNavClick = (id: string) => {

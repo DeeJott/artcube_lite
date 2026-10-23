@@ -11,7 +11,7 @@ export function RoadmapSection() {
       statusColor: 'emerald',
       title: 'Digitaler & Interaktiver Prototyp',
       description:
-        'Erfolgreicher Launch von Sakuraverse: WebGL- und WebRTC-fähige Kunstwerke direkt im Browser auf allen Endgeräten mit Echtzeit-Kollaboration und digitalem Souvenir.',
+        'Start des digitalen Prototyps. Auf allen Endgeräten kann Sakuraverse erlebt und eigene digitale Souvenirs erstellt werden.',
       badge: 'Live',
     },
     {
@@ -31,7 +31,7 @@ export function RoadmapSection() {
       statusColor: 'cyan',
       title: 'Der erste vollwertige art.cube',
       description:
-        'Planung, Konstruktion und Eröffnung des ersten maßgeschneiderten, begehbaren 360°-art.cubes für immersive Ausstellungsevents und kollektive Kunsterlebnisse.',
+        'Planung, Konstruktion und Launch des ersten 360°-art.cubes für gemeinsame und immersive Erlebnisse.',
       badge: 'Vision 2027',
     },
   ];
@@ -60,7 +60,7 @@ export function RoadmapSection() {
 
       {/* Timeline Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 relative">
-        {steps.map((item, index) => (
+        {steps.map((item) => (
           <div
             key={item.step}
             className={`relative rounded-[30px] p-7 sm:p-8 bg-[rgba(18,12,28,0.85)] border backdrop-blur-xl shadow-xl flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 ${
@@ -103,11 +103,6 @@ export function RoadmapSection() {
               <p className="text-sm text-white/75 leading-relaxed font-light">
                 {item.description}
               </p>
-            </div>
-
-            <div className="mt-8 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-white/50">
-              <span>Phase 0{index + 1}</span>
-              <span className="font-semibold text-white/80">{item.badge}</span>
             </div>
           </div>
         ))}

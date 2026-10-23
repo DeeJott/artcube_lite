@@ -1717,6 +1717,11 @@ export function SakuraCanvas({
     setGuestCreationReady(false);
   }, [showToast, updateCameraDistance]);
 
+  const selectArtworkChoiceRef = useRef(selectArtworkChoice);
+  useEffect(() => {
+    selectArtworkChoiceRef.current = selectArtworkChoice;
+  }, [selectArtworkChoice]);
+
   const handleExit = useCallback(() => {
     try {
       if (typeof document !== 'undefined' && document.fullscreenElement && document.exitFullscreen) {
@@ -4078,11 +4083,15 @@ export function SakuraCanvas({
 
     // Register API
     onRendererReadyRef.current?.({
-      start: (mode?: 'bluten' | 'plexus' | string) => {
+      start: (mode?: 'bluten' | 'plexus' | string, expMode?: 'test' | 'souvenir') => {
         clock.start();
         isRunningRef.current = true;
-        if (mode === 'plexus' || mode === 'bluten') {
-          handleSwitchMode(mode);
+        const targetMode = (mode === 'plexus' || mode === 'bluten') ? mode : 'bluten';
+        handleSwitchMode(targetMode);
+        if (expMode === 'souvenir') {
+          setTimeout(() => {
+            selectArtworkChoiceRef.current?.(targetMode);
+          }, 100);
         }
         if (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)) {
           requestLandscapeOrientationRef.current?.();

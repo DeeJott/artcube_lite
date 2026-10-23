@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FiCopy, FiCheck, FiShare2, FiUser, FiPlay, FiInfo, FiLayers, FiCompass } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiShare2, FiUser, FiPlay, FiInfo, FiLayers } from 'react-icons/fi';
 
 interface ExperienceStationProps {
   myName: string;
@@ -10,8 +10,6 @@ interface ExperienceStationProps {
   sessionId: string;
   isJoined: boolean;
   onJoin: () => void;
-  activeArtwork: 'bluten' | 'plexus';
-  onSelectArtwork: (artwork: 'bluten' | 'plexus') => void;
   onStart: (artwork: 'bluten' | 'plexus', mode: 'test' | 'souvenir') => void;
   showToast: (msg: string) => void;
 }
@@ -23,15 +21,12 @@ export function ExperienceStation({
   sessionId,
   isJoined,
   onJoin,
-  activeArtwork,
-  onSelectArtwork,
   onStart,
   showToast,
 }: ExperienceStationProps) {
   const [activeMode, setActiveMode] = useState<'test' | 'souvenir'>('test');
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
-  const [showValidation, setShowValidation] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -63,29 +58,26 @@ export function ExperienceStation({
     }
   }, [shareUrl, showToast]);
 
-  const validate = useCallback(() => {
+  const handleStartArtwork = (modeToStart: 'test' | 'souvenir') => {
+    setActiveMode(modeToStart);
+    const finalName = myName.trim() || 'Künstler';
     if (!myName.trim()) {
-      setShowValidation(true);
-      showToast('⚠️ Bitte gib zuerst deinen Namen ein!');
-      setTimeout(() => setShowValidation(false), 1600);
-      return false;
+      onNameChange(finalName);
     }
-    return true;
-  }, [myName, showToast]);
-
-  const handleStartArtwork = () => {
-    if (!validate()) return;
-    onStart(activeArtwork, activeMode);
+    onStart('bluten', modeToStart);
   };
 
   const handleGuestJoin = () => {
-    if (!validate()) return;
+    const finalName = myName.trim() || 'Gast';
+    if (!myName.trim()) {
+      onNameChange(finalName);
+    }
     onJoin();
     showToast('✨ Beitritt erfolgreich! Warte auf den Host...');
   };
 
   return (
-    <section id="erleben" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+    <section id="erleben" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
       
       {/* Glow Center Background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#ff2a9d]/20 via-[#7928ca]/20 to-[#4ee2ec]/20 blur-[110px] pointer-events-none -z-10" />
@@ -106,105 +98,24 @@ export function ExperienceStation({
         </p>
       </div>
 
-      {/* Step 2: Consolidated Start Console */}
+      {/* Consolidated Start Console */}
       <div className="relative rounded-[32px] sm:rounded-[38px] p-6 sm:p-10 bg-[rgba(16,10,26,0.94)] border border-pink-500/40 backdrop-blur-2xl shadow-[0_25px_70px_rgba(0,0,0,0.8),0_0_50px_rgba(255,42,157,0.25)] flex flex-col gap-7">
         
         {/* Name Input */}
         <div className="flex flex-col gap-2.5">
           <label htmlFor="stationNameInput" className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
             <FiUser className="text-[#ff80df]" />
-            <span>Dein Künstler-Name</span>
+            <span>Dein Künstler-Name (Optional)</span>
           </label>
           <input
             id="stationNameInput"
             type="text"
             value={myName}
             onChange={(e) => onNameChange(e.target.value)}
-            placeholder="Wie heißt du?"
+            placeholder="Wie heißt du? (z.B. Künstler oder dein Name)"
             maxLength={20}
-            className={`w-full px-5 py-4 rounded-2xl bg-white/[0.06] border text-white text-base font-semibold tracking-wide placeholder:text-white/30 outline-none transition-all duration-300 ${
-              showValidation
-                ? 'border-red-400 shadow-[0_0_20px_rgba(248,113,113,0.5)]'
-                : 'border-pink-500/30 focus:border-[#ff2a9d] focus:bg-white/[0.1] focus:shadow-[0_0_20px_rgba(255,42,157,0.4)]'
-            }`}
+            className="w-full px-5 py-4 rounded-2xl bg-white/[0.06] border border-pink-500/30 focus:border-[#ff2a9d] focus:bg-white/[0.1] focus:shadow-[0_0_20px_rgba(255,42,157,0.4)] text-white text-base font-semibold tracking-wide placeholder:text-white/30 outline-none transition-all duration-300"
           />
-        </div>
-
-        {/* Artwork Selection (Sumi-e vs. Plexus) */}
-        <div className="flex flex-col gap-2.5">
-          <label className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
-            <FiCompass className="text-[#ff80df]" />
-            <span>Wähle dein Kunstwerk</span>
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            {/* Sumi-e Button */}
-            <button
-              type="button"
-              onClick={() => onSelectArtwork('bluten')}
-              className={`p-4 sm:p-5 rounded-2xl border text-left transition-all duration-300 flex items-center justify-between cursor-pointer ${
-                activeArtwork === 'bluten'
-                  ? 'bg-pink-500/20 border-[#ff2a9d] shadow-[0_0_25px_rgba(255,42,157,0.35)] ring-2 ring-[#ff2a9d]/50'
-                  : 'bg-white/[0.03] border-white/10 hover:border-white/30 hover:bg-white/[0.06]'
-              }`}
-            >
-              <div className="flex items-center gap-3.5">
-                <span className="text-3xl">🌸</span>
-                <div>
-                  <div className="text-base font-bold text-white tracking-wide flex items-center gap-2">
-                    <span>Sumi-e</span>
-                    {activeArtwork === 'bluten' && (
-                      <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#ff2a9d] text-white">
-                        Aktiv
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-white/60 font-light mt-0.5">
-                    Organisches Wachstum & Tuschemalerei
-                  </div>
-                </div>
-              </div>
-              <span className={`w-3 h-3 rounded-full border transition-all ${
-                activeArtwork === 'bluten' 
-                  ? 'border-[#ff2a9d] bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d]' 
-                  : 'border-white/30'
-              }`} />
-            </button>
-
-            {/* Plexus Button */}
-            <button
-              type="button"
-              onClick={() => onSelectArtwork('plexus')}
-              className={`p-4 sm:p-5 rounded-2xl border text-left transition-all duration-300 flex items-center justify-between cursor-pointer ${
-                activeArtwork === 'plexus'
-                  ? 'bg-cyan-500/20 border-[#4ee2ec] shadow-[0_0_25px_rgba(78,226,236,0.35)] ring-2 ring-[#4ee2ec]/50'
-                  : 'bg-white/[0.03] border-white/10 hover:border-white/30 hover:bg-white/[0.06]'
-              }`}
-            >
-              <div className="flex items-center gap-3.5">
-                <span className="text-3xl">✨</span>
-                <div>
-                  <div className="text-base font-bold text-white tracking-wide flex items-center gap-2">
-                    <span>Plexus</span>
-                    {activeArtwork === 'plexus' && (
-                      <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#4ee2ec] text-black">
-                        Aktiv
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-white/60 font-light mt-0.5">
-                    Kosmische Netzwerke & Gravitationsfelder
-                  </div>
-                </div>
-              </div>
-              <span className={`w-3 h-3 rounded-full border transition-all ${
-                activeArtwork === 'plexus' 
-                  ? 'border-[#4ee2ec] bg-[#4ee2ec] shadow-[0_0_10px_#4ee2ec]' 
-                  : 'border-white/30'
-              }`} />
-            </button>
-
-          </div>
         </div>
 
         {/* Mode Selection (Testmodus vs. Souvenirmodus) */}
@@ -216,18 +127,17 @@ export function ExperienceStation({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             {/* Testmodus Card */}
-            <button
-              type="button"
+            <div
               onClick={() => setActiveMode('test')}
               className={`p-5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between gap-3 cursor-pointer ${
                 activeMode === 'test'
-                  ? 'bg-cyan-500/15 border-[#4ee2ec] shadow-[0_0_25px_rgba(78,226,236,0.3)]'
+                  ? 'bg-cyan-500/15 border-[#4ee2ec] shadow-[0_0_25px_rgba(78,226,236,0.3)] ring-1 ring-[#4ee2ec]/40'
                   : 'bg-white/[0.03] border-white/10 hover:border-white/30 hover:bg-white/[0.06]'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold tracking-wider uppercase text-[#4ee2ec]">
-                  🤝 Testmodus
+                <span className="text-sm font-bold tracking-wider uppercase text-[#4ee2ec] flex items-center gap-2">
+                  <span>🤝</span> Testmodus
                 </span>
                 {activeMode === 'test' && (
                   <span className="w-2.5 h-2.5 rounded-full bg-[#4ee2ec] shadow-[0_0_10px_#4ee2ec]" />
@@ -236,21 +146,20 @@ export function ExperienceStation({
               <p className="text-xs text-white/75 leading-relaxed font-light">
                 Freies, unbegrenztes Erkunden und Zeichnen. Ideal zum Kennenlernen allein oder zu zweit.
               </p>
-            </button>
+            </div>
 
             {/* Souvenirmodus Card */}
-            <button
-              type="button"
+            <div
               onClick={() => setActiveMode('souvenir')}
               className={`p-5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between gap-3 cursor-pointer ${
                 activeMode === 'souvenir'
-                  ? 'bg-pink-500/15 border-[#ff2a9d] shadow-[0_0_25px_rgba(255,42,157,0.3)]'
+                  ? 'bg-pink-500/15 border-[#ff2a9d] shadow-[0_0_25px_rgba(255,42,157,0.3)] ring-1 ring-[#ff2a9d]/40'
                   : 'bg-white/[0.03] border-white/10 hover:border-white/30 hover:bg-white/[0.06]'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold tracking-wider uppercase text-[#ff80df]">
-                  🎨 Souvenirmodus
+                <span className="text-sm font-bold tracking-wider uppercase text-[#ff80df] flex items-center gap-2">
+                  <span>🎨</span> Souvenirmodus
                 </span>
                 {activeMode === 'souvenir' && (
                   <span className="w-2.5 h-2.5 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d]" />
@@ -259,12 +168,12 @@ export function ExperienceStation({
               <p className="text-xs text-white/75 leading-relaxed font-light">
                 Gezielte Interaktionsphase mit anschließendem 14s Video-Souvenir eurer Schöpfung.
               </p>
-            </button>
+            </div>
 
           </div>
         </div>
 
-        {/* Collaboration Invite (If Host & Testmodus) */}
+        {/* Collaboration Invite (Host & Testmodus only) */}
         {isHost && activeMode === 'test' && (
           <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 flex flex-col gap-3">
             <div className="flex items-center justify-between text-xs">
@@ -316,19 +225,28 @@ export function ExperienceStation({
           </div>
         )}
 
-        {/* Main Action Start Button */}
+        {/* Main Action Start Buttons: Non-dynamic, direct execution */}
         <div>
           {isHost ? (
-            <button
-              type="button"
-              onClick={handleStartArtwork}
-              className="w-full py-5 px-8 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#4ee2ec] shadow-[0_10px_35px_rgba(255,42,157,0.5),0_0_20px_rgba(78,226,236,0.3)] hover:shadow-[0_15px_45px_rgba(255,42,157,0.7),0_0_30px_rgba(78,226,236,0.6)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
-            >
-              <FiPlay className="w-5 h-5 fill-current" />
-              <span>
-                {activeArtwork === 'bluten' ? '🌸 Sumi-e' : '✨ Plexus'} {activeMode === 'souvenir' ? 'Souvenirmodus' : 'Testmodus'} starten
-              </span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                type="button"
+                onClick={() => handleStartArtwork('test')}
+                className="flex-1 py-5 px-6 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#06b6d4] via-[#0284c7] to-[#4ee2ec] shadow-[0_10px_35px_rgba(78,226,236,0.45)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.7)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
+              >
+                <FiPlay className="w-5 h-5 fill-current" />
+                <span>Testmodus starten</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleStartArtwork('souvenir')}
+                className="flex-1 py-5 px-6 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#7928ca] shadow-[0_10px_35px_rgba(255,42,157,0.45)] hover:shadow-[0_15px_45px_rgba(255,42,157,0.7)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
+              >
+                <FiPlay className="w-5 h-5 fill-current" />
+                <span>Souvenirmodus starten</span>
+              </button>
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
               {!isJoined ? (

@@ -7,6 +7,7 @@ import { StorySection } from './StorySection';
 import { ExperienceStation } from './ExperienceStation';
 import { PhysicalCubeSection } from './PhysicalCubeSection';
 import { RoadmapSection } from './RoadmapSection';
+import { NewsletterSection } from './NewsletterSection';
 import { OnepagerFooter } from './OnepagerFooter';
 import WalletUnavailableModal from '../WalletUnavailableModal';
 
@@ -31,7 +32,6 @@ export function OnepagerView({
   onStart,
   isJoined,
 }: OnepagerViewProps) {
-  const [activeArtwork, setActiveArtwork] = useState<'bluten' | 'plexus'>('bluten');
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,17 +107,18 @@ export function OnepagerView({
         sessionId={sessionId}
         isJoined={isJoined}
         onJoin={onJoin}
-        activeArtwork={activeArtwork}
-        onSelectArtwork={setActiveArtwork}
         onStart={onStart}
         showToast={showToast}
       />
 
-      {/* 6. Physical Cube Section */}
+      {/* 5. Physical Cube Section */}
       <PhysicalCubeSection />
 
-      {/* 7. Roadmap Section */}
+      {/* 6. Roadmap Section */}
       <RoadmapSection />
+
+      {/* 7. Newsletter Section */}
+      <NewsletterSection />
 
       {/* 8. Footer */}
       <OnepagerFooter onScrollToTop={() => handleNavigateTo('top')} />

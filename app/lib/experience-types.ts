@@ -2,7 +2,7 @@ import type { MutableRefObject, ComponentType } from 'react';
 import type { PeerMessage } from './types';
 
 export interface ExperienceRendererAPI {
-  start: (mode?: 'bluten' | 'plexus' | string) => void;
+  start: (mode?: 'bluten' | 'plexus' | string, expMode?: 'test' | 'souvenir') => void;
   handlePeerMessage?: (msg: PeerMessage) => void;
 }
 

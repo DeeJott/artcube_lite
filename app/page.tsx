@@ -49,7 +49,7 @@ function ArtCubeApp() {
     setElapsed(0);
     elapsedRef.current = 0;
     setTimeout(() => {
-      rendererApiRef.current?.start?.(targetMode);
+      rendererApiRef.current?.start?.(targetMode, expMode);
     }, 50);
   }, []);
 
