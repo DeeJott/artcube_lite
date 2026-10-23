@@ -1,6 +1,6 @@
 'use client';
 
-import { FiSmartphone, FiMonitor, FiVideo, FiMaximize2, FiCpu, FiRadio } from 'react-icons/fi';
+import { FiUsers, FiMonitor, FiVideo, FiMaximize2, FiSmartphone, FiCpu } from 'react-icons/fi';
 
 export function StorySection() {
   return (
@@ -18,7 +18,7 @@ export function StorySection() {
           </span>
         </h2>
         <p className="mt-4 text-sm sm:text-base text-white/75 font-light leading-relaxed">
-          Mit artcube wird Kunst für dich zu einem kreativen und interaktiven Erlebnis, das du gemeinsam mit anderen teilen kannst. Unsere Kunstwerke starten zuerst weltweit im Browser — später entstehen begehbare, immersive Räume, in denen ihr zusammen die Kunst mit euren Smartphones steuert.
+          Mit <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span> wird Kunst für dich zu einem kreativen und interaktiven Erlebnis, das du gemeinsam mit anderen teilen kannst. Unsere Kunstwerke starten zuerst weltweit im Browser — später entstehen begehbare, immersive Orte, in denen ihr zusammen die Kunst mit euren Smartphones steuert.
         </p>
       </div>
 
@@ -42,13 +42,13 @@ export function StorySection() {
               Der digitale Prototyp
             </h3>
             <p className="text-sm text-white/80 leading-relaxed mb-6 font-light">
-              Die erste interaktive Kunstplattform direkt in deinem Browser. Keine Apps, kein Download — pure Co-Creation in Echtzeit.
+              Die erste interaktive Kunstplattform direkt in deinem Browser. Keine Apps, kein Download — du startest direkt mit dem Kunstwerk.
             </p>
 
             <ul className="space-y-4">
               <li className="flex items-start gap-3.5">
                 <div className="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0 text-[#ff80df] mt-0.5">
-                  <FiSmartphone className="w-4 h-4" />
+                  <FiUsers className="w-4 h-4" />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-white">Allein oder zu zweit erleben</h4>
@@ -83,14 +83,9 @@ export function StorySection() {
               </li>
             </ul>
           </div>
-
-          <div className="mt-8 pt-5 border-t border-white/10 flex items-center justify-between text-xs text-pink-200/80">
-            <span>Plattform: WebGL & WebRTC</span>
-            <span className="font-semibold text-[#ff80df]">Kostenlos testen ↓</span>
-          </div>
         </div>
 
-        {/* Card 2: Der artcube. Loading... */}
+        {/* Card 2: Der art.cube. Loading... */}
         <div className="relative rounded-[32px] p-7 sm:p-10 bg-[rgba(18,12,28,0.85)] border border-cyan-500/30 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(78,226,236,0.15)] flex flex-col justify-between overflow-hidden group hover:border-cyan-500/60 transition-all duration-300">
           <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
 
@@ -105,7 +100,7 @@ export function StorySection() {
 
             <div className="flex items-baseline gap-2 mb-3">
               <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wide">
-                Der artcube.
+                Der art.cube.
               </h3>
               <span className="text-sm sm:text-base font-semibold text-cyan-300 tracking-wider">
                 Loading...
@@ -118,7 +113,7 @@ export function StorySection() {
             </div>
 
             <p className="text-sm text-white/80 leading-relaxed mb-6 font-light">
-              Die physische Vollendung: Ein begehbarer Raum für Kunstliebhaber, in dem ihr die Dimensionen der digitalen Kunst physisch betretet.
+              Kunstwerke in 360°-Projektion, in der ihr mit Kunstwerken interagiert die euch komplett umgeben.
             </p>
 
             <ul className="space-y-4">
@@ -136,7 +131,7 @@ export function StorySection() {
 
               <li className="flex items-start gap-3.5">
                 <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shrink-0 text-[#4ee2ec] mt-0.5">
-                  <FiRadio className="w-4 h-4" />
+                  <FiSmartphone className="w-4 h-4" />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-white">Smartphone als magischer Controller</h4>
@@ -158,11 +153,6 @@ export function StorySection() {
                 </div>
               </li>
             </ul>
-          </div>
-
-          <div className="mt-8 pt-5 border-t border-white/10 flex items-center justify-between text-xs text-cyan-200/80">
-            <span>Vision: Physischer Erlebnisraum</span>
-            <span className="font-semibold text-[#4ee2ec]">2026/2027</span>
           </div>
         </div>
 

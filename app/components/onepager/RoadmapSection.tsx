@@ -21,7 +21,7 @@ export function RoadmapSection() {
       statusColor: 'pink',
       title: 'Physischer Prototyp & Test-Setup',
       description:
-        'Test und Präsentation eines ersten physischen Prototypen. Ein simples, wirkungsvolles Setup für die erste echte Real Life-Erfahrung mit artcube und Smartphone-Steuerung.',
+        'Test und Präsentation eines ersten physischen Prototypen. Ein simples, wirkungsvolles Setup für die erste echte Real Life-Erfahrung mit art.cube und Smartphone-Steuerung.',
       badge: 'In Entwicklung',
     },
     {
@@ -29,9 +29,9 @@ export function RoadmapSection() {
       status: '2027',
       statusLabel: '2027',
       statusColor: 'cyan',
-      title: 'Der erste vollwertige artcube',
+      title: 'Der erste vollwertige art.cube',
       description:
-        'Planung, Konstruktion und Eröffnung des ersten maßgeschneiderten, begehbaren 360°-artcubes für immersive Ausstellungsevents und kollektive Kunsterlebnisse.',
+        'Planung, Konstruktion und Eröffnung des ersten maßgeschneiderten, begehbaren 360°-art.cubes für immersive Ausstellungsevents und kollektive Kunsterlebnisse.',
       badge: 'Vision 2027',
     },
   ];
@@ -50,11 +50,11 @@ export function RoadmapSection() {
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
           Die{' '}
           <span className="bg-gradient-to-r from-pink-400 via-purple-300 to-cyan-300 bg-clip-text text-transparent">
-            artcube Roadmap
+            art.cube Roadmap
           </span>
         </h2>
         <p className="mt-4 text-sm sm:text-base text-white/75 font-light leading-relaxed">
-          Vom ersten Pixel im Browser bis zum immersiven Raum: Ein klar strukturierter Pfad in die Zukunft interaktiver Kunst.
+          Vom ersten Pixel im Browser bis zum immersiven Raum: so wird art.cube Realität.
         </p>
       </div>
 

@@ -15,7 +15,7 @@ export function OnepagerHeader({ onOpenWallet, onNavigateTo }: OnepagerHeaderPro
   const navLinks = [
     { label: 'Was ist art.cube?', href: 'vision' },
     { label: 'Jetzt das Kunstwerk erleben', href: 'erleben' },
-    { label: 'Die Mission', href: 'cube' },
+    { label: 'Unsere Vision', href: 'cube' },
     { label: 'Roadmap', href: 'roadmap' },
   ];
 

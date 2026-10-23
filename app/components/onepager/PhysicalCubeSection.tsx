@@ -1,7 +1,7 @@
 'use client';
 
 import { LuBox } from 'react-icons/lu';
-import { FiUsers, FiSliders, FiEye } from 'react-icons/fi';
+import { FiUsers, FiSliders } from 'react-icons/fi';
 
 export function PhysicalCubeSection() {
   return (
@@ -13,10 +13,10 @@ export function PhysicalCubeSection() {
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-20">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-          Die Mission
+          Unsere Vision
         </div>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
-          Im artcube wirst du die{' '}
+          Im art<span className="text-[#ff2a9d]">.</span>cube wirst du die{' '}
           <span className="bg-gradient-to-r from-purple-300 via-pink-400 to-[#ff2a9d] bg-clip-text text-transparent">
             Kunstwerke vollenden
           </span>
@@ -39,7 +39,7 @@ export function PhysicalCubeSection() {
               Leichte, begehbare Kuben
             </h3>
             <p className="text-sm text-white/70 leading-relaxed font-light">
-              artcubes werden leichte Konstruktionen sein, die im Inneren verschiedene immersive Kunstwerke präsentieren und Besuchern einen geschützten Raum der Wahrnehmung eröffnen.
+              art.cubes werden leichte Konstruktionen sein, die im Inneren verschiedene immersive Kunstwerke präsentieren und Besuchenden ein einmaliges Erlebnis eröffnen.
             </p>
           </div>
           <div className="mt-6 pt-4 border-t border-white/10 text-xs font-mono text-purple-300/60">
@@ -83,13 +83,6 @@ export function PhysicalCubeSection() {
           </div>
         </div>
 
-      </div>
-
-      {/* Visual Quote Banner */}
-      <div className="mt-12 p-6 sm:p-8 rounded-[28px] bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-500/10 border border-white/10 backdrop-blur-xl text-center">
-        <p className="text-base sm:text-lg text-white/90 font-light italic max-w-3xl mx-auto leading-relaxed">
-          „Kunst ist nicht mehr nur ein Objekt an der Wand, das man betrachtet — sie wird zu einem lebendigen Organismus, den man gemeinsam betritt und zum Blühen bringt.“
-        </p>
       </div>
 
     </section>

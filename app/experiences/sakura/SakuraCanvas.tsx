@@ -4175,8 +4175,11 @@ export function SakuraCanvas({
         />
       </div>
 
-      {/* Toast Notification Message */}
-      {toastMessage && (
+      {/* HUD Layer, Modals & Controls are ONLY rendered when artwork session is running */}
+      {isRunning && (
+        <>
+          {/* Toast Notification Message */}
+          {toastMessage && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-[#120c1c]/90 text-white text-xs font-semibold tracking-wider px-6 py-2.5 rounded-full border border-[#4ee2ec]/60 backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.5)] animate-pulse z-50 pointer-events-none uppercase">
           {toastMessage}
         </div>
@@ -4698,6 +4701,8 @@ export function SakuraCanvas({
             <span>Nochmal „Zurück“ wischen, um die Session zu beenden</span>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

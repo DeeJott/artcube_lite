@@ -1,6 +1,6 @@
 'use client';
 
-import { FiArrowDown, FiCompass, FiGlobe, FiUsers, FiBox } from 'react-icons/fi';
+import { FiArrowDown, FiCompass } from 'react-icons/fi';
 
 interface HeroSectionProps {
   onNavigateTo: (id: string) => void;
@@ -25,7 +25,7 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
 
         {/* Lead Text */}
         <p className="max-w-2xl text-base sm:text-xl text-white/85 font-light leading-relaxed tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
-          Mit artcube werden Kunstwerke lebendig. Entdeckt SAKURAVERSE allein oder gemeinsam und erstellt dabei eure eigenen Souvenirs.
+          Mit <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span> werden Kunstwerke lebendig. Entdeckt SAKURAVERSE allein oder gemeinsam und erstellt dabei eure eigenen Souvenirs.
         </p>
 
         {/* Action Buttons */}
@@ -45,41 +45,8 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
             className="w-full sm:w-auto px-7 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-white/90 bg-white/[0.06] border border-white/20 backdrop-blur-md hover:bg-white/[0.12] hover:border-pink-500/50 hover:text-white hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
           >
             <FiCompass className="w-4 h-4 text-[#ff80df]" />
-            <span>artcube entdecken</span>
+            <span>art<span className="text-[#ff2a9d]">.</span>cube entdecken</span>
           </button>
-        </div>
-
-        {/* Feature Badges */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-8 w-full max-w-3xl">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[rgba(18,12,28,0.7)] border border-white/10 backdrop-blur-md shadow-lg text-left">
-            <div className="w-9 h-9 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0 text-[#ff80df]">
-              <FiGlobe className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-white">100% Browserbasiert</span>
-              <span className="text-[10px] text-white/60">Keine Installation & Echtzeit</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[rgba(18,12,28,0.7)] border border-white/10 backdrop-blur-md shadow-lg text-left">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shrink-0 text-[#4ee2ec]">
-              <FiUsers className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-white">Kollaborativer Modus</span>
-              <span className="text-[10px] text-white/60">Über PC und Smartphone</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[rgba(18,12,28,0.7)] border border-white/10 backdrop-blur-md shadow-lg text-left">
-            <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0 text-[#c084fc]">
-              <FiBox className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-white">Digitale Souvenirs</span>
-              <span className="text-[10px] text-white/60">Erstelle ein &quot;unzerstörbares&quot; Souvenir</span>
-            </div>
-          </div>
         </div>
 
       </div>
