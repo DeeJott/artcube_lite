@@ -5,7 +5,6 @@ import { OnepagerHeader } from './OnepagerHeader';
 import { HeroSection } from './HeroSection';
 import { StorySection } from './StorySection';
 import { ExperienceStation } from './ExperienceStation';
-import { PhysicalCubeSection } from './PhysicalCubeSection';
 import { RoadmapSection } from './RoadmapSection';
 import { NewsletterSection } from './NewsletterSection';
 import { OnepagerFooter } from './OnepagerFooter';
@@ -111,10 +110,7 @@ export function OnepagerView({
         showToast={showToast}
       />
 
-      {/* 5. Physical Cube Section */}
-      <PhysicalCubeSection />
-
-      {/* 6. Roadmap Section */}
+      {/* 5. Roadmap Section */}
       <RoadmapSection />
 
       {/* 7. Newsletter Section */}

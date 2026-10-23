@@ -16,16 +16,14 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
       <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8">
         
         {/* Main Headline */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.08] drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
-          Art in{' '}
-          <span className="bg-gradient-to-r from-white via-[#ff80df] to-[#ff2a9d] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,42,157,0.6)]">
-            Connection
-          </span>
+        <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight text-white leading-[1.05] drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
+          art<span className="text-[#ff2a9d] drop-shadow-[0_0_35px_rgba(255,42,157,0.8)]">.</span>cube
         </h1>
 
         {/* Lead Text */}
-        <p className="max-w-2xl text-base sm:text-xl text-white/85 font-light leading-relaxed tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
-          Mit <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span> werden Kunstwerke lebendig. Entdeckt SAKURAVERSE allein oder gemeinsam und erstellt dabei eure eigenen Souvenirs.
+        <p className="max-w-2xl text-base sm:text-xl text-white/90 font-light leading-relaxed tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
+          Kunst wird digital. Kunst wird lebendig.<br className="hidden sm:inline" />
+          Entdecke Sakuraverse, das <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span>-Kunstwerk der ersten Generation und erlebe, wie die Pixel vor dir zur Leinwand werden.
         </p>
 
         {/* Action Buttons */}
@@ -35,13 +33,13 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
             onClick={() => onNavigateTo('erleben')}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#06b6d4] shadow-[0_10px_35px_rgba(255,42,157,0.45)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.6)] hover:-translate-y-0.5 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
           >
-            <span>Kunstwerk jetzt erleben</span>
+            <span>Jetzt das Kunstwerk erleben</span>
             <FiArrowDown className="w-4 h-4 animate-bounce" />
           </button>
 
           <button
             type="button"
-            onClick={() => onNavigateTo('cube')}
+            onClick={() => onNavigateTo('vision')}
             className="w-full sm:w-auto px-7 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-white/90 bg-white/[0.06] border border-white/20 backdrop-blur-md hover:bg-white/[0.12] hover:border-pink-500/50 hover:text-white hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
           >
             <FiCompass className="w-4 h-4 text-[#ff80df]" />

@@ -134,6 +134,7 @@ const bgFragmentShader = /* glsl */ `
   uniform vec3 uBgColor3;
   uniform vec3 uRippleCrest;
   uniform float uBgBlend;
+  uniform float uBgDim;
   varying vec2 vUv;
 
   float noise(in vec2 x) {
@@ -235,7 +236,7 @@ const bgFragmentShader = /* glsl */ `
     }
 
     float vignetteVal = max(0.0, 70.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y));
-    col *= 0.80 * (0.70 + 0.65 * sqrt(vignetteVal));
+    col *= (0.80 * (0.70 + 0.65 * sqrt(vignetteVal))) * uBgDim;
     
     gl_FragColor = vec4(col, 1.0);
   }
@@ -630,7 +631,7 @@ const fractalOrbFragmentShader = /* glsl */ `
     float alpha = clamp(maxLuma * 1.6, 0.0, 1.0) * edgeAA * uAlpha;
     
     if (alpha < 0.005) discard;
-    gl_FragColor = vec4(finalColor * 1.35, alpha);
+    gl_FragColor = vec4(finalColor * 1.65, alpha);
   }
 `;
 
@@ -686,70 +687,70 @@ const FRACTAL_ORB_PRESETS: Record<BlossomColorId, {
   pink: {
     primary: '#ff1a8c',
     secondary: '#ff99e6',
-    density: 2.6,
+    density: 3.0,
     speed: 0.55,
     fractalIters: 4,
     fractalScale: 0.95,
     fractalDecay: -16.7,
     smoothness: 0.031,
     asymmetry: 0.48,
-    atmosphereGlow: 0.85,
+    atmosphereGlow: 1.5,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   red: {
     primary: '#ff2244',
     secondary: '#ff8800',
-    density: 2.6,
+    density: 3.0,
     speed: 0.55,
     fractalIters: 4,
     fractalScale: 0.95,
     fractalDecay: -16.7,
     smoothness: 0.031,
     asymmetry: 0.48,
-    atmosphereGlow: 0.85,
+    atmosphereGlow: 1.5,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   blue: {
     primary: '#00b3ff',
     secondary: '#6e00ff',
-    density: 2.6,
+    density: 3.0,
     speed: 0.55,
     fractalIters: 4,
     fractalScale: 0.95,
     fractalDecay: -16.7,
     smoothness: 0.031,
     asymmetry: 0.48,
-    atmosphereGlow: 0.85,
+    atmosphereGlow: 1.5,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   green: {
     primary: '#00e676',
     secondary: '#0062ff',
-    density: 2.6,
+    density: 3.0,
     speed: 0.55,
     fractalIters: 4,
     fractalScale: 0.95,
     fractalDecay: -16.7,
     smoothness: 0.031,
     asymmetry: 0.48,
-    atmosphereGlow: 0.85,
+    atmosphereGlow: 1.5,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   },
   yellow: {
     primary: '#ffbb00',
     secondary: '#ff7700',
-    density: 2.6,
+    density: 3.0,
     speed: 0.55,
     fractalIters: 4,
     fractalScale: 0.95,
     fractalDecay: -16.7,
     smoothness: 0.031,
     asymmetry: 0.48,
-    atmosphereGlow: 0.85,
+    atmosphereGlow: 1.5,
     atmosphereLevel: 1.0,
     atmosphereScale: 1.03
   }
@@ -1379,6 +1380,7 @@ export function SakuraCanvas({
   const isPausedRef = useRef(isPaused);
   const selectedColorRef = useRef(selectedColor);
   const currentPhaseRef = useRef(currentPhase);
+  const currentRoundRef = useRef(currentRound);
 
   const colorCountsRef = useRef<Record<BlossomColorId, number>>({
     pink: 0,
@@ -1392,6 +1394,7 @@ export function SakuraCanvas({
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
   useEffect(() => { currentPhaseRef.current = currentPhase; }, [currentPhase]);
+  useEffect(() => { currentRoundRef.current = currentRound; }, [currentRound]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -1787,7 +1790,8 @@ export function SakuraCanvas({
       uBgColor2: { value: new THREE.Vector3(0.74, 0.00, 0.36) },
       uBgColor3: { value: new THREE.Vector3(0.80, 0.04, 0.44) },
       uRippleCrest: { value: new THREE.Vector3(1.0, 0.4, 0.8) },
-      uBgBlend: { value: 0.0 }
+      uBgBlend: { value: 0.0 },
+      uBgDim: { value: 1.0 }
     };
 
     const bgMat = new THREE.ShaderMaterial({
@@ -1907,6 +1911,17 @@ export function SakuraCanvas({
     let growthProgressVal = 0.0;
     const growthDurationSeconds = 6.0;
 
+    // Sumi-e Step-by-Step Round Lifecycle Timers
+    const ROUND_ACTIVE_TIME_DEFAULT = 5.0; // 5.0s active interaction window for user
+    const ROUND_FADE_TIME = 1.0;           // 1.0s unclicked orbs fade out gently
+    const ROUND_PAUSE_TIME = 0.8;          // 0.8s pause to let branches settle before next round
+    const TRUNK_POST_DELAY = 2.0;          // 2.0s pause after trunk completes before round 1
+    let roundState: 'IDLE' | 'ACTIVE' | 'FADING' | 'PAUSE' = 'IDLE';
+    let roundTimer = 0.0;
+    let trunkPostDelayTimer = 0.0;
+    let currentRoundNum = 1;
+    let currentPhaseName: 'BRANCH' | 'BLOSSOM' | 'VORTEX' | 'DONE' = 'BRANCH';
+
     // 14-Second Dominant Color Vortex State (4s alignment + 10s storm)
     let isVortexActive = false;
     let vortexTimer = 0.0;
@@ -1945,6 +1960,10 @@ export function SakuraCanvas({
       vortexTimer = 0.0;
       activePetalCount = vortexPetalLimit;
       instancedPetalMesh.visible = true;
+
+      roundState = 'IDLE';
+      currentPhaseName = 'VORTEX';
+      currentPhaseRef.current = 'VORTEX';
       setCurrentPhase('VORTEX');
 
       const bgPal = BG_COLOR_PALETTES.default;
@@ -1958,12 +1977,21 @@ export function SakuraCanvas({
         bgUniforms.uRippleTime.value = 0.0;
       }
 
-      showToast('🌸 10s Blüten-Vortex aktiviert!');
+      showToastRef.current?.('🌸 14s Blüten-Vortex aktiviert!');
     };
 
     const spawnOrbRound = (roundNum: number, phase: 'BRANCH' | 'BLOSSOM') => {
-      setCurrentPhase(phase);
+      currentRoundNum = roundNum;
+      currentRoundRef.current = roundNum;
       setCurrentRound(roundNum);
+
+      currentPhaseName = phase;
+      currentPhaseRef.current = phase;
+      setCurrentPhase(phase);
+
+      roundState = 'ACTIVE';
+      roundTimer = 0.0;
+
       activeOrbs.forEach(o => o.destroy(orbGroup));
       activeOrbs.length = 0;
 
@@ -1974,6 +2002,7 @@ export function SakuraCanvas({
           for (let i = 0; i < numOrbs; i++) {
             const t = 0.25 + Math.random() * 0.60;
             const orb = new OrbNode(orbGroup, bInfo, bInfo.level, roundNum, t, 'branch');
+            orb.setAlpha(0.0);
             activeOrbs.push(orb);
           }
         });
@@ -1983,11 +2012,10 @@ export function SakuraCanvas({
           const bInfo = allBranches[i % allBranches.length];
           const t = 0.20 + Math.random() * 0.70;
           const orb = new OrbNode(orbGroup, bInfo, bInfo.level, roundNum, t, 'blossom');
+          orb.setAlpha(0.0);
           activeOrbs.push(orb);
         }
       }
-
-      activeOrbs.forEach(o => o.setAlpha(0.95));
     };
 
     const spawnSubBranchFromOrb = (orb: OrbNode) => {
@@ -2188,10 +2216,11 @@ export function SakuraCanvas({
           vec2 p = gl_PointCoord - vec2(0.5);
           float d = length(p);
           if (d > 0.5) discard;
-          float starVal = pow(clamp(1.0 - abs(p.x) * 2.0, 0.0, 1.0) * clamp(1.0 - abs(p.y) * 2.0, 0.0, 1.0), 3.0);
-          float softCore = exp(-d * d * 18.0);
-          float intensity = max(starVal * 1.5, softCore * 1.2);
-          gl_FragColor = vec4(vColor, intensity * 0.95 * uAlpha);
+          float starVal = pow(clamp(1.0 - abs(p.x) * 2.0, 0.0, 1.0) * clamp(1.0 - abs(p.y) * 2.0, 0.0, 1.0), 2.5);
+          float softCore = exp(-d * d * 14.0);
+          float intensity = max(starVal * 2.2, softCore * 1.8);
+          vec3 brightColor = vColor * 1.45 + vec3(0.55) * starVal + vec3(0.35) * softCore;
+          gl_FragColor = vec4(brightColor, clamp(intensity * 1.25 * uAlpha, 0.0, 1.0));
         }
       `,
       transparent: true,
@@ -2575,100 +2604,91 @@ export function SakuraCanvas({
             this.hasCapturedPreFinale = true;
           }
 
-          if (this.attachedPlexusCount > 0) {
-            const orbitRadius = 180.0;
-            const angle = time * 1.14 + (this.orbIndex * ((Math.PI * 2) / 5));
-            const targetOrbitX = Math.cos(angle) * orbitRadius;
-            const targetOrbitY = Math.sin(angle) * orbitRadius * 0.75;
-            const targetOrbitZ = Math.sin(angle * 2.0) * 35.0;
+          const orbitRadius = 180.0;
+          const angle = time * 1.14 + (this.orbIndex * ((Math.PI * 2) / 5));
+          const targetOrbitX = Math.cos(angle) * orbitRadius;
+          const targetOrbitY = Math.sin(angle) * orbitRadius * 0.75;
+          const targetOrbitZ = Math.sin(angle * 2.0) * 35.0;
 
-            this.x = THREE.MathUtils.lerp(this.x, targetOrbitX, 0.08);
-            this.y = THREE.MathUtils.lerp(this.y, targetOrbitY, 0.08);
-            this.z = THREE.MathUtils.lerp(this.z, targetOrbitZ, 0.08);
+          this.x = THREE.MathUtils.lerp(this.x, targetOrbitX, 0.08);
+          this.y = THREE.MathUtils.lerp(this.y, targetOrbitY, 0.08);
+          this.z = THREE.MathUtils.lerp(this.z, targetOrbitZ, 0.08);
 
-            this.material.uniforms.uAlpha.value = THREE.MathUtils.lerp(this.material.uniforms.uAlpha.value, 0.95 * modeFadeAlpha, 0.1);
-            this.atmosphereMaterial.uniforms.uAlpha.value = this.material.uniforms.uAlpha.value;
-            this.mesh.visible = (activeModeRef.current === 'plexus');
+          this.material.uniforms.uAlpha.value = THREE.MathUtils.lerp(this.material.uniforms.uAlpha.value, 1.0 * modeFadeAlpha, 0.1);
+          this.atmosphereMaterial.uniforms.uAlpha.value = 1.0 * modeFadeAlpha;
+          this.atmosphereMaterial.uniforms.uGlow.value = 3.2; // Extra radiant atmosphere in finale
+          this.mesh.visible = (activeModeRef.current === 'plexus');
 
-            // Starburst & Ribbon Trail in Finale
-            const finaleAlpha = 0.95 * modeFadeAlpha;
-            const effectiveShine = 36.0;
-            this.starSprite.scale.set(effectiveShine, effectiveShine, 1.0);
-            this.starSprite.visible = (activeModeRef.current === 'plexus');
-            this.starSprite.material.opacity = modeFadeAlpha;
+          // Starburst & Ribbon Trail in Finale
+          const finaleAlpha = 1.0 * modeFadeAlpha;
+          const effectiveShine = 48.0;
+          this.starSprite.scale.set(effectiveShine, effectiveShine, 1.0);
+          this.starSprite.visible = (activeModeRef.current === 'plexus');
+          this.starSprite.material.opacity = modeFadeAlpha;
 
-            this.trailHistory.unshift({ x: this.x, y: this.y, z: this.z });
-            if (this.trailHistory.length > this.trailLength) this.trailHistory.pop();
+          this.trailHistory.unshift({ x: this.x, y: this.y, z: this.z });
+          if (this.trailHistory.length > this.trailLength) this.trailHistory.pop();
 
-            if (this.trailRibbonMesh && this.trailRibbonGeo) {
-              const effectiveTailFactor = 1.0;
-              const hasTrail = (activeModeRef.current === 'plexus') && this.trailHistory.length >= 3;
-              this.trailRibbonMesh.visible = hasTrail;
-              this.trailRibbonMat.uniforms.uAlpha.value = finaleAlpha;
+          if (this.trailRibbonMesh && this.trailRibbonGeo) {
+            const effectiveTailFactor = 1.0;
+            const hasTrail = (activeModeRef.current === 'plexus') && this.trailHistory.length >= 3;
+            this.trailRibbonMesh.visible = hasTrail;
+            this.trailRibbonMat.uniforms.uAlpha.value = finaleAlpha;
 
-              if (hasTrail) {
-                const activeCount = Math.max(6, Math.floor(effectiveTailFactor * this.trailHistory.length));
-                const activePts = [];
-                for (let h = 0; h < activeCount; h++) {
-                  const pt = this.trailHistory[h];
-                  if (pt) activePts.push(new THREE.Vector3(pt.x, pt.y, pt.z));
+            if (hasTrail) {
+              const activeCount = Math.max(6, Math.floor(effectiveTailFactor * this.trailHistory.length));
+              const activePts = [];
+              for (let h = 0; h < activeCount; h++) {
+                const pt = this.trailHistory[h];
+                if (pt) activePts.push(new THREE.Vector3(pt.x, pt.y, pt.z));
+              }
+
+              if (activePts.length >= 2) {
+                const spline = new THREE.CatmullRomCurve3(activePts, false, 'centripetal', 0.5);
+                const samples = spline.getSpacedPoints(this.ribbonSamples - 1);
+                const rPositions = this.trailRibbonGeo.attributes.position.array as Float32Array;
+                const camPos = camera ? camera.position : { x: 0, y: 0, z: 540 };
+                const BASE_RIBBON_WIDTH = 28.0 * Math.min(1.0, effectiveTailFactor * 1.5);
+
+                for (let s = 0; s < this.ribbonSamples; s++) {
+                  const curP = samples[s];
+                  const prevP = samples[Math.max(0, s - 1)];
+                  const nextP = samples[Math.min(this.ribbonSamples - 1, s + 1)];
+
+                  let tx = nextP.x - prevP.x;
+                  let ty = nextP.y - prevP.y;
+                  let tz = nextP.z - prevP.z;
+                  const tLen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1.0;
+                  tx /= tLen; ty /= tLen; tz /= tLen;
+
+                  let vx = camPos.x - curP.x;
+                  let vy = camPos.y - curP.y;
+                  let vz = camPos.z - curP.z;
+                  const vLen = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1.0;
+                  vx /= vLen; vy /= vLen; vz /= vLen;
+
+                  let nx = ty * vz - tz * vy;
+                  let ny = tz * vx - tx * vz;
+                  let nz = tx * vy - ty * vx;
+                  const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1.0;
+                  nx /= nLen; ny /= nLen; nz /= nLen;
+
+                  const normS = s / (this.ribbonSamples - 1);
+                  const w = BASE_RIBBON_WIDTH * Math.pow(Math.max(0.0, 1.0 - normS), 0.92);
+
+                  const vIdx = s * 6;
+                  rPositions[vIdx]     = curP.x + nx * w;
+                  rPositions[vIdx + 1] = curP.y + ny * w;
+                  rPositions[vIdx + 2] = curP.z + nz * w;
+
+                  rPositions[vIdx + 3] = curP.x - nx * w;
+                  rPositions[vIdx + 4] = curP.y - ny * w;
+                  rPositions[vIdx + 5] = curP.z - nz * w;
                 }
 
-                if (activePts.length >= 2) {
-                  const spline = new THREE.CatmullRomCurve3(activePts, false, 'centripetal', 0.5);
-                  const samples = spline.getSpacedPoints(this.ribbonSamples - 1);
-                  const rPositions = this.trailRibbonGeo.attributes.position.array as Float32Array;
-                  const camPos = camera ? camera.position : { x: 0, y: 0, z: 540 };
-                  const BASE_RIBBON_WIDTH = 25.0 * Math.min(1.0, effectiveTailFactor * 1.5);
-
-                  for (let s = 0; s < this.ribbonSamples; s++) {
-                    const curP = samples[s];
-                    const prevP = samples[Math.max(0, s - 1)];
-                    const nextP = samples[Math.min(this.ribbonSamples - 1, s + 1)];
-
-                    let tx = nextP.x - prevP.x;
-                    let ty = nextP.y - prevP.y;
-                    let tz = nextP.z - prevP.z;
-                    const tLen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1.0;
-                    tx /= tLen; ty /= tLen; tz /= tLen;
-
-                    let vx = camPos.x - curP.x;
-                    let vy = camPos.y - curP.y;
-                    let vz = camPos.z - curP.z;
-                    const vLen = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1.0;
-                    vx /= vLen; vy /= vLen; vz /= vLen;
-
-                    let nx = ty * vz - tz * vy;
-                    let ny = tz * vx - tx * vz;
-                    let nz = tx * vy - ty * vx;
-                    const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1.0;
-                    nx /= nLen; ny /= nLen; nz /= nLen;
-
-                    const normS = s / (this.ribbonSamples - 1);
-                    const w = BASE_RIBBON_WIDTH * Math.pow(Math.max(0.0, 1.0 - normS), 0.92);
-
-                    const vIdx = s * 6;
-                    rPositions[vIdx]     = curP.x + nx * w;
-                    rPositions[vIdx + 1] = curP.y + ny * w;
-                    rPositions[vIdx + 2] = curP.z + nz * w;
-
-                    rPositions[vIdx + 3] = curP.x - nx * w;
-                    rPositions[vIdx + 4] = curP.y - ny * w;
-                    rPositions[vIdx + 5] = curP.z - nz * w;
-                  }
-
-                  this.trailRibbonGeo.attributes.position.needsUpdate = true;
-                }
+                this.trailRibbonGeo.attributes.position.needsUpdate = true;
               }
             }
-          } else {
-            this.material.uniforms.uAlpha.value = THREE.MathUtils.lerp(this.material.uniforms.uAlpha.value, 0.0, 0.08);
-            this.atmosphereMaterial.uniforms.uAlpha.value = this.material.uniforms.uAlpha.value;
-            if (this.material.uniforms.uAlpha.value < 0.01) {
-              this.mesh.visible = false;
-            }
-            if (this.trailRibbonMesh) this.trailRibbonMesh.visible = false;
-            if (this.starSprite) this.starSprite.visible = false;
           }
         } else {
           if (this.trailRibbonMesh) this.trailRibbonMesh.visible = false;
@@ -3108,33 +3128,18 @@ export function SakuraCanvas({
         }
 
         if (hit) {
-          const curPh = currentPhaseRef.current;
-          if (curPh === 'BRANCH') {
+          if (currentPhaseName === 'BRANCH') {
             spawnSubBranchFromOrb(orb);
-          } else if (curPh === 'BLOSSOM') {
+          } else if (currentPhaseName === 'BLOSSOM') {
             spawnBlossomClusterFromOrb(orb);
           }
 
-          showToast('🌸 Interaktiver Knotenpunkt aktiviert!');
+          showToastRef.current?.('🌸 Interaktiver Knotenpunkt aktiviert!');
 
           const remainingOrbs = activeOrbs.filter(o => !o.userDrawn && !o.branchSpawned);
-          if (remainingOrbs.length === 0) {
-            setTimeout(() => {
-              if (currentPhaseRef.current === 'BRANCH') {
-                if (currentRound < maxRoundsPerPhase) {
-                  spawnOrbRound(currentRound + 1, 'BRANCH');
-                } else {
-                  spawnOrbRound(1, 'BLOSSOM');
-                  showToast('🌸 Blütenphase gestartet! Wähle rechts deine Wunschfarbe.');
-                }
-              } else if (currentPhaseRef.current === 'BLOSSOM') {
-                if (currentRound < maxRoundsPerPhase) {
-                  spawnOrbRound(currentRound + 1, 'BLOSSOM');
-                } else {
-                  startVortexFinale();
-                }
-              }
-            }, 800);
+          if (remainingOrbs.length === 0 && roundState === 'ACTIVE') {
+            roundState = 'FADING';
+            roundTimer = 0.0;
           }
           return true;
         }
@@ -3335,8 +3340,15 @@ export function SakuraCanvas({
         isTrunkGrowthFinished = false;
         growthProgressVal = 0.0;
         setIsTrunkGrowing(true);
-        setCurrentPhase('BRANCH');
+        roundState = 'IDLE';
+        roundTimer = 0.0;
+        trunkPostDelayTimer = 0.0;
+        currentRoundNum = 1;
+        currentRoundRef.current = 1;
         setCurrentRound(1);
+        currentPhaseName = 'BRANCH';
+        currentPhaseRef.current = 'BRANCH';
+        setCurrentPhase('BRANCH');
       } else {
         blutenSceneGroup.visible = false;
         plexusSceneGroup.visible = true;
@@ -3423,10 +3435,15 @@ export function SakuraCanvas({
             growthProgressVal = 1.0;
             isTrunkGrowthFinished = true;
             setIsTrunkGrowing(false);
-            spawnOrbRound(1, 'BRANCH');
-            showToast('🌱 Astphase gestartet — Klicke die Knotenpunkte!');
+            trunkPostDelayTimer = 0.0;
           }
           mainTrunkStroke.setProgress(growthProgressVal);
+        } else if (roundState === 'IDLE' && !isVortexActive && currentPhaseName === 'BRANCH' && activeOrbs.length === 0) {
+          trunkPostDelayTimer += delta;
+          if (trunkPostDelayTimer >= TRUNK_POST_DELAY) {
+            spawnOrbRound(1, 'BRANCH');
+            showToastRef.current?.('🌱 Astphase gestartet — Klicke die Knotenpunkte!');
+          }
         }
 
         // Animate Subbranches (3.0s)
@@ -3543,13 +3560,69 @@ export function SakuraCanvas({
             if (bgUniforms.uRippleTime) bgUniforms.uRippleTime.value = 0.0;
 
             markArtworkCompletedRef.current?.('bluten');
+            roundState = 'IDLE';
+            currentPhaseName = 'DONE';
+            currentPhaseRef.current = 'DONE';
             setCurrentPhase('DONE');
-            showToastRef.current?.('🌸 Blütenkunstwerk nach 10s vollendet!');
+            showToastRef.current?.('🌸 Blütenkunstwerk nach 14s vollendet!');
           }
         }
 
-        // Update active sakura branch guide orbs
-        activeOrbs.forEach(orb => orb.update(totalAnimTime, delta, modeFadeAlpha));
+        // 3-Round Step-by-Step Lifecycle for BRANCH and BLOSSOM phases
+        if (roundState !== 'IDLE') {
+          roundTimer += delta;
+          const activeTimeLimit = ROUND_ACTIVE_TIME_DEFAULT;
+
+          if (roundState === 'ACTIVE') {
+            activeOrbs.forEach(orb => {
+              if (orb.roundId === currentRoundNum && !orb.userDrawn && !orb.isExploding) {
+                orb.setAlpha(Math.min(1.0, orb.alpha + delta * 3.0));
+              }
+              orb.update(totalAnimTime, delta, modeFadeAlpha);
+            });
+
+            // Check if user activated all orbs OR if 5s active timer expired
+            const remainingUndrawn = activeOrbs.filter(o => !o.userDrawn && !o.branchSpawned);
+            if (remainingUndrawn.length === 0 || roundTimer >= activeTimeLimit) {
+              roundState = 'FADING';
+              roundTimer = 0.0;
+            }
+          } else if (roundState === 'FADING') {
+            activeOrbs.forEach(orb => {
+              if (orb.roundId === currentRoundNum && !orb.isExploding) {
+                orb.setAlpha(Math.max(0.0, orb.alpha - delta * 2.0));
+              }
+              orb.update(totalAnimTime, delta, modeFadeAlpha);
+            });
+
+            if (roundTimer >= ROUND_FADE_TIME) {
+              roundState = 'PAUSE';
+              roundTimer = 0.0;
+            }
+          } else if (roundState === 'PAUSE') {
+            activeOrbs.forEach(orb => {
+              orb.update(totalAnimTime, delta, modeFadeAlpha);
+            });
+
+            if (roundTimer >= ROUND_PAUSE_TIME) {
+              if (currentRoundNum < maxRoundsPerPhase) {
+                if (currentPhaseName === 'BRANCH' || currentPhaseName === 'BLOSSOM') {
+                  spawnOrbRound(currentRoundNum + 1, currentPhaseName);
+                }
+              } else {
+                if (currentPhaseName === 'BRANCH') {
+                  spawnOrbRound(1, 'BLOSSOM');
+                  showToastRef.current?.('🌸 Blütenphase gestartet! Wähle deine Wunschfarbe.');
+                } else if (currentPhaseName === 'BLOSSOM') {
+                  roundState = 'IDLE';
+                  startVortexFinale();
+                } else {
+                  roundState = 'IDLE';
+                }
+              }
+            }
+          }
+        }
       } else {
         // ==========================================
         // PLEXUS ENGINE UPDATE LOOP
@@ -3616,6 +3689,11 @@ export function SakuraCanvas({
           }
         }
 
+        if (bgUniforms.uBgDim) {
+          const targetDim = isPlexusFinaleActive ? 0.45 : 1.0;
+          bgUniforms.uBgDim.value = THREE.MathUtils.lerp(bgUniforms.uBgDim.value, targetDim, delta * 2.0);
+        }
+
         floatingPlexusOrbs.forEach(orb => {
           orb.update(delta, totalAnimTime, isPlexusFinaleActive, finaleAge, cameraRef.current, modeFadeAlpha);
         });
@@ -3629,14 +3707,13 @@ export function SakuraCanvas({
           const fadeOut = Math.max(0.0, Math.min(1.0, (PLEXUS_FINALE_DURATION - finaleAge) / 1.5));
           const finaleAlpha = fadeIn * fadeOut;
 
-          const activeDockedOrbs = floatingPlexusOrbs.filter(o => o.attachedPlexusCount > 0);
-          const activeOrbsList = activeDockedOrbs.length > 0 ? activeDockedOrbs : floatingPlexusOrbs;
+          const activeOrbsList = floatingPlexusOrbs; // All 5 orbs form the cosmic network hubs
 
           if (finaleParticles.length === 0) {
             const weightedPalettes: { r: number; g: number; b: number }[][] = [];
             const weightedPositions: { x: number; y: number; z: number }[] = [];
             activeOrbsList.forEach(orb => {
-              const count = Math.max(1, orb.attachedPlexusCount);
+              const count = Math.max(2, orb.attachedPlexusCount);
               const pal = PALETTE_RGB_CACHE[orb.id] || PALETTE_RGB_CACHE.pink;
               for (let w = 0; w < count; w++) {
                 weightedPalettes.push(pal);
@@ -3670,7 +3747,7 @@ export function SakuraCanvas({
             worldNodeDistCenter[idx] = Math.sqrt(pt.renderX * pt.renderX + pt.renderY * pt.renderY);
           }
 
-          // Add orbiting floating orbs as active network hubs (ONLY the active docked orbs!)
+          // Add orbiting floating orbs as active network hubs (ALL 5 celestial orbs!)
           for (let o = 0; o < activeOrbsList.length; o++) {
             if (worldNodeCount >= MAX_TOTAL_NODES) break;
             const orb = activeOrbsList[o];
@@ -3683,7 +3760,7 @@ export function SakuraCanvas({
             worldNodeR[oIdx] = col.r;
             worldNodeG[oIdx] = col.g;
             worldNodeB[oIdx] = col.b;
-            worldNodeSize[oIdx] = 36.0 * finaleAlpha;
+            worldNodeSize[oIdx] = 42.0 * finaleAlpha;
             worldNodeDistCenter[oIdx] = Math.sqrt(orb.x * orb.x + orb.y * orb.y);
           }
 
@@ -3694,13 +3771,13 @@ export function SakuraCanvas({
             nodePositions[k3 + 1] = worldNodeY[k];
             nodePositions[k3 + 2] = worldNodeZ[k];
 
-            const baseNodeR = Math.max(0.35, worldNodeR[k]);
-            const baseNodeG = Math.max(0.35, worldNodeG[k]);
-            const baseNodeB = Math.max(0.35, worldNodeB[k]);
+            const baseNodeR = Math.max(0.45, worldNodeR[k]);
+            const baseNodeG = Math.max(0.45, worldNodeG[k]);
+            const baseNodeB = Math.max(0.45, worldNodeB[k]);
 
-            nodeColors[k3] = Math.min(1.0, baseNodeR * 1.55 * finaleAlpha);
-            nodeColors[k3 + 1] = Math.min(1.0, baseNodeG * 1.55 * finaleAlpha);
-            nodeColors[k3 + 2] = Math.min(1.0, baseNodeB * 1.55 * finaleAlpha);
+            nodeColors[k3] = Math.min(1.0, baseNodeR * 1.65 * finaleAlpha);
+            nodeColors[k3 + 1] = Math.min(1.0, baseNodeG * 1.65 * finaleAlpha);
+            nodeColors[k3 + 2] = Math.min(1.0, baseNodeB * 1.65 * finaleAlpha);
 
             nodeSizes[k] = worldNodeSize[k];
           }
@@ -3747,13 +3824,15 @@ export function SakuraCanvas({
                   nodeLinkCounts[i]++;
                   nodeLinkCounts[j]++;
 
-                  const lineAlpha = Math.pow(opacity, 0.65) * 1.65 * flickerMul;
-                  const r1 = Math.min(1.0, worldNodeR[i] * lineAlpha * 1.55);
-                  const g1 = Math.min(1.0, worldNodeG[i] * lineAlpha * 1.55);
-                  const b1 = Math.min(1.0, worldNodeB[i] * lineAlpha * 1.55);
-                  const r2 = Math.min(1.0, worldNodeR[j] * lineAlpha * 1.55);
-                  const g2 = Math.min(1.0, worldNodeG[j] * lineAlpha * 1.55);
-                  const b2 = Math.min(1.0, worldNodeB[j] * lineAlpha * 1.55);
+                  const lineAlpha = Math.min(1.0, Math.pow(opacity, 0.55) * 1.85 * flickerMul);
+                  const coreWhite = 0.50 * lineAlpha; // Luminous core that cuts through dark backgrounds
+
+                  const r1 = Math.min(1.0, worldNodeR[i] * lineAlpha * 1.6 + coreWhite);
+                  const g1 = Math.min(1.0, worldNodeG[i] * lineAlpha * 1.6 + coreWhite);
+                  const b1 = Math.min(1.0, worldNodeB[i] * lineAlpha * 1.6 + coreWhite);
+                  const r2 = Math.min(1.0, worldNodeR[j] * lineAlpha * 1.6 + coreWhite);
+                  const g2 = Math.min(1.0, worldNodeG[j] * lineAlpha * 1.6 + coreWhite);
+                  const b2 = Math.min(1.0, worldNodeB[j] * lineAlpha * 1.6 + coreWhite);
 
                   const pLen = Math.sqrt(dx * dx + dy * dy) || 1.0;
                   const perpX = (-dy / pLen) * 0.85;
@@ -3783,12 +3862,13 @@ export function SakuraCanvas({
                     linePositions[lineVertexIdx++] = y2 + perpY;
                     linePositions[lineVertexIdx++] = z2;
 
-                    lineColors[lineColorIdx++] = r1 * 0.85;
-                    lineColors[lineColorIdx++] = g1 * 0.85;
-                    lineColors[lineColorIdx++] = b1 * 0.85;
-                    lineColors[lineColorIdx++] = r2 * 0.85;
-                    lineColors[lineColorIdx++] = g2 * 0.85;
-                    lineColors[lineColorIdx++] = b2 * 0.85;
+                    const perpGlow = 0.32 * lineAlpha;
+                    lineColors[lineColorIdx++] = Math.min(1.0, r1 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, g1 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, b1 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, r2 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, g2 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, b2 * 0.95 + perpGlow);
                   }
 
                   // 3. Negative Perpendicular Filament
@@ -3800,12 +3880,13 @@ export function SakuraCanvas({
                     linePositions[lineVertexIdx++] = y2 - perpY;
                     linePositions[lineVertexIdx++] = z2;
 
-                    lineColors[lineColorIdx++] = r1 * 0.85;
-                    lineColors[lineColorIdx++] = g1 * 0.85;
-                    lineColors[lineColorIdx++] = b1 * 0.85;
-                    lineColors[lineColorIdx++] = r2 * 0.85;
-                    lineColors[lineColorIdx++] = g2 * 0.85;
-                    lineColors[lineColorIdx++] = b2 * 0.85;
+                    const perpGlow = 0.32 * lineAlpha;
+                    lineColors[lineColorIdx++] = Math.min(1.0, r1 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, g1 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, b1 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, r2 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, g2 * 0.95 + perpGlow);
+                    lineColors[lineColorIdx++] = Math.min(1.0, b2 * 0.95 + perpGlow);
                   }
                 }
               }

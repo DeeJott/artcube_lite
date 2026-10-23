@@ -15,7 +15,6 @@ export function OnepagerHeader({ onOpenWallet, onNavigateTo }: OnepagerHeaderPro
   const navLinks = [
     { label: 'Was ist art.cube?', href: 'vision' },
     { label: 'Jetzt das Kunstwerk erleben', href: 'erleben' },
-    { label: 'Unsere Vision', href: 'cube' },
     { label: 'Roadmap', href: 'roadmap' },
     { label: 'Community', href: 'newsletter' },
   ];
@@ -43,7 +42,7 @@ export function OnepagerHeader({ onOpenWallet, onNavigateTo }: OnepagerHeaderPro
               ART<span className="text-[#ff2a9d]">.</span>CUBE
             </span>
             <span className="text-[9px] tracking-[0.25em] text-pink-300/60 uppercase font-medium mt-0.5">
-              Art in Connection
+              art.cube
             </span>
           </div>
         </button>

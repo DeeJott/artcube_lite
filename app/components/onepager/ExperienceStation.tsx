@@ -60,7 +60,7 @@ export function ExperienceStation({
 
   const handleStartArtwork = (modeToStart: 'test' | 'souvenir') => {
     setActiveMode(modeToStart);
-    const finalName = myName.trim() || 'Künstler';
+    const finalName = myName.trim() || (isHost ? 'Host' : 'Gast');
     if (!myName.trim()) {
       onNameChange(finalName);
     }
@@ -94,7 +94,7 @@ export function ExperienceStation({
           </span>
         </h2>
         <p className="mt-4 text-sm sm:text-base text-white/85 font-light leading-relaxed text-left sm:text-center">
-          Sakuraverse ist ein <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span>-Kunstwerk der ersten Generation. Inspiriert wurde von der Bedeutung der Kirschblüte (Sakura) für Schönheit und Vergänglichkeit. In zwei unterschiedlichen Modi (Sumi-e und Plexus) werden Entstehung und Zerfall auf besondere Art und Weise dargestellt, die, wenn Künstler oder Künstlerin (ihr) es wünscht, nie dem vorherigen Erlebnis gleicht. Verschiedene Elemente können in den Kunstwerken angeklickt werden, wodurch sie im Endergebnis unterschiedliche Erscheinungen haben können.
+          Sakuraverse ist ein <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span>-Kunstwerk der ersten Generation. Inspiriert wurde es von der Bedeutung der Kirschblüte (Sakura) für Schönheit und Vergänglichkeit. In zwei unterschiedlichen Modi (Sumi-e und Plexus) werden Entstehung und Zerfall auf besondere Art und Weise dargestellt, die, wenn Künstler oder Künstlerin (ihr) es wünscht, nie dem vorherigen Erlebnis gleicht. Verschiedene Elemente können in den Kunstwerken angeklickt werden, wodurch sie im Endergebnis unterschiedliche Erscheinungen haben können.
         </p>
       </div>
 
@@ -105,14 +105,14 @@ export function ExperienceStation({
         <div className="flex flex-col gap-2.5">
           <label htmlFor="stationNameInput" className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
             <FiUser className="text-[#ff80df]" />
-            <span>Dein Künstler-Name (Optional)</span>
+            <span>Dein Name (Optional)</span>
           </label>
           <input
             id="stationNameInput"
             type="text"
             value={myName}
             onChange={(e) => onNameChange(e.target.value)}
-            placeholder="Wie heißt du? (z.B. Künstler oder dein Name)"
+            placeholder={isHost ? "Wie heißt du? (z.B. Host oder dein Name)" : "Wie heißt du? (z.B. Gast oder dein Name)"}
             maxLength={20}
             className="w-full px-5 py-4 rounded-2xl bg-white/[0.06] border border-pink-500/30 focus:border-[#ff2a9d] focus:bg-white/[0.1] focus:shadow-[0_0_20px_rgba(255,42,157,0.4)] text-white text-base font-semibold tracking-wide placeholder:text-white/30 outline-none transition-all duration-300"
           />
