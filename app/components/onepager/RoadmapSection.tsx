@@ -1,38 +1,36 @@
 'use client';
 
 import { FiCheckCircle, FiClock, FiFlag } from 'react-icons/fi';
+import { Language, translations } from './translations';
 
-export function RoadmapSection() {
+interface RoadmapSectionProps {
+  lang: Language;
+}
+
+export function RoadmapSection({ lang }: RoadmapSectionProps) {
+  const t = translations[lang].roadmap;
+
   const steps = [
     {
       step: 'Step 1',
       status: 'DONE',
-      statusLabel: 'Abgeschlossen',
-      statusColor: 'emerald',
-      title: 'Digitaler & Interaktiver Prototyp',
-      description:
-        'Start des digitalen Prototyps. Auf allen Endgeräten kann Sakuraverse erlebt und eigene digitale Souvenirs erstellt werden.',
-      badge: 'Live',
+      statusLabel: t.step1Badge,
+      title: t.step1Title,
+      description: t.step1Desc,
     },
     {
       step: 'Step 2',
       status: 'COMING SOON',
-      statusLabel: 'Coming Soon',
-      statusColor: 'pink',
-      title: 'Physischer Prototyp & Test-Setup',
-      description:
-        'Test und Präsentation eines ersten physischen Prototypen. Ein simples, wirkungsvolles Setup für die erste echte Real Life-Erfahrung mit art.cube und Smartphone-Steuerung.',
-      badge: 'In Entwicklung',
+      statusLabel: t.step2Badge,
+      title: t.step2Title,
+      description: t.step2Desc,
     },
     {
       step: 'Step 3',
       status: '2027',
-      statusLabel: '2027',
-      statusColor: 'cyan',
-      title: 'Der erste vollwertige art.cube',
-      description:
-        'Planung, Konstruktion und Launch des ersten 360°-art.cubes für gemeinsame und immersive Erlebnisse.',
-      badge: 'Vision 2027',
+      statusLabel: t.step3Badge,
+      title: t.step3Title,
+      description: t.step3Desc,
     },
   ];
 
@@ -45,16 +43,13 @@ export function RoadmapSection() {
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-20">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-300 text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-          Meilensteine
+          {t.pill}
         </div>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
-          Die{' '}
-          <span className="bg-gradient-to-r from-pink-400 via-purple-300 to-cyan-300 bg-clip-text text-transparent">
-            art.cube Roadmap
-          </span>
+          {t.headline}
         </h2>
         <p className="mt-4 text-sm sm:text-base text-white/75 font-light leading-relaxed">
-          Vom ersten Pixel im Browser bis zum immersiven Raum: so wird art.cube Realität.
+          {t.subline}
         </p>
       </div>
 
@@ -100,14 +95,13 @@ export function RoadmapSection() {
               <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">
                 {item.title}
               </h3>
-              <p className="text-sm text-white/75 leading-relaxed font-light">
+              <p className="text-xs sm:text-sm text-white/70 leading-relaxed font-light">
                 {item.description}
               </p>
             </div>
           </div>
         ))}
       </div>
-
     </section>
   );
 }

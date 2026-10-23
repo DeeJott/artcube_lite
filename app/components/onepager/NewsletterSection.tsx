@@ -2,11 +2,17 @@
 
 import { useState } from 'react';
 import { FiMail, FiCheck, FiSend } from 'react-icons/fi';
+import { Language, translations } from './translations';
 
-export function NewsletterSection() {
+interface NewsletterSectionProps {
+  lang: Language;
+}
+
+export function NewsletterSection({ lang }: NewsletterSectionProps) {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(false);
+  const t = translations[lang].newsletter;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,20 +35,17 @@ export function NewsletterSection() {
         
         {/* Category Pill */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-300 text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-          art.cube Community
+          {t.pill}
         </div>
 
         {/* Headline */}
         <h2 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight max-w-2xl">
-          Bleib verbunden mit der{' '}
-          <span className="bg-gradient-to-r from-[#ff80df] via-[#ff2a9d] to-[#4ee2ec] bg-clip-text text-transparent">
-            Zukunft der Kunst.
-          </span>
+          {t.headline}
         </h2>
 
         {/* Subline */}
         <p className="mt-4 text-sm sm:text-base text-white/75 font-light leading-relaxed max-w-xl">
-          Erfahre als Erste von neuen interaktiven Kunstwerken, physischen Pop-up-Kuben, kommenden Meilensteinen und exklusiven Events.
+          {t.subline}
         </p>
 
         {/* Subscription Form */}
@@ -52,7 +55,7 @@ export function NewsletterSection() {
               <span className="w-6 h-6 rounded-full bg-emerald-400 text-black flex items-center justify-center font-bold text-xs shrink-0">
                 <FiCheck className="w-4 h-4" />
               </span>
-              <span>Danke für deine Anmeldung! Du bist nun Teil der art.cube Community.</span>
+              <span>{t.success}</span>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
@@ -65,7 +68,7 @@ export function NewsletterSection() {
                     setEmail(e.target.value);
                     if (error) setError(false);
                   }}
-                  placeholder="Deine E-Mail-Adresse"
+                  placeholder={t.placeholder}
                   className={`w-full pl-12 pr-4 py-4 rounded-2xl bg-white/[0.06] border text-white text-sm placeholder:text-white/35 outline-none transition-all duration-300 ${
                     error
                       ? 'border-red-400 shadow-[0_0_18px_rgba(248,113,113,0.5)]'
@@ -78,7 +81,7 @@ export function NewsletterSection() {
                 type="submit"
                 className="py-4 px-7 rounded-2xl font-bold text-sm tracking-wider uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#06b6d4] shadow-[0_8px_25px_rgba(255,42,157,0.45)] hover:shadow-[0_12px_35px_rgba(78,226,236,0.6)] hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shrink-0"
               >
-                <span>Anmelden</span>
+                <span>{t.btn}</span>
                 <FiSend className="w-4 h-4" />
               </button>
             </form>
@@ -86,14 +89,14 @@ export function NewsletterSection() {
 
           {error && (
             <p className="mt-2 text-xs text-red-400 text-left pl-2">
-              Bitte gib eine gültige E-Mail-Adresse ein.
+              {t.errorMsg}
             </p>
           )}
         </div>
 
         {/* Privacy Note */}
         <p className="mt-5 text-[11px] text-white/50 tracking-wider">
-          🔒 100% werbefrei. Du kannst dich jederzeit mit nur einem Klick wieder abmelden.
+          {t.privacyNote}
         </p>
 
       </div>

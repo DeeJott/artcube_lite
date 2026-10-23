@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { FiCopy, FiCheck, FiShare2, FiUser, FiPlay, FiInfo, FiLayers } from 'react-icons/fi';
+import { Language, translations } from './translations';
 
 interface ExperienceStationProps {
+  lang: Language;
   myName: string;
   onNameChange: (name: string) => void;
   isHost: boolean;
@@ -15,6 +17,7 @@ interface ExperienceStationProps {
 }
 
 export function ExperienceStation({
+  lang,
   myName,
   onNameChange,
   isHost,
@@ -27,6 +30,7 @@ export function ExperienceStation({
   const [activeMode, setActiveMode] = useState<'test' | 'souvenir'>('test');
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const t = translations[lang].experience;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -51,16 +55,17 @@ export function ExperienceStation({
         document.body.removeChild(ta);
       }
       setCopied(true);
-      showToast('🔗 Einladungslink in Zwischenablage kopiert!');
+      showToast(t.toastCopied);
       setTimeout(() => setCopied(false), 2400);
     } catch {
-      prompt('Link manuell kopieren:', shareUrl);
+      prompt(t.copyBtn + ':', shareUrl);
     }
-  }, [shareUrl, showToast]);
+  }, [shareUrl, showToast, t.toastCopied, t.copyBtn]);
 
   const handleStartArtwork = (modeToStart: 'test' | 'souvenir') => {
     setActiveMode(modeToStart);
-    const finalName = myName.trim() || (isHost ? 'Host' : 'Gast');
+    const fallbackName = isHost ? t.hostStatus : t.guestStatus;
+    const finalName = myName.trim() || fallbackName;
     if (!myName.trim()) {
       onNameChange(finalName);
     }
@@ -68,12 +73,12 @@ export function ExperienceStation({
   };
 
   const handleGuestJoin = () => {
-    const finalName = myName.trim() || 'Gast';
+    const finalName = myName.trim() || t.guestStatus;
     if (!myName.trim()) {
       onNameChange(finalName);
     }
     onJoin();
-    showToast('✨ Beitritt erfolgreich! Warte auf den Host...');
+    showToast(t.toastJoined);
   };
 
   return (
@@ -85,16 +90,16 @@ export function ExperienceStation({
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-300 text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-          Jetzt das Kunstwerk erleben
+          {t.pill}
         </div>
         <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-          Willkommen im{' '}
+          {t.titlePrefix}{' '}
           <span className="bg-gradient-to-r from-[#ff80df] via-[#ff2a9d] to-[#4ee2ec] bg-clip-text text-transparent">
-            Sakuraverse.
+            {t.titleHighlight}
           </span>
         </h2>
         <p className="mt-4 text-sm sm:text-base text-white/85 font-light leading-relaxed text-left sm:text-center">
-          Sakuraverse ist ein <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span>-Kunstwerk der ersten Generation. Inspiriert wurde es von der Bedeutung der Kirschblüte (Sakura) für Schönheit und Vergänglichkeit. In zwei unterschiedlichen Modi (Sumi-e und Plexus) werden Entstehung und Zerfall auf besondere Art und Weise dargestellt, die, wenn Künstler oder Künstlerin (ihr) es wünscht, nie dem vorherigen Erlebnis gleicht. Verschiedene Elemente können in den Kunstwerken angeklickt werden, wodurch sie im Endergebnis unterschiedliche Erscheinungen haben können.
+          {t.subline}
         </p>
       </div>
 
@@ -105,14 +110,14 @@ export function ExperienceStation({
         <div className="flex flex-col gap-2.5">
           <label htmlFor="stationNameInput" className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
             <FiUser className="text-[#ff80df]" />
-            <span>Dein Name (Optional)</span>
+            <span>{t.nameLabel}</span>
           </label>
           <input
             id="stationNameInput"
             type="text"
             value={myName}
             onChange={(e) => onNameChange(e.target.value)}
-            placeholder={isHost ? "Wie heißt du? (z.B. Host oder dein Name)" : "Wie heißt du? (z.B. Gast oder dein Name)"}
+            placeholder={isHost ? t.namePlaceholderHost : t.namePlaceholderGuest}
             maxLength={20}
             className="w-full px-5 py-4 rounded-2xl bg-white/[0.06] border border-pink-500/30 focus:border-[#ff2a9d] focus:bg-white/[0.1] focus:shadow-[0_0_20px_rgba(255,42,157,0.4)] text-white text-base font-semibold tracking-wide placeholder:text-white/30 outline-none transition-all duration-300"
           />
@@ -122,7 +127,7 @@ export function ExperienceStation({
         <div className="flex flex-col gap-2.5">
           <label className="flex items-center gap-2 text-xs font-bold tracking-[2px] uppercase text-pink-200/90">
             <FiLayers className="text-[#ff80df]" />
-            <span>Wähle deinen Modus</span>
+            <span>{t.modeLabel}</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
@@ -137,14 +142,14 @@ export function ExperienceStation({
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold tracking-wider uppercase text-[#4ee2ec] flex items-center gap-2">
-                  <span>🤝</span> Testmodus
+                  <span>🤝</span> {t.testModeTitle}
                 </span>
                 {activeMode === 'test' && (
                   <span className="w-2.5 h-2.5 rounded-full bg-[#4ee2ec] shadow-[0_0_10px_#4ee2ec]" />
                 )}
               </div>
               <p className="text-xs text-white/75 leading-relaxed font-light">
-                Freies, unbegrenztes Erkunden und Zeichnen. Ideal zum Kennenlernen allein oder zu zweit.
+                {t.testModeDesc}
               </p>
             </div>
 
@@ -159,14 +164,14 @@ export function ExperienceStation({
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold tracking-wider uppercase text-[#ff80df] flex items-center gap-2">
-                  <span>🎨</span> Souvenirmodus
+                  <span>🎨</span> {t.souvenirModeTitle}
                 </span>
                 {activeMode === 'souvenir' && (
                   <span className="w-2.5 h-2.5 rounded-full bg-[#ff2a9d] shadow-[0_0_10px_#ff2a9d]" />
                 )}
               </div>
               <p className="text-xs text-white/75 leading-relaxed font-light">
-                Gezielte Interaktionsphase mit anschließendem 14s Video-Souvenir eurer Schöpfung.
+                {t.souvenirModeDesc}
               </p>
             </div>
 
@@ -179,9 +184,9 @@ export function ExperienceStation({
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold tracking-wider uppercase text-white/80 flex items-center gap-1.5">
                 <FiShare2 className="text-[#4ee2ec]" />
-                Mitspieler einladen (Optional)
+                {t.inviteLabel}
               </span>
-              <span className="text-[10px] text-white/50 tracking-wider">MAX. 2 TEILNEHMER</span>
+              <span className="text-[10px] text-white/50 tracking-wider">{t.inviteTag}</span>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2.5">
@@ -195,7 +200,7 @@ export function ExperienceStation({
                 }`}
               >
                 {copied ? <FiCheck className="w-4 h-4" /> : <FiCopy className="w-4 h-4" />}
-                <span>{copied ? 'Link kopiert!' : 'Einladungslink kopieren'}</span>
+                <span>{copied ? t.copiedBtn : t.copyBtn}</span>
               </button>
             </div>
 
@@ -207,11 +212,11 @@ export function ExperienceStation({
             <div className="grid grid-cols-2 gap-2 mt-1 pt-2 border-t border-white/5 text-[11px]">
               <div className="flex items-center gap-2 text-white/80">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Host: {myName || 'Du'}</span>
+                <span>{t.hostStatus}: {myName || t.you}</span>
               </div>
               <div className="flex items-center gap-2 text-white/50">
                 <span className={`w-2 h-2 rounded-full ${isJoined ? 'bg-emerald-400' : 'bg-white/20'}`} />
-                <span>Gast: {isJoined ? 'Verbunden' : 'Wartet auf Beitritt...'}</span>
+                <span>{t.guestStatus}: {isJoined ? t.connected : t.waiting}</span>
               </div>
             </div>
           </div>
@@ -221,11 +226,11 @@ export function ExperienceStation({
         {activeMode === 'souvenir' && (
           <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
             <FiInfo className="w-4 h-4 shrink-0 text-amber-300" />
-            <span>Im Souvenirmodus erstellst du dein individuelles 14-Sekunden Video-Souvenir.</span>
+            <span>{t.souvenirNotice}</span>
           </div>
         )}
 
-        {/* Main Action Start Buttons: Non-dynamic, direct execution */}
+        {/* Main Action Start Buttons */}
         <div>
           {isHost ? (
             <div className="flex flex-col sm:flex-row gap-4">
@@ -235,7 +240,7 @@ export function ExperienceStation({
                 className="flex-1 py-5 px-6 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#06b6d4] via-[#0284c7] to-[#4ee2ec] shadow-[0_10px_35px_rgba(78,226,236,0.45)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.7)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
               >
                 <FiPlay className="w-5 h-5 fill-current" />
-                <span>Testmodus starten</span>
+                <span>{t.startTestBtn}</span>
               </button>
 
               <button
@@ -244,7 +249,7 @@ export function ExperienceStation({
                 className="flex-1 py-5 px-6 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#7928ca] shadow-[0_10px_35px_rgba(255,42,157,0.45)] hover:shadow-[0_15px_45px_rgba(255,42,157,0.7)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
               >
                 <FiPlay className="w-5 h-5 fill-current" />
-                <span>Souvenirmodus starten</span>
+                <span>{t.startSouvenirBtn}</span>
               </button>
             </div>
           ) : (
@@ -255,11 +260,11 @@ export function ExperienceStation({
                   onClick={handleGuestJoin}
                   className="w-full py-5 px-8 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#4ee2ec] to-[#0284c7] shadow-[0_10px_35px_rgba(78,226,236,0.4)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.6)] hover:scale-[1.01] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>✨ Session beitreten</span>
+                  <span>{t.joinBtn}</span>
                 </button>
               ) : (
                 <div className="p-4 rounded-2xl bg-white/[0.06] border border-white/15 text-center text-xs tracking-wider text-white/80 animate-pulse">
-                  ⏳ Du bist beigetreten. Warte darauf, dass der Host das Kunstwerk startet...
+                  {t.guestWaitingNotice}
                 </div>
               )}
             </div>

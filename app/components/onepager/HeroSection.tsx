@@ -1,12 +1,16 @@
 'use client';
 
 import { FiArrowDown, FiCompass } from 'react-icons/fi';
+import { Language, translations } from './translations';
 
 interface HeroSectionProps {
+  lang: Language;
   onNavigateTo: (id: string) => void;
 }
 
-export function HeroSection({ onNavigateTo }: HeroSectionProps) {
+export function HeroSection({ lang, onNavigateTo }: HeroSectionProps) {
+  const t = translations[lang].hero;
+
   return (
     <section id="top" className="relative min-h-[calc(100vh-4rem)] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
       
@@ -21,9 +25,8 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
         </h1>
 
         {/* Lead Text */}
-        <p className="max-w-2xl text-base sm:text-xl text-white/90 font-light leading-relaxed tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
-          Kunst wird digital. Kunst wird lebendig.<br className="hidden sm:inline" />
-          Entdecke Sakuraverse, das <span className="font-semibold text-white">art<span className="text-[#ff2a9d]">.</span>cube</span>-Kunstwerk der ersten Generation und erlebe, wie die Pixel vor dir zur Leinwand werden.
+        <p className="max-w-2xl text-base sm:text-xl text-white/90 font-light leading-relaxed tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] whitespace-pre-line">
+          {t.lead}
         </p>
 
         {/* Action Buttons */}
@@ -33,7 +36,7 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
             onClick={() => onNavigateTo('erleben')}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#06b6d4] shadow-[0_10px_35px_rgba(255,42,157,0.45)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.6)] hover:-translate-y-0.5 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
           >
-            <span>Jetzt das Kunstwerk erleben</span>
+            <span>{t.btnPrimary}</span>
             <FiArrowDown className="w-4 h-4 animate-bounce" />
           </button>
 
@@ -43,7 +46,7 @@ export function HeroSection({ onNavigateTo }: HeroSectionProps) {
             className="w-full sm:w-auto px-7 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-white/90 bg-white/[0.06] border border-white/20 backdrop-blur-md hover:bg-white/[0.12] hover:border-pink-500/50 hover:text-white hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
           >
             <FiCompass className="w-4 h-4 text-[#ff80df]" />
-            <span>art<span className="text-[#ff2a9d]">.</span>cube entdecken</span>
+            <span>{t.btnSecondary}</span>
           </button>
         </div>
 

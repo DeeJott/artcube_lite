@@ -1,16 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { LuBox } from 'react-icons/lu';
 import { FiArrowUp, FiMail, FiShield, FiFileText } from 'react-icons/fi';
 import { PiX } from 'react-icons/pi';
+import { Language, translations } from './translations';
 
 interface OnepagerFooterProps {
+  lang: Language;
   onScrollToTop: () => void;
+  onModalToggle?: (open: boolean) => void;
 }
 
-export function OnepagerFooter({ onScrollToTop }: OnepagerFooterProps) {
+export function OnepagerFooter({ lang, onScrollToTop, onModalToggle }: OnepagerFooterProps) {
   const [legalModal, setLegalModal] = useState<'impressum' | 'datenschutz' | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const t = translations[lang].footer;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const openLegalModal = useCallback((type: 'impressum' | 'datenschutz') => {
+    setLegalModal(type);
+    onModalToggle?.(true);
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = 'hidden';
+    }
+  }, [onModalToggle]);
+
+  const closeLegalModal = useCallback(() => {
+    setLegalModal(null);
+    onModalToggle?.(false);
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = '';
+    }
+  }, [onModalToggle]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && legalModal !== null) {
+        closeLegalModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [legalModal, closeLegalModal]);
 
   return (
     <footer className="relative border-t border-white/10 bg-[rgba(10,5,16,0.85)] backdrop-blur-xl py-12 px-4 sm:px-6 lg:px-8 mt-12 text-white/70">
@@ -27,36 +71,36 @@ export function OnepagerFooter({ onScrollToTop }: OnepagerFooterProps) {
             </span>
           </div>
           <p className="text-xs text-white/50 tracking-wider">
-            Art in Connection — Kollaborative Kunst im digitalen & physischen Raum.
+            {t.claim}
           </p>
         </div>
 
         {/* Links & Contact */}
         <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-medium">
           <a
-            href="mailto:hallo@artcube.art"
+            href="mailto:contact@artcube.space"
             className="flex items-center gap-1.5 text-white/80 hover:text-[#ff80df] transition-colors"
           >
             <FiMail className="w-4 h-4" />
-            <span>Kontakt</span>
+            <span>{t.contact}</span>
           </a>
 
           <button
             type="button"
-            onClick={() => setLegalModal('impressum')}
+            onClick={() => openLegalModal('impressum')}
             className="flex items-center gap-1.5 text-white/80 hover:text-[#ff80df] transition-colors cursor-pointer"
           >
             <FiFileText className="w-4 h-4" />
-            <span>Impressum</span>
+            <span>{t.imprint}</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setLegalModal('datenschutz')}
+            onClick={() => openLegalModal('datenschutz')}
             className="flex items-center gap-1.5 text-white/80 hover:text-[#ff80df] transition-colors cursor-pointer"
           >
             <FiShield className="w-4 h-4" />
-            <span>Datenschutz</span>
+            <span>{t.privacy}</span>
           </button>
 
           <button
@@ -65,31 +109,35 @@ export function OnepagerFooter({ onScrollToTop }: OnepagerFooterProps) {
             className="flex items-center gap-1.5 text-pink-300 hover:text-white px-3 py-1 rounded-full bg-white/5 border border-white/10 hover:border-pink-500/40 transition-all cursor-pointer"
           >
             <FiArrowUp className="w-3.5 h-3.5" />
-            <span>Nach oben</span>
+            <span>{t.backToTop}</span>
           </button>
         </div>
 
       </div>
 
       <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/5 text-center text-[11px] text-white/40 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <span>© 2026 artcube. All rights reserved.</span>
-        <span>Made for collaborative experiences.</span>
+        <span>{t.copyright}</span>
+        <span>{t.tagline}</span>
       </div>
 
-      {/* Lightweight Legal Notice Modal (Impressum & Datenschutz) */}
-      {legalModal && (
+      {/* Lightweight Legal Notice Modal (Impressum & Datenschutz) via Portal */}
+      {mounted && legalModal && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200"
-          onClick={() => setLegalModal(null)}
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={closeLegalModal}
+          style={{ touchAction: 'none' }}
+          role="dialog"
+          aria-modal="true"
         >
           <div
-            className="relative w-full max-w-lg rounded-[28px] p-6 sm:p-8 bg-[rgba(18,12,28,0.96)] border border-pink-500/40 shadow-2xl text-left"
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[28px] p-6 sm:p-8 bg-[rgba(18,12,28,0.98)] border border-pink-500/40 shadow-2xl text-left my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
-              onClick={() => setLegalModal(null)}
-              className="absolute top-5 right-5 p-1.5 rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors"
+              onClick={closeLegalModal}
+              className="absolute top-5 right-5 p-1.5 rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label={t.closeBtn}
             >
               <PiX className="w-5 h-5" />
             </button>
@@ -97,48 +145,65 @@ export function OnepagerFooter({ onScrollToTop }: OnepagerFooterProps) {
             {legalModal === 'impressum' ? (
               <div className="space-y-4">
                 <h3 className="text-xl font-bold text-white tracking-wide uppercase">
-                  Impressum
+                  {t.imprintModal.title}
                 </h3>
-                <div className="text-xs text-white/80 space-y-3 leading-relaxed font-light">
+                <div className="text-xs text-white/75 space-y-2 leading-relaxed">
+                  <p className="font-semibold text-white">{t.imprintModal.company}</p>
                   <p>
-                    <strong>artcube Initiative</strong><br />
-                    Forschungs- und Kunstprojekt für kollaborative Medienkunst.
+                    <span className="text-white/50">{t.imprintModal.repTitle}</span><br />
+                    {t.imprintModal.repContent}
                   </p>
                   <p>
-                    <strong>Kontakt:</strong><br />
-                    E-Mail: <a href="mailto:hallo@artcube.art" className="text-pink-300 hover:underline">hallo@artcube.art</a>
+                    <span className="text-white/50">{t.imprintModal.contactTitle}</span><br />
+                    {t.imprintModal.contactContent}
                   </p>
-                  <p>
-                    <strong>Hinweis:</strong><br />
-                    Dieses Projekt befindet sich im Prototypen- und Entwicklungsstadium. Alle dargestellten Kunstwerke und Prototypen dienen künstlerischen und technologischen Demonstrationszwecken.
-                  </p>
+                  <div className="pt-2 border-t border-white/10">
+                    <span className="font-semibold text-white block mb-1">{t.imprintModal.disclaimerTitle}</span>
+                    <p className="text-[11px] text-white/60">
+                      {t.imprintModal.disclaimerContent}
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
                 <h3 className="text-xl font-bold text-white tracking-wide uppercase">
-                  Datenschutzerklärung
+                  {t.privacyModal.title}
                 </h3>
-                <div className="text-xs text-white/80 space-y-3 leading-relaxed font-light">
-                  <p>
-                    <strong>Keine Werbetracker oder Tracking-Cookies:</strong><br />
-                    Wir verwenden keine Marketing-Cookies oder Analyse-Tools Dritter.
-                  </p>
-                  <p>
-                    <strong>Lokale Speicherung (localStorage):</strong><br />
-                    Dein Künstlername wird rein lokal in deinem Browser gespeichert, um die Bedienung bei erneuten Besuchen zu erleichtern.
-                  </p>
-                  <p>
-                    <strong>Echtzeit-Kollaboration (PeerJS / WebRTC):</strong><br />
-                    Bei der Nutzung des Mehrspielermodus wird eine direkte, verschlüsselte Peer-to-Peer-Verbindung zwischen den teilnehmenden Geräten aufgebaut. Es werden keine Interaktionsdaten dauerhaft auf zentralen Servern gespeichert.
-                  </p>
+                <div className="text-xs text-white/75 space-y-3 leading-relaxed">
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">{t.privacyModal.sec1Title}</h4>
+                    <p className="text-[11px] text-white/60">
+                      {t.privacyModal.sec1Content}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">{t.privacyModal.sec2Title}</h4>
+                    <p className="text-[11px] text-white/60">
+                      {t.privacyModal.sec2Content}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">{t.privacyModal.sec3Title}</h4>
+                    <p className="text-[11px] text-white/60">
+                      {t.privacyModal.sec3Content}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
 
+            <button
+              type="button"
+              onClick={closeLegalModal}
+              className="w-full mt-6 py-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold uppercase tracking-wider text-white transition-all cursor-pointer"
+            >
+              {t.closeBtn}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </footer>
   );
 }
