@@ -3096,20 +3096,24 @@ export function SakuraCanvas({
       }
     };
 
+    let hasHitOrbThisGesture = false;
+
     const checkAndTriggerOrbHit = (clientX: number, clientY: number) => {
       if (isPausedRef.current || activeModeRef.current !== 'bluten') return false;
       if (!isTrunkGrowthFinished || isVortexActive) return false;
       if (!cameraRef.current || !canvasRef.current) return false;
 
       const rect = canvasRef.current.getBoundingClientRect();
-      const screenRadius = isMobile ? 65.0 : 42.0;
-      const worldHitDistance = isMobile ? 4.2 : 2.5;
+      // Reduced precision hit radius so two nearby nodes are never triggered simultaneously
+      const screenRadius = isMobile ? 26.0 : 20.0;
+      const worldHitDistance = isMobile ? 1.4 : 1.0;
+
+      let bestOrb: OrbNode | null = null;
+      let minDistance = Infinity;
 
       for (let i = 0; i < activeOrbs.length; i++) {
         const orb = activeOrbs[i];
-        if (orb.userDrawn || orb.branchSpawned) continue;
-
-        let hit = false;
+        if (orb.userDrawn || orb.branchSpawned || orb.isExploding) continue;
 
         // 1. Direct Screen-space projected hit detection
         const orbPos = orb.position;
@@ -3119,30 +3123,38 @@ export function SakuraCanvas({
         const pixelDist = Math.hypot(clientX - orbScreenX, clientY - orbScreenY);
 
         if (pixelDist <= screenRadius) {
-          hit = true;
-        }
-
-        // 2. World-space distance check fallback
-        if (!hit && mouseWorld.distanceTo(orb.position) < worldHitDistance) {
-          hit = true;
-        }
-
-        if (hit) {
-          if (currentPhaseName === 'BRANCH') {
-            spawnSubBranchFromOrb(orb);
-          } else if (currentPhaseName === 'BLOSSOM') {
-            spawnBlossomClusterFromOrb(orb);
+          if (pixelDist < minDistance) {
+            minDistance = pixelDist;
+            bestOrb = orb;
           }
-
-          showToastRef.current?.('🌸 Interaktiver Knotenpunkt aktiviert!');
-
-          const remainingOrbs = activeOrbs.filter(o => !o.userDrawn && !o.branchSpawned);
-          if (remainingOrbs.length === 0 && roundState === 'ACTIVE') {
-            roundState = 'FADING';
-            roundTimer = 0.0;
+        } else {
+          // 2. World-space distance check fallback
+          const wDist = mouseWorld.distanceTo(orb.position);
+          if (wDist < worldHitDistance) {
+            const approxPx = (wDist / worldHitDistance) * screenRadius;
+            if (approxPx < minDistance) {
+              minDistance = approxPx;
+              bestOrb = orb;
+            }
           }
-          return true;
         }
+      }
+
+      if (bestOrb) {
+        if (currentPhaseName === 'BRANCH') {
+          spawnSubBranchFromOrb(bestOrb);
+        } else if (currentPhaseName === 'BLOSSOM') {
+          spawnBlossomClusterFromOrb(bestOrb);
+        }
+
+        showToastRef.current?.('🌸 Interaktiver Knotenpunkt aktiviert!');
+
+        const remainingOrbs = activeOrbs.filter(o => !o.userDrawn && !o.branchSpawned);
+        if (remainingOrbs.length === 0 && roundState === 'ACTIVE') {
+          roundState = 'FADING';
+          roundTimer = 0.0;
+        }
+        return true;
       }
       return false;
     };
@@ -3186,7 +3198,7 @@ export function SakuraCanvas({
       updatePointerWorld(clientX, clientY);
 
       if (activeModeRef.current === 'bluten') {
-        checkAndTriggerOrbHit(clientX, clientY);
+        hasHitOrbThisGesture = checkAndTriggerOrbHit(clientX, clientY);
       } else if (activeModeRef.current === 'plexus') {
         draggedPlexusCluster = null;
 
@@ -3217,9 +3229,10 @@ export function SakuraCanvas({
         const touch = 'changedTouches' in e && e.changedTouches.length > 0 ? e.changedTouches[0] : null;
         const clientX = touch ? touch.clientX : (e as MouseEvent).clientX;
         const clientY = touch ? touch.clientY : (e as MouseEvent).clientY;
-        if (clientX !== undefined && clientY !== undefined) {
+        if (clientX !== undefined && clientY !== undefined && !hasHitOrbThisGesture) {
           checkAndTriggerOrbHit(clientX, clientY);
         }
+        hasHitOrbThisGesture = false;
       }
       if (isMouseDown && activeModeRef.current === 'plexus') {
         if (draggedPlexusCluster) {

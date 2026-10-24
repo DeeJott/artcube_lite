@@ -230,28 +230,21 @@ export function ExperienceStation({
           </div>
         )}
 
-        {/* Main Action Start Buttons */}
+        {/* Main Action Start Button (Adapts to Testmodus vs. Souvenirmodus) */}
         <div>
           {isHost ? (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={() => handleStartArtwork('test')}
-                className="flex-1 py-5 px-6 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#06b6d4] via-[#0284c7] to-[#4ee2ec] shadow-[0_10px_35px_rgba(78,226,236,0.45)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.7)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
-              >
-                <FiPlay className="w-5 h-5 fill-current" />
-                <span>{t.startTestBtn}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleStartArtwork('souvenir')}
-                className="flex-1 py-5 px-6 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#7928ca] shadow-[0_10px_35px_rgba(255,42,157,0.45)] hover:shadow-[0_15px_45px_rgba(255,42,157,0.7)] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
-              >
-                <FiPlay className="w-5 h-5 fill-current" />
-                <span>{t.startSouvenirBtn}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleStartArtwork(activeMode)}
+              className={`w-full py-5 px-8 rounded-2xl font-extrabold text-sm sm:text-base tracking-[2px] uppercase text-white transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer hover:scale-[1.01] hover:-translate-y-0.5 ${
+                activeMode === 'test'
+                  ? 'bg-gradient-to-r from-[#06b6d4] via-[#0284c7] to-[#4ee2ec] shadow-[0_10px_35px_rgba(78,226,236,0.45)] hover:shadow-[0_15px_45px_rgba(78,226,236,0.7)]'
+                  : 'bg-gradient-to-r from-[#ff2a9d] via-[#d946ef] to-[#7928ca] shadow-[0_10px_35px_rgba(255,42,157,0.45)] hover:shadow-[0_15px_45px_rgba(255,42,157,0.7)]'
+              }`}
+            >
+              <FiPlay className="w-5 h-5 fill-current" />
+              <span>{activeMode === 'test' ? t.startTestBtn : t.startSouvenirBtn}</span>
+            </button>
           ) : (
             <div className="flex flex-col gap-3">
               {!isJoined ? (
