@@ -16,7 +16,7 @@ export const translations = {
       menuAria: 'Navigation öffnen',
     },
     hero: {
-      lead: 'Kunst wird digital. Kunst wird lebendig.\nEntdecke Sakuraverse, das art.cube-Kunstwerk der ersten Generation und erlebe, wie die Pixel vor dir zur Leinwand werden.',
+      lead: 'Kunst wird digital. Kunst wird lebendig. art.cube lässt die räumlichen und emotionalen Grenzen zwischen dir und der Kunst verschwinden. Tauche ein in Sakuraverse und erlebe, wie die Pixel vor dir zur Leinwand werden.',
       btnPrimary: 'Jetzt das Kunstwerk erleben',
       btnSecondary: 'art.cube entdecken',
     },
@@ -82,7 +82,7 @@ export const translations = {
         subtitle: 'Digitale Kunst & Web3-Permanenz',
         item1Title: 'Dein persönliches Unikat',
         item1Desc: 'Jedes 14-sekündige Video-Souvenir entsteht live aus deinen individuellen Entscheidungen und Berührungen. Kein anderes Kunstwerk existiert ein zweites Mal so wie deins.',
-        item2Title: 'Was ist ein NFT?',
+        item2Title: 'Dein Kunstwerk wird zu einem NFT. Aber was ist ein NFT?',
         item2Desc: 'Ein NFT (Non-Fungible Token) funktioniert wie eine digitale Besitzurkunde. Auf einer modernen, dezentralen Blockchain gesichert, belegt es unwiderruflich, wer das Werk erschaffen hat und wem es gehört.',
         item3Title: 'Für immer gültig & abrufbar',
         item3Desc: 'Weil Blockchain-Einträge nicht gelöscht oder manipuliert werden können, bleibt dein Kunstwerk für immer dezentral erhalten — ohne Abhängigkeit von einzelnen Apps oder Betreibern.',
@@ -105,7 +105,7 @@ export const translations = {
     },
     newsletter: {
       pill: 'art.cube Community',
-      headline: 'Bleib verbunden mit der Zukunft der Kunst.',
+      headline: 'Begleite uns auf dieser besonderen Reise.',
       subline: 'Erfahre als Erste von neuen interaktiven Kunstwerken, physischen Pop-up-Kuben, kommenden Meilensteinen und exklusiven Events.',
       placeholder: 'Deine E-Mail-Adresse',
       btn: 'Anmelden',
@@ -165,7 +165,7 @@ export const translations = {
       menuAria: 'Open navigation',
     },
     hero: {
-      lead: 'Art turns digital. Art comes alive.\nDiscover Sakuraverse, the first-generation art.cube artwork, and experience pixels becoming your canvas.',
+      lead: 'Art turns digital. Art comes alive. art.cube erases all spatial and emotional limits between yourself and the artwork in front of you. Discover Sakuraverse and experience how pixels become your canvas.',
       btnPrimary: 'Experience Artwork Now',
       btnSecondary: 'Discover art.cube',
     },
@@ -231,7 +231,7 @@ export const translations = {
         subtitle: 'Digital Art & Web3 Permanence',
         item1Title: 'Your Personal Unique Piece',
         item1Desc: 'Every 14-second video souvenir is generated live from your unique touches and choices. No artwork is ever replicated.',
-        item2Title: 'What is an NFT?',
+        item2Title: 'You artwork becomes an NFT. But what is an NFT?',
         item2Desc: 'An NFT (Non-Fungible Token) acts as a digital certificate of ownership. Secured on a modern decentralized blockchain, it immutably verifies who created the artwork and who owns it.',
         item3Title: 'Valid & Accessible Forever',
         item3Desc: 'Because blockchain records cannot be altered or erased, your artwork remains preserved forever without relying on central servers or single app providers.',
@@ -254,7 +254,7 @@ export const translations = {
     },
     newsletter: {
       pill: 'art.cube Community',
-      headline: 'Stay Connected with the Future of Art.',
+      headline: 'Join us on this special journey.',
       subline: 'Be the first to hear about new interactive artworks, physical pop-up cubes, upcoming milestones, and exclusive events.',
       placeholder: 'Your email address',
       btn: 'Subscribe',
