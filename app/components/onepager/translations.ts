@@ -48,6 +48,7 @@ export const translations = {
       guestWaitingNotice: '⏳ Du bist beigetreten. Warte darauf, dass der Host das Kunstwerk startet...',
       toastCopied: '🔗 Einladungslink in Zwischenablage kopiert!',
       toastJoined: '✨ Beitritt erfolgreich! Warte auf den Host...',
+      interactionHint: 'Während das Kunstwerk läuft, werden dir Tipps angezeigt, wie du interagieren kannst.',
     },
     story: {
       pill: 'Was ist art.cube?',
@@ -182,6 +183,7 @@ export const translations = {
       guestWaitingNotice: '⏳ You joined. Waiting for the host to launch the artwork...',
       toastCopied: '🔗 Invite link copied to clipboard!',
       toastJoined: '✨ Joined successfully! Waiting for host...',
+      interactionHint: 'While the artwork is running, tips will be displayed to guide your interaction.',
     },
     story: {
       pill: 'What is art.cube?',

@@ -8,7 +8,7 @@ import type { ExperienceComponentProps } from '../../lib/experience-types';
 // CONSTANTS & SHADERS
 // ==========================================
 
-const MAX_PETALS = 600;
+const MAX_PETALS = 300;
 const MAX_TRAIL_PARTICLES = 2000;
 const MAX_TOTAL_NODES = 600;
 const MAX_TOTAL_LINES = 2500;
@@ -1863,7 +1863,7 @@ export function SakuraCanvas({
       petalOriginY[i] = -0.4 + (Math.random() - 0.5) * 10.0;
       petalRadiusX[i] = 4.0 + Math.random() * 8.0;
       petalRadiusY[i] = 3.0 + Math.random() * 6.0;
-      petalSpeed[i] = (0.3 + Math.random() * 0.5) * (i % 2 === 0 ? 1 : -1);
+      petalSpeed[i] = (0.24 + Math.random() * 0.40) * (i % 2 === 0 ? 1 : -1);
       petalAngle[i] = Math.random() * Math.PI * 2.0;
       petalPhaseZ[i] = Math.random() * Math.PI * 2.0;
       petalScales[i] = 0.5 + Math.random() * 0.5;
@@ -1945,7 +1945,7 @@ export function SakuraCanvas({
 
       petalMat.color.set(0xffffff);
 
-      const vortexPetalLimit = isMobile ? 320 : MAX_PETALS;
+      const vortexPetalLimit = isMobile ? 160 : MAX_PETALS;
       for (let i = 0; i < vortexPetalLimit; i++) {
         const colorKey = weightedColorPool[i % weightedColorPool.length];
         const pal = BLOSSOM_PALETTES[colorKey] || BLOSSOM_PALETTES.pink;
@@ -1959,6 +1959,9 @@ export function SakuraCanvas({
       isVortexActive = true;
       vortexTimer = 0.0;
       activePetalCount = vortexPetalLimit;
+      if (instancedPetalMesh && instancedPetalMesh.material) {
+        (instancedPetalMesh.material as THREE.MeshBasicMaterial).opacity = 0.0;
+      }
       instancedPetalMesh.visible = true;
 
       roundState = 'IDLE';
@@ -3486,7 +3489,9 @@ export function SakuraCanvas({
         }
 
         if (instancedPetalMesh && instancedPetalMesh.material) {
-          (instancedPetalMesh.material as THREE.MeshBasicMaterial).opacity = modeFadeAlpha;
+          // Petals fade in smoothly over 1.0 second at the start of the final animation
+          const vortexFadeIn = isVortexActive ? Math.min(1.0, vortexTimer / 1.0) : 1.0;
+          (instancedPetalMesh.material as THREE.MeshBasicMaterial).opacity = modeFadeAlpha * vortexFadeIn;
         }
 
         // 14-Second Dominant Color Petal Vortex Animation (4s alignment + 10s storm)
