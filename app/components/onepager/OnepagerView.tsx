@@ -5,7 +5,6 @@ import { OnepagerHeader } from './OnepagerHeader';
 import { HeroSection } from './HeroSection';
 import { ExperienceStation } from './ExperienceStation';
 import { StorySection } from './StorySection';
-import { RoadmapSection } from './RoadmapSection';
 import { NewsletterSection } from './NewsletterSection';
 import { OnepagerFooter } from './OnepagerFooter';
 import WalletUnavailableModal from '../WalletUnavailableModal';
@@ -160,10 +159,7 @@ export function OnepagerView({
       {/* 4. Story Section: Was ist art.cube? (Story & Vision) - Swapped to follow Experience Station */}
       <StorySection lang={lang} onModalToggle={handleModalToggle} />
 
-      {/* 5. Roadmap Section */}
-      <RoadmapSection lang={lang} />
-
-      {/* 6. Newsletter Section */}
+      {/* 5. Newsletter Section */}
       <NewsletterSection lang={lang} />
 
       {/* 7. Footer */}
